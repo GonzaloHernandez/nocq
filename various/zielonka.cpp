@@ -4,7 +4,7 @@
 Zielonka::Zielonka(Game& g) : g(g) {
 }
 
-//-----------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 std::vector<int> Zielonka::getBestVertices(bool* removed) {
     std::vector<int> bestVertices;
@@ -37,7 +37,7 @@ std::vector<int> Zielonka::getBestVertices(bool* removed) {
     return bestVertices;
 }
 
-//-----------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 void Zielonka::attractor(int player, std::vector<int>&U, bool* removed) {
     std::unique_ptr<int[]> d = std::make_unique<int[]>(g.nvertices);
@@ -75,7 +75,7 @@ void Zielonka::attractor(int player, std::vector<int>&U, bool* removed) {
     }
 }
 
-//-----------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 std::array<std::vector<int>,2> Zielonka::search(bool* removed, int level) {
     std::vector<int> A = getBestVertices(removed);
@@ -105,7 +105,7 @@ std::array<std::vector<int>,2> Zielonka::search(bool* removed, int level) {
     }
 }
 
-//-----------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 std::array<std::vector<int>,2> Zielonka::solve() {
     std::unique_ptr<bool[]> removed = std::make_unique<bool[]>(g.nvertices);

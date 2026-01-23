@@ -6,84 +6,85 @@
 #include "winning_conditions.h"
 #endif
 
+namespace Gecode {
 
-//===========================================================================
+//=============================================================================
 
-class NoOpponentCycleGecode : public Gecode::Propagator {
+class NoOpponentCycle : public Propagator {
 protected:
     Game& g;
-    Gecode::ViewArray<Gecode::Int::BoolView> V;
-    Gecode::ViewArray<Gecode::Int::BoolView> E;
+    ViewArray<Int::BoolView> V;
+    ViewArray<Int::BoolView> E;
     parity_type playerSAT;
     vec<WinningCondition*> conditions;
 public:
-    // --------------------------------------------------------------
-    NoOpponentCycleGecode(Gecode::Space& home, Game& g,
-        Gecode::ViewArray<Gecode::Int::BoolView> vs,
-        Gecode::ViewArray<Gecode::Int::BoolView> es,
-        parity_type playerSAT, vec<WinningCondition*> conditions)
-    : Gecode::Propagator(home), g(g), V(vs), E(es),
+    // ------------------------------------------------------------------------
+    NoOpponentCycle(Space& home, Game& g,
+                    ViewArray<Int::BoolView> vs,
+                    ViewArray<Int::BoolView> es,
+                    parity_type playerSAT, vec<WinningCondition*> conditions)
+    :   Propagator(home), g(g), V(vs), E(es), 
         playerSAT(playerSAT), conditions(conditions)
     {
-        V.subscribe(home, *this, Gecode::Int::PC_BOOL_VAL);
-        E.subscribe(home, *this, Gecode::Int::PC_BOOL_VAL);
+        V.subscribe(home, *this, Int::PC_BOOL_VAL);
+        E.subscribe(home, *this, Int::PC_BOOL_VAL);
     }
-    // --------------------------------------------------------------
-    static Gecode::ExecStatus post(Gecode::Space& home,
+    // ------------------------------------------------------------------------
+    static ExecStatus post(Space& home,
         Game& g,
-        Gecode::ViewArray<Gecode::Int::BoolView> vs,
-        Gecode::ViewArray<Gecode::Int::BoolView> es,
+        ViewArray<Int::BoolView> vs,
+        ViewArray<Int::BoolView> es,
         parity_type playerSAT, vec<WinningCondition*> conditions)
     {
-        (void) new (home) NoOpponentCycleGecode(home, g, vs, es, playerSAT, conditions);
-        return Gecode::ES_OK;
+        new (home) NoOpponentCycle(home, g, vs, es, playerSAT, conditions);
+        return ES_OK;
     }
-    // --------------------------------------------------------------
-    NoOpponentCycleGecode(Gecode::Space& home, NoOpponentCycleGecode& source) 
-    : Gecode::Propagator(home,source), g(source.g),
+    // ------------------------------------------------------------------------
+    NoOpponentCycle(Space& home, NoOpponentCycle& source) 
+    :   Propagator(home,source), g(source.g),
         playerSAT(source.playerSAT), conditions(source.conditions)
     {
         V.update(home, source.V);
         E.update(home, source.E);
     }
-    // --------------------------------------------------------------
-    virtual Gecode::PropCost cost(const Gecode::Space&, const Gecode::ModEventDelta&) const {
-        return Gecode::PropCost::ternary(Gecode::PropCost::HI);
+    // ------------------------------------------------------------------------
+    virtual PropCost cost(const Space&, const ModEventDelta&) const {
+        return PropCost::ternary(PropCost::HI);
     }    
-    // --------------------------------------------------------------
-    virtual Gecode::ExecStatus propagate(Gecode::Space& home, const Gecode::ModEventDelta&) {
+    // ------------------------------------------------------------------------
+    virtual ExecStatus propagate(Space& home, const ModEventDelta&) {
         vec<int> pathV;
         vec<int> pathE;
 
-        if (filterEager(home, pathV,pathE,g.start,-1,true) == Gecode::ES_FAILED)
-            return Gecode::ES_FAILED;
+        if (filterEager(home, pathV,pathE,g.init,-1,true) == ES_FAILED)
+            return ES_FAILED;
 
-        return Gecode::ES_OK;
+        return ES_OK;
     }
-    // --------------------------------------------------------------
-    virtual Gecode::Propagator* copy(Gecode::Space& home) {
-        return new (home) NoOpponentCycleGecode(home, *this);
+    // ------------------------------------------------------------------------
+    virtual Propagator* copy(Space& home) {
+        return new (home) NoOpponentCycle(home, *this);
     }
-    //-----------------------------------------------------
-    virtual void reschedule(Gecode::Space& home) {
-        V.reschedule(home, *this, Gecode::Int::PC_BOOL_VAL);
-        E.reschedule(home, *this, Gecode::Int::PC_BOOL_VAL);
+    //-------------------------------------------------------------------------
+    virtual void reschedule(Space& home) {
+        V.reschedule(home, *this, Int::PC_BOOL_VAL);
+        E.reschedule(home, *this, Int::PC_BOOL_VAL);
     }
-    //-----------------------------------------------------------------------
-    virtual size_t dispose(Gecode::Space& home) {
-        V.cancel(home, *this, Gecode::Int::PC_BOOL_VAL);
-        E.cancel(home, *this, Gecode::Int::PC_BOOL_VAL);
+    //-------------------------------------------------------------------------
+    virtual size_t dispose(Space& home) {
+        V.cancel(home, *this, Int::PC_BOOL_VAL);
+        E.cancel(home, *this, Int::PC_BOOL_VAL);
         (void) Propagator::dispose(home);
         return sizeof(*this);
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     int findVertex(int vertex,vec<int>& path) {
         for (int i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     bool satisfiedConditions(vec<int>& pathV,vec<int>& pathE,int index) {
         if (playerSAT==EVEN) {
             for (int i=0; i<conditions.size(); i++) {
@@ -102,16 +103,17 @@ public:
             return false;
         }
     }
-    //-----------------------------------------------------
-    Gecode::ExecStatus filterEager(Gecode::Space& home, vec<int>& pathV, vec<int>& pathE, int v, 
-        int lastEdge, bool definedEdge) 
+    //-------------------------------------------------------------------------
+    ExecStatus filterEager( Space& home, 
+                            vec<int>& pathV, vec<int>& pathE, int v, 
+                            int lastEdge, bool definedEdge) 
     {
         int index = findVertex(v,pathV);
         if (index >= 0) {
 
             if (not satisfiedConditions(pathV,pathE,index)) {
-                if (Gecode::me_failed(E[lastEdge].zero(home))) {
-                    return Gecode::ES_FAILED;
+                if (me_failed(E[lastEdge].zero(home))) {
+                    return ES_FAILED;
                 }
             }
         }
@@ -122,89 +124,94 @@ public:
 
                 int w = g.targets[e];
                 pathE.push(e);
-                Gecode::ExecStatus status = filterEager(home, pathV, pathE, w, e, E[e].one());
+                ExecStatus status = 
+                    filterEager(home, pathV, pathE, w, e, E[e].one());
                 pathE.pop();
-                if (status == Gecode::ES_FAILED) {
+                if (status == ES_FAILED) {
                     return status;
                 }
             }
             pathV.pop();
         }
-        return Gecode::ES_OK;
+        return ES_OK;
     }
 };
 
-void noopponentcyclegecode(Gecode::Space& home, Game& g, const Gecode::BoolVarArgs& v, const Gecode::BoolVarArgs& e,
-    parity_type playerSAT, vec<WinningCondition*> conditions)
+void noopponentcyclegecode( Space& home, Game& g, 
+                            const BoolVarArgs& v, 
+                            const BoolVarArgs& e,
+                            parity_type playerSAT, 
+                            vec<WinningCondition*> conditions)
 {
-    Gecode::ViewArray<Gecode::Int::BoolView> V(home,v);
-    Gecode::ViewArray<Gecode::Int::BoolView> E(home,e);
-    if (NoOpponentCycleGecode::post(home,g,V,E,playerSAT,conditions) != Gecode::ES_OK) home.fail();
+    ViewArray<Int::BoolView> V(home,v);
+    ViewArray<Int::BoolView> E(home,e);
+    if (NoOpponentCycle::post(home,g,V,E,playerSAT,conditions) != ES_OK)
+        home.fail();
 }
 
-//===========================================================================
+//=============================================================================
 
-class NocModelGecode : public Gecode::Space {
+class NocModel : public Space {
 protected:
     Game& g;
-    Gecode::BoolVarArray V;
-    Gecode::BoolVarArray E;
+    BoolVarArray V;
+    BoolVarArray E;
     std::vector<bool> conditions;
     int threshold;
     parity_type playerSAT;
 public:
-    // --------------------------------------------------------------
-    NocModelGecode(Game& g, std::vector<bool> conditions, int threshold=1, 
+    // ------------------------------------------------------------------------
+    NocModel(Game& g, std::vector<bool> conditions, int threshold=1, 
         parity_type playerSAT=EVEN) 
-    : V(*this, g.nvertices, 0, 1),E(*this, g.nedges, 0, 1),
+    :   V(*this, g.nvertices, 0, 1),E(*this, g.nedges, 0, 1),
         g(g), conditions(conditions), threshold(threshold), playerSAT(playerSAT)
     {
         setupConstraints();
-        Gecode::branch(*this, V, Gecode::BOOL_VAR_NONE(), Gecode::BOOL_VAL_MIN());
-        Gecode::branch(*this, E, Gecode::BOOL_VAR_NONE(), Gecode::BOOL_VAL_MIN());
+        branch(*this, V, BOOL_VAR_NONE(), BOOL_VAL_MIN());
+        branch(*this, E, BOOL_VAR_NONE(), BOOL_VAL_MIN());
     }
 
-    // --------------------------------------------------------------
+    // ------------------------------------------------------------------------
     void setupConstraints() {
-        // Starting vertex
-        Gecode::rel(*this, V[g.start], Gecode::IRT_EQ, 1);
+        // Initial vertex
+        rel(*this, V[g.init], IRT_EQ, 1);
 
-        // --------------------------------------------------------------
-        // For every PLAYER active vertex, exactly one outgoing edge must be activated
+        // --------------------------------------------------------------------
+        // For every PLAYER active vertex, one outgoing edge must be activated
         for (int v=0; v<g.nvertices; v++) if (g.owners[v] == playerSAT) {
             int n = g.outs[v].size();
-            Gecode::BoolVarArgs edgeVars(n);
+            BoolVarArgs edgeVars(n);
             for (int i = 0; i < n; i++) {
                 int e = g.outs[v][i];
                 edgeVars[i] = E[e];
             }
-            Gecode::BoolVar sumIsOne(*this, 0, 1);
-            Gecode::linear(*this, edgeVars, Gecode::IRT_EQ, 1, sumIsOne);
-            Gecode::rel(*this, V[v], Gecode::BOT_IMP, sumIsOne, 1);
+            BoolVar sumIsOne(*this, 0, 1);
+            linear(*this, edgeVars, IRT_EQ, 1, sumIsOne);
+            rel(*this, V[v], BOT_IMP, sumIsOne, 1);
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // For every OPPONENT active vertex, each outgoing edge must be activated
         for (int v=0; v<g.nvertices; v++) if (g.owners[v] == opponent(playerSAT)) {
             int n = g.outs[v].size();
             for (int i = 0; i < n; i++) {
                 int e = g.outs[v][i];
-                Gecode::rel(*this, V[v], Gecode::BOT_IMP, E[e], 1);
+                rel(*this, V[v], BOT_IMP, E[e], 1);
             }
 
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // For every activated edge, the target vertex must be activated
         for (int w = 0; w < g.nvertices; w++) {
-            if (w != g.start) {
+            if (w != g.init) {
                 for (int e : g.ins[w]) {
-                    Gecode::rel(*this, E[e], Gecode::BOT_IMP, V[w], 1);
+                    rel(*this, E[e], BOT_IMP, V[w], 1);
                 }
             }
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
         WinningCondition* cond = nullptr;
 
@@ -229,18 +236,18 @@ public:
         noopponentcyclegecode(*this,g,V,E,playerSAT,conds);
     }
 
-    // --------------------------------------------------------------
-    NocModelGecode(NocModelGecode& source) 
-    : Gecode::Space(source), g(source.g), conditions(source.conditions), 
+    // ------------------------------------------------------------------------
+    NocModel(NocModel& source) 
+    : Space(source), g(source.g), conditions(source.conditions), 
         threshold(source.threshold), playerSAT(source.playerSAT) 
     {
         V.update(*this, source.V);
         E.update(*this, source.E);
     }
 
-    // --------------------------------------------------------------
-    virtual Gecode::Space* copy(void) override {
-        return new NocModelGecode(*this);
+    // ------------------------------------------------------------------------
+    virtual Space* copy(void) override {
+        return new NocModel(*this);
     }
 
     void print() const {
@@ -264,3 +271,5 @@ public:
     }
 
 };
+
+} // namespace Gecode

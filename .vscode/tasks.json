@@ -47,12 +47,14 @@
                 "${workspaceFolder}/build/nocq",
                 "-I${env:HOME}/.local/include",
                 "-L${env:HOME}/.local/lib",
+                "-Wl,-Bstatic",
                 "-lchuffed_fzn",
                 "-lchuffed",
                 "-lgecodesearch",
                 "-lgecodeint",
                 "-lgecodekernel",
-                "-lgecodesupport"
+                "-lgecodesupport",
+                "-Wl,-Bdynamic"
             ],
             "problemMatcher": [
                 "$gcc"

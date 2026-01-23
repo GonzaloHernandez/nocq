@@ -7,7 +7,9 @@
 #include "winning_conditions.h"
 #endif
 
-//===========================================================================
+namespace Chuffed {
+
+//=============================================================================
 
 class NoOpponentCycle : public Propagator {
 private:
@@ -22,7 +24,7 @@ private:
     const int   CF_STAY     = 3;
 
 public:
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     NoOpponentCycle(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
         parity_type playerSAT, vec<WinningCondition*> conditions)
     : g(g), V(V), E(E),
@@ -31,20 +33,20 @@ public:
         for (int i=0; i<g.nvertices;i++) V[i].attach(this, 1 , EVENT_F );
         for (int i=0; i<g.nedges;   i++) E[i].attach(this, 1 , EVENT_F );
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     int findVertex(int vertex,vec<int>& path) {
         for (int i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     void clausify(vec<int>& path, vec<BoolView> &B, vec<Lit>& lits,int from) {
         for (int i=from; i<path.size()-1; i++) {
             lits.push(B[path[i]].getValLit());
         }
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     bool satisfiedConditions(vec<int>& pathV,vec<int>& pathE,int index) {
         if (playerSAT==EVEN) {
             for (int i=0; i<conditions.size(); i++) {
@@ -96,28 +98,28 @@ public:
         }
         return CF_DONE;
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     bool propagate() override {
         vec<int> pathV;
         vec<int> pathE;
 
-        if (filterEager(pathV,pathE,g.start,-1,true) == CF_CONFLICT)
+        if (filterEager(pathV,pathE,g.init,-1,true) == CF_CONFLICT)
             return false;
 
         return true;
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     void wakeup(int i, int) override {
         pushInQueue();
     }
-    //-----------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     void clearPropState() override {
         in_queue = false;
     }
 };
 
 
-//===========================================================================
+//=============================================================================
 
 class NOCModel : public Problem {
 private:
@@ -140,23 +142,23 @@ public:
         setupConstraints();
     }
 
-    //----------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void setupConstraints() {
 
         for (int i=0; i<g.nvertices;  i++) V[i] = newBoolVar();
         for (int i=0; i<g.nedges;     i++) E[i] = newBoolVar();
 
-        // Starting vertex
-        fixVertices({g.start},{});
+        // Initial vertex
+        fixVertices({g.init},{});
 
-        // --------------------------------------------------------------
-        // For every active PLAYER vertex, exactly one outgoing edge must be activated
+        // --------------------------------------------------------------------
+        // For every active PLAYER vertex, one outgoing edge must be activated
         for (int v=0; v<g.nvertices; v++) if (g.owners[v] == playerSAT) {
 
             int n = g.outs[v].size();
 
-            // --- At least one ------------------------------------
+            // --- At least one -----------------------------------------------
             if (n == 0) continue;
 
             {
@@ -165,10 +167,10 @@ public:
                 for (int e : g.outs[v]) {
                     clause.push(E[e].getLit(true));
                 }
-                sat.addClause(clause); // E₀ ∨ E₁ ∨ ... ∨ Eₙ
+                sat.addClause(clause); // E_0 ∨ E_1 ∨ ... ∨ E_n
             }
 
-            // --- At most one -------------------------------------
+            // --- At most one ------------------------------------------------
             if (n == 1) continue;
 
             vec<BoolView> s(n - 1);
@@ -224,9 +226,9 @@ public:
             }
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // For every active OPPONENT vertice, each outgoing edge must be activated
-        for (int v=0; v<g.nvertices; v++) if (g.owners[v] == opponent(playerSAT)) {
+        for (int v=0; v<g.nvertices; v++) if (g.owners[v]==opponent(playerSAT)) {
             for (int e : g.outs[v]) {
                 vec<Lit> clause;
                 clause.push( V[v].getLit(false) );        
@@ -235,9 +237,9 @@ public:
             }
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // For every active edge, the target vertex must be activated
-        for (int w=0; w<g.nvertices; w++) if (w != g.start) {
+        for (int w=0; w<g.nvertices; w++) if (w != g.init) {
             for (int e : g.ins[w]) {
                 vec<Lit> clause;
                 clause.push( E[e].getLit(false) );
@@ -246,7 +248,7 @@ public:
             }
         }
 
-        // --------------------------------------------------------------
+        // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
         WinningCondition* cond = nullptr;
 
@@ -270,7 +272,7 @@ public:
 
         new NoOpponentCycle(g,V,E,playerSAT,conds);
 
-        //------------------------------------------------------------
+        //---------------------------------------------------------------------
 
         vec<Branching*> bv(static_cast<unsigned int>(g.nvertices));
         vec<Branching*> be(static_cast<unsigned int>(g.nedges));
@@ -283,9 +285,11 @@ public:
         output_vars(be);
     }
 
-    //----------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
-    void fixVertices(std::initializer_list<int> vs,std::initializer_list<int> nvs={}) {
+    void fixVertices(   std::initializer_list<int> vs,
+                        std::initializer_list<int> nvs={})
+    {
         for (int v : vs) {
             vec<Lit> clause;
             clause.push(V[v].getLit(true));
@@ -298,9 +302,11 @@ public:
         }
     }
 
-    //----------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
-    void fixEdges(std::initializer_list<int> es,std::initializer_list<int> nes={}) {
+    void fixEdges(  std::initializer_list<int> es,
+                    std::initializer_list<int> nes={}) 
+    {
         for (int e : es) {
             vec<Lit> clause;
             clause.push(E[e].getLit(true));
@@ -313,7 +319,7 @@ public:
         }
     }
 
-    //----------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void print(std::ostream& out) override {
         if (printtype) {
@@ -338,4 +344,4 @@ public:
     }
 };
 
-//----------------------------------------------------------------------
+} // namespace Chuffed

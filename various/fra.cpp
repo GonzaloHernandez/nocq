@@ -8,7 +8,7 @@ struct splay {
     bool parity()   { return best%2; }
 };
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 std::vector<int> operator+(const std::vector<int>& v, int x) {
     std::vector<int> result = v;
@@ -16,18 +16,19 @@ std::vector<int> operator+(const std::vector<int>& v, int x) {
     return result;
 }
 
-std::ostream& operator<<(std::ostream& os, const std::vector<int>& vec) {
-    os << "[";
-    for (size_t i = 0; i < vec.size(); ++i) {
-        os << vec[i];
-        if (i != vec.size() - 1)
-            os << ", ";
+//-----------------------------------------------------------------------------
+
+std::ostream& operator<<(std::ostream& os, const std::vector<int>& obj) {
+    os << "{";
+    for (int i = 0; i < obj.size(); i++) {
+        os << obj[i];
+        if (i<obj.size()-1) os << ",";
     }
-    os << "]";
+    os << "}";
     return os;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 int findVertex(int vertex,const std::vector<int>& path) {
     for (int i=0; i<path.size(); i++) {
@@ -36,7 +37,7 @@ int findVertex(int vertex,const std::vector<int>& path) {
     return -1;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 int findVertexReverse(int vertex,const std::vector<int>& path) {
     for (int i=path.size()-1; i>=0; i--) {
@@ -45,7 +46,7 @@ int findVertexReverse(int vertex,const std::vector<int>& path) {
     return -1;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 bool isBetter(Game& g,int v1,int v2) {
     if ((g.reward==MIN && v1 < v2) || (g.reward==MAX && v1 > v2)) {
@@ -54,19 +55,20 @@ bool isBetter(Game& g,int v1,int v2) {
     return false;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 long long bestcolor(Game& g, int index,const std::vector<int>& path){
     long long m = g.priors[path[index]];
     for (int i=index+1; i<path.size(); i++) {
-        if ((g.reward==MIN && g.priors[path[i]] < m) || (g.reward==MAX && g.priors[path[i]] > m)) {
+        if ((g.reward==MIN && g.priors[path[i]] < m) || 
+            (g.reward==MAX && g.priors[path[i]] > m)) {
             m = g.priors[path[i]];
         }
     }
     return m;
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 signed char getPlayBasic(Game& g, std::vector<int> path, int v) {
     int index = findVertex(v,path);
@@ -88,15 +90,17 @@ signed char getPlayBasic(Game& g, std::vector<int> path, int v) {
     }
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-signed char getPlay(Game& g, int start, bool basic) {
-    return getPlayBasic(g, {}, start);
+signed char getPlay(Game& g, int init, bool basic) {
+    return getPlayBasic(g, {}, init);
 }
 
-//-----------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-bool getAllCycles(Game& g, std::vector<int> path, int v, std::vector<bool>& touched) {
+bool getAllCycles(  Game& g, std::vector<int> path, int v, 
+                    std::vector<bool>& touched) 
+{
     int index = findVertex(v,path);
     if (index >= 0) {
         int best = bestcolor(g,index,path);

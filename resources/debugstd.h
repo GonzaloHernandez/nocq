@@ -17,6 +17,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& obj) {
     return os;
 }
 
+// --------------------------------------------------------------------------------
+
 inline std::string wsvi(std::vector<int>& data) {
     std::stringstream ss;
     ss << data;

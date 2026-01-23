@@ -1,6 +1,8 @@
 #include "satencoder.h"
 
-std::vector<std::vector<int>> SATEncoder::encode_greaterequal(int a, int b, int p) {
+std::vector<std::vector<int>> SATEncoder::encode_greaterequal(int a, 
+    int b, int p) 
+{
     std::vector<std::vector<int>> cnf;
 
     int n = calculate_nbits(p)-1;
@@ -39,9 +41,11 @@ std::vector<std::vector<int>> SATEncoder::encode_greaterequal(int a, int b, int 
     return cnf;
 } 
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-std::vector<std::vector<int>> SATEncoder::encode_strictlygreater(int a, int b, int p) {
+std::vector<std::vector<int>> SATEncoder::encode_strictlygreater(int a, 
+    int b, int p) 
+{
     std::vector<std::vector<int>> cnf;
 
     int n = calculate_nbits(p)-1;
@@ -80,19 +84,20 @@ std::vector<std::vector<int>> SATEncoder::encode_strictlygreater(int a, int b, i
     return cnf;
 }    
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 void SATEncoder::calculate_oddcolors() {
     int sum = 0;
     for (int v = 0; v < g.nvertices; v++) if (g.priors[v]%2 == ODD) {
         if (!std::binary_search(oddcolors.begin(), oddcolors.end(), g.priors[v])) {
-            auto pos = std::lower_bound(oddcolors.begin(), oddcolors.end(), g.priors[v]);
+            auto pos = 
+                std::lower_bound(oddcolors.begin(), oddcolors.end(), g.priors[v]);
             oddcolors.insert(pos, g.priors[v]);
         }
     }
 }
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 int SATEncoder::calculate_nbits(int n) {
     int sum = 0;
@@ -100,7 +105,7 @@ int SATEncoder::calculate_nbits(int n) {
     return std::ceil(std::log2(sum + 1));
 }
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 void SATEncoder::createLiterals() {
     calculate_oddcolors();
@@ -120,18 +125,18 @@ void SATEncoder::createLiterals() {
     for (int e = 0; e < g.nedges; e++) E.push_back(pool.getId());
 }
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 SATEncoder::SATEncoder(Game& g) : g(g) {
     createLiterals();
 }
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
 std::vector<std::vector<int>> SATEncoder::getCNF() {
     std::vector<std::vector<int>> cnf;
 
     // Starting vertex
-    cnf.push_back({V[g.start]});
+    cnf.push_back({V[g.init]});
 
     // For every EVEN vertice, at least one outgoing edge must be activated
     for (int v=0; v<g.nvertices; v++) if (g.owners[v] == EVEN) {
@@ -164,7 +169,7 @@ std::vector<std::vector<int>> SATEncoder::getCNF() {
     }
 
     // For every activated edge, the target vertex must be activated
-    for (int w=0; w<g.nvertices; w++) if (w != g.start) {
+    for (int w=0; w<g.nvertices; w++) if (w != g.init) {
         for (int e=0; e<g.nedges; e++) if (g.targets[e]==w) {
             std::vector<int> clause;
             clause.push_back( -E[e] );
@@ -180,7 +185,8 @@ std::vector<std::vector<int>> SATEncoder::getCNF() {
         std::vector<std::vector<int>> pm_cnf;
 
         for (auto& p : oddcolors) if (p < q) {
-            std::vector<std::vector<int>> ge = encode_greaterequal(g.targets[e], g.sources[e], p);
+            std::vector<std::vector<int>> ge = 
+                encode_greaterequal(g.targets[e], g.sources[e], p);
             pm_cnf.insert(pm_cnf.end(), ge.begin(), ge.end());
         }
 
@@ -198,7 +204,8 @@ std::vector<std::vector<int>> SATEncoder::getCNF() {
                 cnf.push_back(new_clause);
             }
 
-            std::vector<std::vector<int>> ge = encode_strictlygreater(g.targets[e], g.sources[e], q);
+            std::vector<std::vector<int>> ge = 
+                encode_strictlygreater(g.targets[e], g.sources[e], q);
             for (auto& clause : ge) {
                 std::vector<int> new_clause = clause;
                 new_clause.push_back(-E[e]);
@@ -210,9 +217,11 @@ std::vector<std::vector<int>> SATEncoder::getCNF() {
     return cnf;
 }
 
-//----------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-void SATEncoder::dimacs(std::vector<std::vector<int>>& cnf, std::string filename) {
+void SATEncoder::dimacs(std::vector<std::vector<int>>& cnf, 
+                        std::string filename) 
+{
     std::ofstream file(filename);
     if (!file) {
         std::cerr << "Error: Could not open file!" << std::endl;
