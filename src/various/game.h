@@ -1,3 +1,19 @@
+/*
+ * Main authors:
+ *    Gonzalo Hernandez <gonzalo.hernandez@monash>
+ *    <gonzalo.hernandez@udenar.edu.co>
+ *
+ * Contributing authors:
+ *    Guido Tack <guido.tack@monash.edu>
+ *    Julian Gutierrez <J.Gutierrez@sussex.ac.uk>
+ *
+ * This file is part of NOCQ (a tool for parity games).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 #ifndef GAME_H
 #define GAME_H
 

@@ -7,9 +7,9 @@ fi
 
 user_args=("$@")
 
-./noc --noc-even "${user_args[@]}" & PID1=$!
+./nocq --noc-even "${user_args[@]}" & PID1=$!
 
-./noc --noc-odd "${user_args[@]}" & PID2=$!
+./nocq --noc-odd "${user_args[@]}" & PID2=$!
 
 wait -n
 

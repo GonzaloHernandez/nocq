@@ -1,14 +1,11 @@
-#include "../various/fra.h"
-#include "../various/game.h"
-#include "../various/tarjan.h"
-#include "../various/zielonka.h"
-#include "../various/satencoder.h"
-
-#include "../cp_nocq/nocq_chuffed.cpp"
-#include "../cp_nocq/nocq_gecode.cpp"
-
-// #include "../resources/debugchuffed.h"
-#include "../resources/debugstd.h"
+#include "various/fra.h"
+#include "various/game.h"
+#include "various/tarjan.h"
+#include "various/zielonka.h"
+#include "various/satencoder.h"
+#include "cp_nocq/nocq_chuffed.cpp"
+#include "cp_nocq/nocq_gecode.cpp"
+#include "resources/debugstd.h"
 
 //-----------------------------------------------------------------------------
 
@@ -243,8 +240,6 @@ bool parseMyOptions(int argc, char *argv[]) {
 
 int main(int argc, char *argv[])
 {
-    // launchdebugstd();
-    // launchdebugchuffed();
     parseMyOptions(argc, argv);
     Game* game = nullptr;
 
