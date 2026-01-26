@@ -7,13 +7,15 @@
  *    Guido Tack <guido.tack@monash.edu>
  *    Julian Gutierrez <J.Gutierrez@sussex.ac.uk>
  *
- * This file is part of NOCQ (a tool for parity games).
+ * This file is part of NOCQ (a CP Toolchain for parity games with quantitative
+ * conditions).
  *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
+ * one at https://mozilla.org/MPL/2.0/.
+ * 
+ *-----------------------------------------------------------------------------
  */
-
 #ifndef GAME_H
 #define GAME_H
 
@@ -38,6 +40,7 @@ enum parity_comp    {BET,EQU,BEQ};
 parity_type opponent(parity_type PARITY);
 
 //=============================================================================
+
 class Game {
 public:
     friend class SATEncoder;
@@ -60,11 +63,11 @@ public:
     //-------------------------------------------------------------------------
 
     void fixZeros();
-    void parseline_dzn  (const std::string& line,std::vector<int>& myvec);
-    void parseline_dzn  (const std::string& line,std::vector<long long>& myvec);
-    void parseline_gm   (const std::string& line,std::vector<long long>& vinfo, 
-                        std::vector<int>& outs, std::vector<long long>& weights,
-                        std::string& comment);
+    void parseline_dzn (const std::string& line,std::vector<int>& myvec);
+    void parseline_dzn (const std::string& line,std::vector<long long>& myvec);
+    void parseline_gm  (const std::string& line,std::vector<long long>& vinfo, 
+                       std::vector<int>& outs, std::vector<long long>& weights,
+                       std::string& comment);
 
     //-------------------------------------------------------------------------
 
@@ -100,10 +103,10 @@ public:
 
     //-------------------------------------------------------------------------
 
-    std::vector<int> getVertices();     // Only return a set of active vertices
-    std::vector<int> getEdges();        // Only return a set of active edges
-    std::vector<int> getOuts(int v);    // Only return a set of active outs of v
-    std::vector<int> getIns(int w);     // Only return a set of active ins of w
+    std::vector<int> getVertices();     // Return a set of active vertices
+    std::vector<int> getEdges();        // Return a set of active edges
+    std::vector<int> getOuts(int v);    // Return a set of active outs of v
+    std::vector<int> getIns(int w);     // Return a set of active ins of w
     std::string viewCurrent();
 
     void activeAll();

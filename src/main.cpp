@@ -1,11 +1,28 @@
-#include "various/fra.h"
-#include "various/game.h"
-#include "various/tarjan.h"
-#include "various/zielonka.h"
-#include "various/satencoder.h"
+/*
+ * Main authors:
+ *    Gonzalo Hernandez <gonzalo.hernandez@monash>
+ *    <gonzalo.hernandez@udenar.edu.co>
+ *
+ * Contributing authors:
+ *    Guido Tack <guido.tack@monash.edu>
+ *    Julian Gutierrez <J.Gutierrez@sussex.ac.uk>
+ *
+ * This file is part of NOCQ (a CP Toolchain for parity games with quantitative
+ * conditions).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
+ * one at https://mozilla.org/MPL/2.0/.
+ * 
+ *-----------------------------------------------------------------------------
+ */
+#include "utils/fra.h"
+#include "utils/game.h"
+#include "utils/tarjan.h"
+#include "utils/zielonka.h"
+#include "utils/satencoder.h"
 #include "cp_nocq/nocq_chuffed.cpp"
 #include "cp_nocq/nocq_gecode.cpp"
-#include "resources/debugstd.h"
 
 //-----------------------------------------------------------------------------
 
@@ -31,8 +48,8 @@ struct options {
 
     std::vector<bool>   win_conditions  = {false,false,false};  // 0=parity 
                                                                 // 1=energy 
-                                                                // 2=mean-payoff
-    int                 threshold       = 1;                    // threshold
+                                                                // 2=meanPayoff
+    int                 threshold       = 0;                    // threshold
 
 } options;
 
@@ -43,7 +60,7 @@ bool parseMyOptions(int argc, char *argv[]) {
     //-------------------------------------------------------------------------
     auto validateArg = [&](const char* flagName) -> char* {
         i++; // Move to the next argument
-        if (i >= argc || (strlen(argv[i]) > 1 && strncmp(argv[i], "--", 2) == 0)) {
+        if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
             std::cerr << "ERROR: Value for [" << flagName << "] is missing\n";
             exit(0);
         }
@@ -61,7 +78,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             exit(1);
         }
         if (*endptr != '\0') {
-            std::cerr << "ERROR: Value [" << str << "] is not a valid number\n";
+            std::cerr<< "ERROR: Value [" << str << "] is not a valid number\n";
             exit(1);
         }
         return (int)val;
@@ -119,12 +136,10 @@ bool parseMyOptions(int argc, char *argv[]) {
             while (std::getline(ss, item, ',')) {
                 size_t init = item.find_first_not_of(" \t");
                 size_t end = item.find_last_not_of(" \t");
-
                 if (init == std::string::npos || end == std::string::npos) {
                     std::cerr << "ERROR: Invalid values for [--init]\n";
                     return false;
                 }
-
                 options.init.push_back(std::stoi(item));
             }
         }
@@ -157,75 +172,94 @@ bool parseMyOptions(int argc, char *argv[]) {
             options.threshold = parseInteger(argv[i], -1000000, 1000000);
         }
 
-        else if (strcmp(argv[i],"--max")==0)                { options.reward = MAX; }
-        else if (strcmp(argv[i],"--min")==0)                { options.reward = MIN; }
-
-        else if (strcmp(argv[i],"--testing")==0)            { options.solver = "testing"; }
-        else if (strcmp(argv[i],"--noc")==0)                { options.solver = "noc-even"; }
-        else if (strcmp(argv[i],"--noc-even")==0)           { options.solver = "noc-even"; }
-        else if (strcmp(argv[i],"--noc-odd")==0)            { options.solver = "noc-odd"; }
-        else if (strcmp(argv[i],"--zra")==0)                { options.solver = "zra"; }
-        else if (strcmp(argv[i],"--fra")==0)                { options.solver = "fra"; }
-        else if (strcmp(argv[i],"--scc")==0)                { options.solver = "scc"; }
-        else if (strcmp(argv[i],"--chuffed")==0)            { options.cpengine = "chuffed"; }
-        else if (strcmp(argv[i],"--gecode")==0)             { options.cpengine = "gecode"; }
-
-        else if (strcmp(argv[i],"--print-only-times")==0)   { options.print_time        = -2; }
-        else if (strcmp(argv[i],"--print-only-time")==0)    { options.print_time        = -1; }
-        else if (strcmp(argv[i],"--print-time")==0)         { options.print_time        = 1; }
-        else if (strcmp(argv[i],"--print-times")==0)        { options.print_time        = 2; }
-        else if (strcmp(argv[i],"--print-game")==0)         { options.print_game        = true; }
-        else if (strcmp(argv[i],"--print-solution")==0)     { options.print_solution    = true; }
-        else if (strcmp(argv[i],"--print-statistics")==0)   { options.print_statistics  = true; }
-        else if (strcmp(argv[i],"--verbose")==0)            { options.print_verbose     = true; }
-
-        else if (strcmp(argv[i],"--flip")==0)               { options.flip  = true;}
-
-        else if (strcmp(argv[i],"--parity")==0)             { options.win_conditions[0] = true; }
-        else if (strcmp(argv[i],"--energy")==0)             { options.win_conditions[1] = true; }
-        else if (strcmp(argv[i],"--mean-payoff")==0)        { options.win_conditions[2] = true; }
+        else if (strcmp(argv[i],"--max")==0)
+                                { options.reward            = MAX; }
+        else if (strcmp(argv[i],"--min")==0)
+                                { options.reward            = MIN; }
+        else if (strcmp(argv[i],"--testing")==0)
+                                { options.solver            = "testing"; }
+        else if (strcmp(argv[i],"--noc")==0)
+                                { options.solver            = "noc-even"; }
+        else if (strcmp(argv[i],"--noc-even")==0)
+                                { options.solver            = "noc-even"; }
+        else if (strcmp(argv[i],"--noc-odd")==0)
+                                { options.solver            = "noc-odd"; }
+        else if (strcmp(argv[i],"--zra")==0)
+                                { options.solver            = "zra"; }
+        else if (strcmp(argv[i],"--fra")==0)
+                                { options.solver            = "fra"; }
+        else if (strcmp(argv[i],"--scc")==0)
+                                { options.solver            = "scc"; }
+        else if (strcmp(argv[i],"--chuffed")==0)
+                                { options.cpengine          = "chuffed"; }
+        else if (strcmp(argv[i],"--gecode")==0)
+                                { options.cpengine          = "gecode"; }
+        else if (strcmp(argv[i],"--print-only-times")==0)
+                                { options.print_time        = -2; }
+        else if (strcmp(argv[i],"--print-only-time")==0)
+                                { options.print_time        = -1; }
+        else if (strcmp(argv[i],"--print-time")==0)
+                                { options.print_time        = 1; }
+        else if (strcmp(argv[i],"--print-times")==0)
+                                { options.print_time        = 2; }
+        else if (strcmp(argv[i],"--print-game")==0)
+                                { options.print_game        = true; }
+        else if (strcmp(argv[i],"--print-solution")==0)
+                                { options.print_solution    = true; }
+        else if (strcmp(argv[i],"--print-statistics")==0)
+                                { options.print_statistics  = true; }
+        else if (strcmp(argv[i],"--verbose")==0)
+                                { options.print_verbose     = true; }
+        else if (strcmp(argv[i],"--flip")==0)
+                                { options.flip              = true;}
+        else if (strcmp(argv[i],"--parity")==0)
+                                { options.win_conditions[0] = true; }
+        else if (strcmp(argv[i],"--energy")==0)
+                                { options.win_conditions[1] = true; }
+        else if (strcmp(argv[i],"--mean-payoff")==0)
+                                { options.win_conditions[2] = true; }
 
         else if (strcmp(argv[i],"--help")==0) {
-            std::cout << "Usage: " << argv[0] << " [options]\n";
-            std::cout << "Options:\n";
-            std::cout << "  --dzn <filename>           : DZN file name\n";
-            std::cout << "  --gm <filename>            : GM file name\n";
-            std::cout << "  --jurd <levels> <blocks>   : Jurdzinski game\n";
-            std::cout << "  --rand <ns> <ps> <d1> <d2> : Random game\n";
-            std::cout << "  --mladder <bl>             : ModelcheckerLadder game\n";
-            std::cout << "  --weights <w1> <w2>        : Weights range\n";
-            std::cout << "  --weights-force <w1> <w2>  : Force to use weights range\n";
-            std::cout << "  --init <vertex>            : Initial vertex\n";
-            std::cout << "  --print-only-time          : Print only solving time\n";
-            std::cout << "  --print-only-times         : Print only preptime + solving time\n";
-            std::cout << "  --print-time               : Print solving time\n";
-            std::cout << "  --print-times              : Print all times\n";
-            std::cout << "  --print-game               : Print game\n";
-            std::cout << "  --print-solution           : Print solution (All vertices)\n";
-            std::cout << "  --print-statistics         : Print statistics after solving\n";
-            std::cout << "  --verbose                  : Print everything\n";
-            std::cout << "  --max                      : Seek to maximize the priority\n";
-            std::cout << "  --min                      : Seek to minimize the priority\n";
-            std::cout << "  --export-dzn <filename>    : Export game to DZN format (not solve)\n";
-            std::cout << "  --export-gm <filename>     : Export game to GM format (not solve)\n"; 
-            std::cout << "  --export-gmw <filename>    : Export game to GM+Weights format (not solve)\n"; 
-            std::cout << "  --export-dimacs <filename> : Export game to DIMACS format (not solve)\n"; 
-            std::cout << "  --noc-even                 : CP-NOC satisfying player EVEN (No-Odd-Cycles)\n";
-            std::cout << "  --noc-odd                  : CP-NOC satisfying player ODD (No-Even-Cycles)\n";
-            std::cout << "  --chuffed                  : CP Solver (Chuffed)\n";
-            std::cout << "  --gecode                   : CP Solver (Gecode)\n";
-            std::cout << "  --fra                      : Solve using FRA\n";
-            std::cout << "  --sat-encoding             : Encode on DIMACS\n";
-            std::cout << "  --sat-zchaff               : Solve using zChaff\n";
-            std::cout << "  --sat-cadical              : Solve using Cadical\n";
-            std::cout << "  --checker-scc              : Checker by CP-NOC\n";
-            std::cout << "  --checker-dfs-recursive    : Checker by DFS Recursive\n";
-            std::cout << "  --checker-dfs-iterative    : Checker by DFS Iterative\n";
-            std::cout << "  --flip                     : Convert the game into its complement\n";
-            std::cout << "  --threshold <value>        : Threshold for flip-compare (default=1)\n";
-            std::cout << "  --parity                   : Parity condition (default)\n";
-            std::cout << "  --energy                   : Energy condition\n";
-            std::cout << "  --mean-payoff              : Mean-Payoff condition\n";
+            std::cout << "Usage: " << argv[0] << " [options]\n"
+            << "Options:\n"
+            << "  --dzn <filename>           : DZN file name\n"
+            << "  --gm <filename>            : GM file name\n"
+            << "  --jurd <levels> <blocks>   : Jurdzinski game\n"
+            << "  --rand <ns> <ps> <d1> <d2> : Random game\n"
+            << "  --mladder <bl>             : ModelcheckerLadder game\n"
+            << "  --weights <w1> <w2>        : Weights range\n"
+            << "  --weights-force <w1> <w2>  : Force to use weights range\n"
+            << "  --init <vertex>            : Initial vertex\n"
+            << "  --print-only-time          : Print only solving time\n"
+            << "  --print-only-times         : Print preptime+solving time\n"
+            << "  --print-time               : Print solving time\n"
+            << "  --print-times              : Print all times\n"
+            << "  --print-game               : Print game\n"
+            << "  --print-solution           : Print solution (All vertices)\n"
+            << "  --print-statistics         : Print statistics after solving\n"
+            << "  --verbose                  : Print everything\n"
+            << "  --max                      : Seek to maximize the priority\n"
+            << "  --min                      : Seek to minimize the priority\n"
+            << "  --export-dzn <filename>    : Export game to DZN format\n"
+            << "  --export-gm <filename>     : Export game to GM format\n"
+            << "  --export-gmw <filename>    : Export game to GM + Weights\n"
+            << "  --export-dimacs <filename> : Export game to DIMACS format\n"
+            << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
+            << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
+            << "  --chuffed                  : CP Solver (Chuffed)\n"
+            << "  --gecode                   : CP Solver (Gecode)\n"
+            << "  --fra                      : Solve using FRA\n"
+            << "  --sat-encoding             : Encode on DIMACS\n"
+            << "  --sat-zchaff               : Solve using zChaff\n"
+            << "  --sat-cadical              : Solve using Cadical\n"
+            << "  --checker-scc              : Checker by CP-NOC\n"
+            << "  --checker-dfs-recursive    : Checker by DFS Recursive\n"
+            << "  --checker-dfs-iterative    : Checker by DFS Iterative\n"
+            << "  --flip                     : Complement the game\n"
+            << "  --threshold <value>        : Threshold for MeanPayoff\n"
+            << "  --parity                   : Parity condition (default)\n"
+            << "  --energy                   : Energy condition\n"
+            << "  --mean-payoff              : Mean-Payoff condition\n";
             exit(0);
         }
         else {
@@ -333,12 +367,12 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // CP-NOC-Chuffed
 
-    else if (options.solver.substr(0,3) == "noc" && options.cpengine=="chuffed") {
+    else if (options.solver.substr(0,3)=="noc"&&options.cpengine=="chuffed") {
         startClock(); //.............................................
         Chuffed::NOCModel* model = new Chuffed::NOCModel(
-                                *game, options.win_conditions, options.threshold, 
-                                (options.print_solution || options.print_verbose),
-                                options.solver=="noc-even"?EVEN:ODD);
+                            *game, options.win_conditions, options.threshold, 
+                            (options.print_solution || options.print_verbose),
+                            options.solver=="noc-even"?EVEN:ODD);
 
         so.print_sol = options.print_solution || options.print_verbose;
         double preptime = stopClock(); //............................
@@ -397,11 +431,11 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // CP-NOC-Gecode
 
-    else if (options.solver.substr(0,3) == "noc" && options.cpengine=="gecode") {
+    else if (options.solver.substr(0,3)=="noc"&&options.cpengine=="gecode") {
         startClock(); //.............................................
         Gecode::NocModel* model = new Gecode::NocModel(
-                                *game, options.win_conditions, options.threshold, 
-                                options.solver=="noc-even"?EVEN:ODD);
+                            *game, options.win_conditions, options.threshold, 
+                            options.solver=="noc-even"?EVEN:ODD);
 
         double preptime = stopClock(); //............................
 
@@ -470,8 +504,17 @@ int main(int argc, char *argv[])
         double totaltime = stopClock(); //...........................
 
         if (options.print_solution || options.print_verbose) {
-            std::cout << "EVEN " << win[0] << std::endl;
-            std::cout << "ODD  " << win[1] << std::endl;
+            std::cout << "EVEN {";
+            for (int i = 0; i < win[0].size(); i++) {
+                std::cout << win[0][i];
+                if (i<win[0].size()-1) std::cout << ",";
+            }
+            std::cout << "}\nODD  {";
+            for (int i = 0; i < win[1].size(); i++) {
+                std::cout << win[1][i];
+                if (i<win[1].size()-1) std::cout << ",";
+            }
+            std::cout << "}" <<std::endl;
         }
 
         for(auto& v0 : options.init) {
@@ -522,7 +565,12 @@ int main(int argc, char *argv[])
         auto sccs = tscc.solve();
         int counter = 0;
         for (auto& scc : sccs) {
-            std::cout << scc << std::endl;
+            std::cout << "{";
+            for (int i = 0; i < scc.size(); i++) {
+                std::cout << scc[i];
+                if (i<scc.size()-1) std::cout << ",";
+            }
+            std::cout << "}" << std::endl;
             counter += 1;
         }
         std::cout << "Total SCCs: " << counter << std::endl;

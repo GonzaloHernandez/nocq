@@ -1,3 +1,21 @@
+/*
+ * Main authors:
+ *    Gonzalo Hernandez <gonzalo.hernandez@monash>
+ *    <gonzalo.hernandez@udenar.edu.co>
+ *
+ * Contributing authors:
+ *    Guido Tack <guido.tack@monash.edu>
+ *    Julian Gutierrez <J.Gutierrez@sussex.ac.uk>
+ *
+ * This file is part of NOCQ (a CP Toolchain for parity games with quantitative
+ * conditions).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
+ * one at https://mozilla.org/MPL/2.0/.
+ * 
+ *-----------------------------------------------------------------------------
+ */
 #include <iostream>
 #include <vector>
 #include <fstream>
@@ -108,7 +126,7 @@ void Game::parseline_gm(const std::string& line,
 
     size_t current = 0;
     
-    // --- 1. Extract Vertex ID, Priority, Owner (Space-separated) ---
+    // --- Extract Vertex ID, Priority, Owner (Space-separated) ---
     for (int i = 0; i < 3; ++i) {
         current = skip_whitespace(line, current);
         if (current >= line.size()) return;
@@ -136,15 +154,15 @@ void Game::parseline_gm(const std::string& line,
         current = end_of_block;
     };
 
-    // --- 2. Extract Target Edges (First CSV block) ---
+    // --- Extract Target Edges (First CSV block) ---
     std::vector<long long> temp_targets;
     parse_csv_block(temp_targets);
     for(auto t : temp_targets) outs_targets.push_back(static_cast<int>(t));
 
-    // --- 3. Extract Weights (Second CSV block) ---
+    // --- Extract Weights (Second CSV block) ---
     parse_csv_block(weights);
 
-    // --- 4. Extract Optional Comment ---
+    // --- Extract Optional Comment ---
     current = skip_whitespace(line, current);
     if (current < line.size() && line[current] == '"') {
         current++;

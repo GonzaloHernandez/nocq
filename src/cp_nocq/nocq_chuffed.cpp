@@ -1,3 +1,21 @@
+/*
+ * Main authors:
+ *    Gonzalo Hernandez <gonzalo.hernandez@monash>
+ *    <gonzalo.hernandez@udenar.edu.co>
+ *
+ * Contributing authors:
+ *    Guido Tack <guido.tack@monash.edu>
+ *    Julian Gutierrez <J.Gutierrez@sussex.ac.uk>
+ *
+ * This file is part of NOCQ (a CP Toolchain for parity games with quantitative
+ * conditions).
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public License,
+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
+ * one at https://mozilla.org/MPL/2.0/.
+ * 
+ *-----------------------------------------------------------------------------
+ */
 #include "iostream"
 #include "chuffed/vars/modelling.h"
 #include "chuffed/core/propagator.h"
@@ -27,8 +45,7 @@ public:
     //-------------------------------------------------------------------------
     NoOpponentCycle(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
         parity_type playerSAT, vec<WinningCondition*> conditions)
-    : g(g), V(V), E(E),
-        playerSAT(playerSAT), conditions(conditions)
+    : g(g), V(V), E(E), playerSAT(playerSAT), conditions(conditions)
     {
         for (int i=0; i<g.nvertices;i++) V[i].attach(this, 1 , EVENT_F );
         for (int i=0; i<g.nedges;   i++) E[i].attach(this, 1 , EVENT_F );
@@ -65,6 +82,7 @@ public:
             return false;
         }
     }
+    //-------------------------------------------------------------------------
     int filterEager(vec<int>& pathV, vec<int>& pathE, int v, 
         int lastEdge, bool definedEdge) 
     {
@@ -167,7 +185,7 @@ public:
                 for (int e : g.outs[v]) {
                     clause.push(E[e].getLit(true));
                 }
-                sat.addClause(clause); // E_0 ∨ E_1 ∨ ... ∨ E_n
+                sat.addClause(clause); // E_0 \/ E_1 \/ ... \/ E_n
             }
 
             // --- At most one ------------------------------------------------
@@ -179,7 +197,7 @@ public:
             // First literal
             {
                 int e = g.outs[v][0];
-                // -E_0 ∨ s_0
+                // -E_0 \/ s_0
                 vec<Lit> clause;
                 clause.push(E[e].getLit(false));
                 clause.push(s[0].getLit(true));
@@ -190,7 +208,7 @@ public:
             for (int i = 1; i < n - 1; i++) {
                 int e = g.outs[v][i];
 
-                // -s_{i-1} ∨ s_i
+                // -s_{i-1} \/ s_i
                 {
                     vec<Lit> clause;
                     clause.push(s[i - 1].getLit(false));
@@ -198,7 +216,7 @@ public:
                     sat.addClause(clause);
                 }
 
-                // -E_i ∨ ¬s_{i-1}
+                // -E_i \/ -s_{i-1}
                 {
                     vec<Lit> clause;
                     clause.push(E[e].getLit(false));
@@ -206,7 +224,7 @@ public:
                     sat.addClause(clause);
                 }
 
-                // -E_i ∨ s_i
+                // -E_i \/ s_i
                 {
                     vec<Lit> clause;
                     clause.push(E[e].getLit(false));
@@ -218,7 +236,7 @@ public:
             // Last literal
             {
                 int e_last = g.outs[v][n - 1];
-                // -E_{n-1} ∨ -s_{n-2}
+                // -E_{n-1} \/ -s_{n-2}
                 vec<Lit> clause;
                 clause.push(E[e_last].getLit(false));
                 clause.push(s[n - 2].getLit(false));
