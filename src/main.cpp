@@ -41,8 +41,8 @@ struct options {
     std::string         game_filename   = "";
     std::string         export_filename = "";
     int                 export_type     = 0;            // 0=not DZN,GM,GMW,DIM
-    std::string         solver          = "";           // NOC-EVEN,NOC-ODD,ZRA
-                                                        // FRA,SCC
+    std::string         solver          = "";           // NOC-EVEN,NOC-ODD,SAT
+                                                        // ZRA,FRA,SCC
     std::string         cpengine        = "chuffed";    // chuffed,gecode
     bool                flip            = false;        // 0=no 1=flip
 
@@ -158,10 +158,11 @@ bool parseMyOptions(int argc, char *argv[]) {
             options.export_type = GMW;
             options.export_filename = argv[i];                
         }
-        else if (strcmp(argv[i],"--export-dimacs")==0) {
-            validateArg("--export-dimacs <filename>");
+        else if (strcmp(argv[i],"--sat-encoding")==0) {
+            validateArg("--sat-encoding <filename>");
+            options.solver = "SAT";
             options.export_type = DIM;
-            options.export_filename = argv[i];        
+            options.export_filename = argv[i];
         }
         else if (strcmp(argv[i],"--nsolutions")==0) {
             validateArg("--nsolutions <number>");
@@ -243,18 +244,12 @@ bool parseMyOptions(int argc, char *argv[]) {
             << "  --export-dzn <filename>    : Export game to DZN format\n"
             << "  --export-gm <filename>     : Export game to GM format\n"
             << "  --export-gmw <filename>    : Export game to GM + Weights\n"
-            << "  --export-dimacs <filename> : Export game to DIMACS format\n"
             << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
             << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
             << "  --chuffed                  : CP Solver (Chuffed)\n"
             << "  --gecode                   : CP Solver (Gecode)\n"
+            << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
             << "  --fra                      : Solve using FRA\n"
-            << "  --sat-encoding             : Encode on DIMACS\n"
-            << "  --sat-zchaff               : Solve using zChaff\n"
-            << "  --sat-cadical              : Solve using Cadical\n"
-            << "  --checker-scc              : Checker by CP-NOC\n"
-            << "  --checker-dfs-recursive    : Checker by DFS Recursive\n"
-            << "  --checker-dfs-iterative    : Checker by DFS Iterative\n"
             << "  --flip                     : Complement the game\n"
             << "  --threshold <value>        : Threshold for MeanPayoff\n"
             << "  --parity                   : Parity condition (default)\n"
@@ -332,22 +327,6 @@ int main(int argc, char *argv[])
     }
     else if (options.export_type == GMW) {
         game->exportFile(GMW, options.export_filename);
-    }
-    else if (options.export_type == DIM) {
-        SATEncoder encoder(*game);
-
-        startClock(); //.............................................
-        auto cnf = encoder.getCNF();
-        double encodetime = stopClock(); //..........................
-
-        startClock(); //.............................................
-        encoder.dimacs(cnf,options.export_filename);
-        double dimacstime = stopClock(); //..........................
-
-        if (options.print_time>1 || options.print_verbose) {
-            std::cout << "Encoding time      : " << encodetime << std::endl;
-            std::cout << "Dimacs time        : " << dimacstime << std::endl;
-        } 
     }
 
     // Ensure at least one winning condition is selected, default --parity
@@ -484,6 +463,26 @@ int main(int argc, char *argv[])
         }
         
         if (solution) delete solution;
+    }
+
+    //-------------------------------------------------------------------------
+    // SAT Encoding
+
+    else if (options.solver == "SAT") {
+        SATEncoder encoder(*game);
+
+        startClock(); //.............................................
+        auto cnf = encoder.getCNF();
+        double encodetime = stopClock(); //..........................
+
+        startClock(); //.............................................
+        encoder.dimacs(cnf,options.export_filename);
+        double dimacstime = stopClock(); //..........................
+
+        if (options.print_time>=0 || options.print_verbose) {
+            std::cout << "Encoding time      : " << encodetime << std::endl;
+            std::cout << "Dimacs time        : " << dimacstime << std::endl;
+        } 
     }
 
     //-------------------------------------------------------------------------
