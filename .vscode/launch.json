@@ -1,33 +1,6 @@
 {
     "version": "0.2.0",
     "configurations": [
-        // --------------------------------------------------------------
-        {
-            "name": "C++ Debug Standard",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/${fileBasenameNoExtension}",
-            "args": [   
-                // "--gm", "${env:HOME}/gm/randomgame(5000,_10,_1,_20)id=0.gm",
-                // "--dzn", "${workspaceFolder}/data/game-other.dzn",
-                // "-jurd","2","1",
-                // "--rand","5","4","2","5",
-                // "--starts","'16,30,48'",
-                // "--print","2"
-            ],
-            "cwd": "${workspaceFolder}",
-            "stopAtEntry": false,
-            "externalConsole": false,
-            "MIMode": "gdb",  // lldb for osx / gdb for linux
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]            
-        },
-        // --------------------------------------------------------------
         {
             "name": "C++ Debug experments 4",
             "type": "cppdbg",
@@ -41,11 +14,8 @@
                 // "--jurd","2","1","--max",
                 // "--rand","20","10","1","2",
                 // "--gm","build/temp.gm",
-                // "--dimacs","jurd.cnf",
                 // "--ladder","2",
-                // "--start","0",
-                // "--proof",
-                // "--proof-eager",
+                // "--init","0",
                 // "--min",
                 // "--export-gm","/home/chalo/dbg.gm",
                 // "--verbose"
@@ -53,7 +23,6 @@
                 // "--print-times",
                 // "--print-statistics",
                 // "--print-game",
-                // "--matrix-based",
                 "--noc-even",
                 // "--scc",
                 // "--zra",

@@ -22,8 +22,10 @@
 #include "utils/zielonka.h"
 #include "utils/satencoder.h"
 #include "cp_nocq/nocq_chuffed.cpp"
-#include "cp_nocq/nocq_gecode.cpp"
 
+#ifdef HAS_GECODE
+#include "cp_nocq/nocq_gecode.cpp"
+#endif
 //-----------------------------------------------------------------------------
 
 struct options {
@@ -411,6 +413,9 @@ int main(int argc, char *argv[])
     // CP-NOC-Gecode
 
     else if (options.solver.substr(0,3)=="noc"&&options.cpengine=="gecode") {
+
+    #ifdef HAS_GECODE
+
         startClock(); //.............................................
         Gecode::NocModel* model = new Gecode::NocModel(
                             *game, options.win_conditions, options.threshold, 
@@ -463,6 +468,13 @@ int main(int argc, char *argv[])
         }
         
         if (solution) delete solution;
+
+    #else
+        std::cout << "Error: Gecode support is disabled.\n" 
+                  << "Please rebuild NOCQ using the --enable-gecode flag.\n";
+
+    #endif //HAS_GECODE
+
     }
 
     //-------------------------------------------------------------------------
