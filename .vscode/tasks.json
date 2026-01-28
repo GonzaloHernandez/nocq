@@ -2,7 +2,7 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: build experiment 4",
+            "label": "C/C++: build experiments",
             "command": "/usr/bin/g++",
             "args": [
                 "-std=c++17",

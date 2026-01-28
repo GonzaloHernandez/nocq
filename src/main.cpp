@@ -223,7 +223,7 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.win_conditions[2] = true; }
 
         else if (strcmp(argv[i],"--help")==0) {
-            std::cout << "Usage: " << argv[0] << " [options]\n"
+            std::cout << "Usage: " << argv[0] << " [options] <args>\n"
             << "Options:\n"
             << "  --dzn <filename>           : DZN file name\n"
             << "  --gm <filename>            : GM file name\n"
