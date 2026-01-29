@@ -67,7 +67,7 @@ public:
     bool satisfiedConditions(vec<int>& pathV,vec<int>& pathE,int index) {
         if (playerSAT==EVEN) {
             for (int i=0; i<conditions.size(); i++) {
-                if (not conditions[i]->satisfy(pathV,pathE,index)) {
+                if (!conditions[i]->satisfy(pathV,pathE,index)) {
                     return false;
                 }
             }
@@ -89,7 +89,7 @@ public:
         int index = findVertex(v,pathV);
         if (index >= 0) {
 
-            if (not satisfiedConditions(pathV,pathE,index)) {
+            if (!satisfiedConditions(pathV,pathE,index)) {
                 vec<Lit> lits;
                 lits.push();
                 clausify(pathE,E,lits,0);

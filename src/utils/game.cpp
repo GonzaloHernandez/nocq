@@ -257,7 +257,7 @@ Game::Game( int type, std::string filename,  std::vector<int> rweights,
 
         bool hasZero = 
             (std::find(sources.begin(), sources.end(), 0) != sources.end());
-        if (not hasZero) fixZeros();
+        if (!hasZero) fixZeros();
         outs.resize(nvertices);
         ins .resize(nvertices);
         for(int i=0; i<nedges; i++) {

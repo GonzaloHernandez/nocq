@@ -26,6 +26,22 @@ set(SOURCES
 
 add_executable(nocq ${SOURCES})
 
+option(ENABLE_GECODE "Enable Gecode solver support" OFF)
+
+if(ENABLE_GECODE)
+target_compile_definitions(nocq PRIVATE HAS_GECODE)
+    target_include_directories(nocq PRIVATE /usr/include)
+    target_link_libraries(nocq PRIVATE 
+        gecodekernel 
+        gecodesearch 
+        gecodeint 
+        gecodesupport
+    )
+    message(STATUS "Build: Gecode support ENABLED")
+else()
+    message(STATUS "Build: Gecode support DISABLED")
+endif()
+
 target_include_directories(nocq PRIVATE 
     src/
     thirdparty/chuffed

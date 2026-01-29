@@ -8,13 +8,12 @@
             "program": "${workspaceFolder}/build/nocq",
             "args": [   
                 // "--gm", "${env:HOME}/gm/recursiveladder-1000.gm",
-                // "--gm", "~/Cloud/games/mlsolver/FLCTLLimitClosuren\\=7.gm",
-                // "--dzn", "${workspaceFolder}/data/jurd-2-1.dzn",
-                "--gm", "${env:HOME}/gm/randomgame-1000-10-1-20-0.gm",
+                // "--dzn", "${workspaceFolder}/examples/jurd-2-1.dzn",
+                // "--gm", "${env:HOME}/gm/randomgame-1000-10-1-20-0.gm",
                 // "--jurd","2","1","--max",
                 // "--rand","20","10","1","2",
                 // "--gm","build/temp.gm",
-                // "--ladder","2",
+                // "--mladder","2",
                 // "--init","0",
                 // "--min",
                 // "--export-gm","/home/chalo/dbg.gm",
@@ -26,10 +25,7 @@
                 "--noc-even",
                 // "--scc",
                 // "--zra",
-                // "--zchaff"
                 // "--help"
-                // "--checker-dfs-iterative",
-                // "--filter-eager"
                 "--parity",
                 // "--energy",
                 // "--threshold","3",

@@ -1,6 +1,6 @@
 {
     "tasks": [
-        {
+        {   // Task for linux os compilers
             "type": "cppbuild",
             "label": "C/C++: build experiments",
             "command": "/usr/bin/g++",

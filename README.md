@@ -25,12 +25,24 @@ To build NOCQ, you need a Linux environment (tested on Arch Linux) with:
 
 ## Installation & Building
 
-NOCQ uses a CMake Superbuild system that automatically handles the compilation of the Chuffed solver.
+**NOCQ** utilizes a CMake Superbuild system to automatically fetch and compile the Chuffed solver alongside the tool.
+
+### Linux & macOS
 
 ```bash
 mkdir build && cd build
 cmake ..
 make -j$(nproc)
+```
+
+### Windows
+For Windows environments, we provide a pre-compiled standalone binary in the **/resources** folder.
+
+### Docker (Recommended for Reproducibility)
+To ensure all dependencies are correctly configured without modifying your host system, we provide a Dockerfile.  From the root directory of the project, run:
+
+```bash
+docker build -t nocq-docker .
 ```
 
 ## Usage
@@ -56,13 +68,13 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 ### Solving Engines & Conditions
 
 **Solvers:**
-* `--chuffed`: Use the Chuffed CP solver (default).
-* `--gecode`: Use the Gecode CP solver (if enabled).
 * `--noc-even` / `--noc-odd`: Solve for a specific player (EVEN or ODD) using the NOC approach.
 * `--fra`: Solve using the Fordward Recursive Algorithm.
 * `--zra`: Solve using Zielonka's Recursive Algorithm.
 * `--sat-encoding <filename>`: Encode the game into DIMACS format and save it to a file.
 * `--scc`: Decompose the game graph into Strongly Connected Components (SCCs) to optimize solving.
+* `--chuffed`: Use the Chuffed CP solver (default).
+* `--gecode`: Use the Gecode CP solver (if enabled).
 
 **Conditions:**
 * `--parity`: Parity condition (default).
@@ -84,6 +96,11 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 
 ### Transformation & Export
 
+**Parity condition reward**
+* `--max`: (Default). Winner is determined by the parity of the highest priority occurring infinitely often.
+* `--min`: Winner is determined by the parity of the lowest priority occurring infinitely often.
+* `--flip`: Priority Inversion. Maps each priority $p$ to $p+1$, effectively swapping the winning regions for Player 0 and Player 1.
+
 **Weights:**
 * `--weights <w1> <w2>`: Define the range for edge weights from $w_1$ to $w_2$.
 * `--weights-force <w1> <w2>`: Force the use of the specified weight range $w_1$ to $w_2$.
@@ -100,3 +117,13 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 ```
 
 This execution generates a random game consisting of $n=20$ vertices with a maximum priority of $p=10$ and an out-degree for each vertex ranging between 1 and 3. It assigns random edge weights within the interval $[-10, 10]$ and utilizes the NOC (No-Opponent-Cycle) propagator to solve the game under both Parity and Mean-Payoff conditions simultaneously. The solver specifically computes the winning regions and strategies starting from the designated initial vertex 10.
+
+## Parallel Solving
+
+To exploit the problem duality of parity games, we provide a utility script that initiates parallel solving processes. The script runs the problem from the perspectives of both players simultaneously, terminating as soon as the first process finds a winning region.
+
+From your build directory, you can run the parallel script on a generated random game:  
+
+```bash
+sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --print-times
+```

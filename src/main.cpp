@@ -471,7 +471,8 @@ int main(int argc, char *argv[])
 
     #else
         std::cout << "Error: Gecode support is disabled.\n" 
-                  << "Please rebuild NOCQ using the --enable-gecode flag.\n";
+                  << "Please rebuild NOCQ using -DENABLE_GECODE=ON\n";
+                  
 
     #endif //HAS_GECODE
 
