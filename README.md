@@ -2,17 +2,15 @@
 
 NOCQ is a high-performance C++ tool designed for solving parity games with quantitative conditions. It combines classic graph-based algorithms with modern constraint programming techniques by integrating the **Chuffed** solver.
 
-This tool is submitted as part of the **CAV 2026** tool paper track.
-
 ## Project Structure
 
 * `src/main.cpp`:   Main entry point and CLI logic.
 * `src/cp_nocq/`:   CP Models and Propagators
 * `src/utils/`:     Core implementations:
 * `thirdparty/`:    External dependencies (includes a local copy of the Chuffed solver).
-* `resources/`:     Script for solve in parallel by fliping the game:
-* `examples/`:      DZN and GMW files as example. 
-                    Include AUD files to edit arenas 
+* `resources/`:     Script for solving in parallel by flipping the game:
+* `examples/`:      DZN and GMW files as examples. 
+                    Includes AUD files to edit arenas 
                     [github.com/gonzalohernandez/graphing](https://github.com/GonzaloHernandez/graphing):
 
 ## Prerequisites
@@ -36,7 +34,7 @@ make -j$(nproc)
 ```
 
 ### Windows
-For Windows environments, we provide a pre-compiled standalone binary in the **/resources** folder.
+For Windows environments, you can build from source using CMake and Visual Studio. Alternatively, for a quicker setup, a pre-compiled standalone binary is available in the [resources](./resources) folder.
 
 ### Docker (Recommended for Reproducibility)
 To ensure all dependencies are correctly configured without modifying your host system, we provide a Dockerfile.  From the root directory of the project, run:
@@ -96,7 +94,7 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 
 ### Transformation & Export
 
-**Parity condition reward**
+**Parity condition reward:**
 * `--max`: (Default). Winner is determined by the parity of the highest priority occurring infinitely often.
 * `--min`: Winner is determined by the parity of the lowest priority occurring infinitely often.
 * `--flip`: Priority Inversion. Maps each priority $p$ to $p+1$, effectively swapping the winning regions for Player 0 and Player 1.
@@ -125,5 +123,5 @@ To exploit the problem duality of parity games, we provide a utility script that
 From your build directory, you can run the parallel script on a generated random game:  
 
 ```bash
-sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --print-times
+sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --noc --print-times
 ```
