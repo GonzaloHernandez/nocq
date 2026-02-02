@@ -125,3 +125,11 @@ From your build directory, you can run the parallel script on a generated random
 ```bash
 sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --noc --print-times
 ```
+
+## Tool Demonstration (NOCQ integration with external Graphing)
+
+Integration with [Graphing](https://github.com/GonzaloHernandez/graphing) for visualization:
+
+[![NOCQ Demo](resources/NOCQ_Graphing.png)](https://www.youtube.com/watch?v=7A_czF_oWW8)
+
+*Click the image above to watch the demonstration.*
