@@ -37,9 +37,9 @@ private:
     parity_type playerSAT;
     vec<WinningCondition*> conditions;
 
-    const int   CF_DONE     = 1;
+    const int   CF_STAY     = 1;
     const int   CF_CONFLICT = 2;
-    const int   CF_STAY     = 3;
+    const int   CF_DONE     = 3;
 
 public:
     //-------------------------------------------------------------------------
@@ -83,7 +83,7 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    int filterEager(vec<int>& pathV, vec<int>& pathE, int v, 
+    int filter(vec<int>& pathV, vec<int>& pathE, int v, 
         int lastEdge, bool definedEdge) 
     {
         int index = findVertex(v,pathV);
@@ -106,7 +106,7 @@ public:
 
                 int w = g.targets[e];
                 pathE.push(e);
-                int status = filterEager(pathV, pathE, w, e, E[e].isTrue());
+                int status = filter(pathV, pathE, w, e, E[e].isTrue());
                 pathE.pop();
                 if (status == CF_CONFLICT) {
                     return status;
@@ -114,14 +114,14 @@ public:
             }
             pathV.pop();
         }
-        return CF_DONE;
+        return CF_STAY;
     }
     //-------------------------------------------------------------------------
     bool propagate() override {
         vec<int> pathV;
         vec<int> pathE;
 
-        if (filterEager(pathV,pathE,g.init,-1,true) == CF_CONFLICT)
+        if (filter(pathV,pathE,g.init,-1,true) == CF_CONFLICT)
             return false;
 
         return true;

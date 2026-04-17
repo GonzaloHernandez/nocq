@@ -74,7 +74,7 @@ public:
         vec<int> pathV;
         vec<int> pathE;
 
-        if (filterEager(home, pathV,pathE,g.init,-1,true) == ES_FAILED)
+        if (filter(home, pathV,pathE,g.init,-1,true) == ES_FAILED)
             return ES_FAILED;
 
         return ES_OK;
@@ -122,7 +122,7 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    ExecStatus filterEager( Space& home, 
+    ExecStatus filter( Space& home, 
                             vec<int>& pathV, vec<int>& pathE, int v, 
                             int lastEdge, bool definedEdge) 
     {
@@ -143,7 +143,7 @@ public:
                 int w = g.targets[e];
                 pathE.push(e);
                 ExecStatus status = 
-                    filterEager(home, pathV, pathE, w, e, E[e].one());
+                    filter(home, pathV, pathE, w, e, E[e].one());
                 pathE.pop();
                 if (status == ES_FAILED) {
                     return status;

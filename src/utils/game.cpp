@@ -194,7 +194,8 @@ Game::Game( std::vector<int> owners,std::vector<long long> priors,
         std::cerr   << "Warning: Initial vertex set to " << init << "." 
                     << std::endl;
     }
-
+    this->init = init;
+    
     outs.resize(nvertices);
     ins .resize(nvertices);
 
@@ -358,6 +359,7 @@ Game::Game( int type, std::string filename,  std::vector<int> rweights,
         std::cerr   << "Warning: Initial vertex set to " << init << "." 
                     << std::endl;
     }
+    this->init = init;
 }
 
 //-----------------------------------------------------------------------------
@@ -557,7 +559,7 @@ Game::Game( int type, std::vector<int> vals, std::vector<int> rweights,
         std::cerr   << "Warning: Initial vertex set to " << init << "." 
                     << std::endl;
     }
-
+    this->init = init;
 }
 
 //-----------------------------------------------------------------------------
@@ -572,7 +574,6 @@ void Game::setInit(int init) {
         std::cerr   << "Warning: Initial vertex set to " << init << "." 
                     << std::endl;
     }
-
     this->init = init;
 }
 

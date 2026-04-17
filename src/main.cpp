@@ -16,12 +16,14 @@
  * 
  *-----------------------------------------------------------------------------
  */
+#include "utils/dbg.h"
 #include "utils/fra.h"
 #include "utils/game.h"
 #include "utils/tarjan.h"
 #include "utils/zielonka.h"
 #include "utils/satencoder.h"
 #include "cp_nocq/nocq_chuffed.cpp"
+#include "cp_nocq/nocq_chuffed_int.cpp"
 
 #ifdef HAS_GECODE
 #include "cp_nocq/nocq_gecode.cpp"
@@ -45,7 +47,8 @@ struct options {
     int                 export_type     = 0;            // 0=not DZN,GM,GMW,DIM
     std::string         solver          = "";           // NOC-EVEN,NOC-ODD,SAT
                                                         // ZRA,FRA,SCC
-    std::string         cpengine        = "chuffed";    // chuffed,gecode
+    std::string         cpengine        = "chuffed";    // chuffed,gecode,
+                                                        // chuffed-int
     bool                flip            = false;        // 0=no 1=flip
 
     std::vector<bool>   win_conditions  = {false,false,false};  // 0=parity 
@@ -197,6 +200,8 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.cpengine          = "chuffed"; }
         else if (strcmp(argv[i],"--gecode")==0)
                                 { options.cpengine          = "gecode"; }
+        else if (strcmp(argv[i],"--chuffed-int")==0)
+                                { options.cpengine          = "chuffed-int"; }
         else if (strcmp(argv[i],"--print-only-times")==0)
                                 { options.print_time        = -2; }
         else if (strcmp(argv[i],"--print-only-time")==0)
@@ -248,7 +253,8 @@ bool parseMyOptions(int argc, char *argv[]) {
             << "  --export-gmw <filename>    : Export game to GM + Weights\n"
             << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
             << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
-            << "  --chuffed                  : CP Solver (Chuffed)\n"
+            << "  --chuffed                  : CP Solver (Chuffed using BoolVars)\n"
+            << "  --chuffed-int              : CP Solver (Chuffed using IntVars)\n"
             << "  --gecode                   : CP Solver (Gecode)\n"
             << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
             << "  --fra                      : Solve using FRA\n"
@@ -271,6 +277,7 @@ bool parseMyOptions(int argc, char *argv[]) {
 
 int main(int argc, char *argv[])
 {
+    launchdbg();
     parseMyOptions(argc, argv);
     Game* game = nullptr;
 
@@ -409,6 +416,72 @@ int main(int argc, char *argv[])
         delete model;
     }
 
+    //-------------------------------------------------------------------------
+    // CP-NOC-Chuffed-Int
+
+    else if (   options.solver.substr(0,3)=="noc" &&
+                options.cpengine=="chuffed-int") 
+    {
+        startClock(); //.............................................
+        ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
+                            *game, options.win_conditions, options.threshold, 
+                            (options.print_solution || options.print_verbose),
+                            options.solver=="noc-even"?EVEN:ODD);
+
+        so.print_sol = options.print_solution || options.print_verbose;
+        double preptime = stopClock(); //............................
+
+        if (options.print_time>1) {
+            std::cout << "Init time          : " << preptime << std::endl;
+        }
+
+        startClock(); //.............................................
+        if (options.print_solution || options.print_verbose) {
+            engine.solve(model);
+        }
+        else {
+            std::streambuf* old_buf = std::cout.rdbuf();
+            std::ofstream null_stream("/dev/null");
+            std::cout.rdbuf(null_stream.rdbuf());
+            engine.solve(model);
+            std::cout.rdbuf(old_buf);
+        }
+        double totaltime = stopClock(); //...........................
+
+        if (options.print_time>1 || options.print_verbose) {
+            std::cout << "Solving time       : " << totaltime << std::endl;
+            std::cout << "Mem used           : " << memUsed() << std::endl;
+        }
+
+        if (options.solver=="noc-even") {
+            if (options.print_time>=0 || options.print_verbose)
+                std::cout   << game->init << ": " 
+                            << (engine.solutions>0?"EVEN ":"ODD ");
+        }
+        else {
+            if (options.print_time>=0 || options.print_verbose)
+                std::cout   << game->init << ": " 
+                            << (engine.solutions>0?"ODD ":"EVEN ");
+        }
+
+        if (options.print_time<=-2 || options.print_verbose) {
+            std::cout   << preptime << "\t";
+        }
+
+        if (options.print_time!=0 || options.print_verbose) {
+            std::cout   << totaltime;
+        }        
+
+
+        std::cout << std::endl;
+
+        if (options.print_statistics || options.print_verbose) {
+            engine.printStats();
+        }
+        
+        delete model;
+    }
+    
     //-------------------------------------------------------------------------
     // CP-NOC-Gecode
 

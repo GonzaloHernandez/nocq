@@ -1,17 +1,48 @@
 {
     "tasks": [
+        // -------------------------------------------------------------------
+        {
+            "type": "shell",
+            "label": "Precompile UTILS (All)",
+            "command": "mkdir -p build && g++ -std=c++17 -g -c src/utils/satencoder.cpp src/utils/zielonka.cpp src/utils/tarjan.cpp src/utils/game.cpp src/utils/fra.cpp -I${env:HOME}/.local/include && mv *.o build/",
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        // -------------------------------------------------------------------
+        {
+            "type": "shell",
+            "label": "Precompile UTILS (game.cpp)",
+            "command": "mkdir -p build && g++ -std=c++17 -g -c src/utils/game.cpp -I${env:HOME}/.local/include && mv *.o build/",
+            "group": "build",
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        // -------------------------------------------------------------------- 
         {   // Task for linux os compilers
             "type": "cppbuild",
-            "label": "C/C++: build experiments",
+            "label": "Compile MAIN (nocq)",
             "command": "/usr/bin/g++",
             "args": [
                 "-std=c++17",
                 "-fdiagnostics-color=always",
-                "${workspaceFolder}/src/utils/satencoder.cpp",
-                "${workspaceFolder}/src/utils/zielonka.cpp",
-                "${workspaceFolder}/src/utils/tarjan.cpp",
-                "${workspaceFolder}/src/utils/game.cpp",
-                "${workspaceFolder}/src/utils/fra.cpp",
+                "-g",
+                
+                // -- using precompiled util's files
+                "${workspaceFolder}/build/satencoder.o",
+                "${workspaceFolder}/build/zielonka.o",
+                "${workspaceFolder}/build/tarjan.o",
+                "${workspaceFolder}/build/game.o",
+                "${workspaceFolder}/build/fra.o",
+
+                // "${workspaceFolder}/src/utils/satencoder.cpp",
+                // "${workspaceFolder}/src/utils/zielonka.cpp",
+                // "${workspaceFolder}/src/utils/tarjan.cpp",
+                // "${workspaceFolder}/src/utils/game.cpp",
+                // "${workspaceFolder}/src/utils/fra.cpp",
+
                 "${workspaceFolder}/src/main.cpp",
                 "-o",
                 "${workspaceFolder}/build/nocq",
@@ -20,10 +51,12 @@
                 "-Wl,-Bstatic",
                 "-lchuffed_fzn",
                 "-lchuffed",
-                "-lgecodesearch",
-                "-lgecodeint",
-                "-lgecodekernel",
-                "-lgecodesupport",
+                "${env:HOME}/.local/lib/libchuffed_fzn.a",
+                "${env:HOME}/.local/lib/libchuffed.a",
+                // "-lgecodesearch",
+                // "-lgecodeint",
+                // "-lgecodekernel",
+                // "-lgecodesupport",
                 "-Wl,-Bdynamic"
             ],
             "problemMatcher": [
