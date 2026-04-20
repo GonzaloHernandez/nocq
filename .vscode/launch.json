@@ -15,7 +15,7 @@
                 // "--rand","20","10","1","2",
                 // "--gm","build/temp.gm",
                 // "--mladder","2",
-                "--init","7",
+                "--init","2",
                 // "--min",
                 // "--export-gm","/home/chalo/dbg.gm",
                 // "--verbose"
