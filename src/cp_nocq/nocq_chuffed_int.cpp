@@ -165,23 +165,16 @@ public:
         // Creating variables and fixing domains for playerSAT's vertices
         for (int v=0; v<g.nvertices; v++) {
             if (g.owners[v]==playerSAT) {
-                createVar(V[v],-1,g.nvertices-1);
                 // (V_v in {v.outs})
-                vec<Lit> clause;
+                vec<int> values;
+                values.push(-1);
                 for (int i=0; i<g.outs[v].size(); i++) {
                     int e = g.outs[v][i];
                     int w = g.targets[e];
-                    BoolView sel = newBoolVar();
-                    int_rel_reif(V[v], IRT_EQ, w, sel);
-                    clause.push(sel.getLit(true));
+                    values.push(w);
                 }
-                BoolView sel = newBoolVar();
-                int_rel_reif(V[v], IRT_EQ, -1, sel);
-                clause.push(sel.getLit(true));
-
-                clause.push(sel.getLit(true));
-                sat.addClause(clause);
-                
+                V[v] = newIntVar(-1,values.last());
+                new (V[v]) IntVarSL(*V[v], values);
             } else { // opponent' vertices
                 createVar(V[v],-1,0);
             }
