@@ -170,7 +170,7 @@ size_t find_token_end(const std::string& line, size_t init, char delimiter) {
     return non_space_end;
 }
 
-void Game::parseline_gm(const std::string&  line, 
+bool Game::parseline_gm(const std::string&  line, 
                         int32_t             vId,
                         int64_t             vPriority,
                         int8_t              vOwner,
@@ -185,19 +185,19 @@ void Game::parseline_gm(const std::string&  line,
     size_t current = 0;
     
     current = skip_whitespace(line, current);
-    if (current >= line.size()) return;
+    if (current >= line.size()) return false;
     size_t next = find_token_end(line, current, ' ');
     vId = std::stoi(line.substr(current, next - current));
     current = next;
 
     current = skip_whitespace(line, current);
-    if (current >= line.size()) return;
+    if (current >= line.size()) return false;
     size_t next = find_token_end(line, current, ' ');
     vPriority = std::stoll(line.substr(current, next - current));
     current = next;
 
     current = skip_whitespace(line, current);
-    if (current >= line.size()) return;
+    if (current >= line.size()) return false;
     size_t next = find_token_end(line, current, ' ');
     vOwner = std::stoi(line.substr(current, next - current));
     current = next;
@@ -245,6 +245,7 @@ void Game::parseline_gm(const std::string&  line,
     // --- Extract Weights (Second CSV block) ---
     current = skip_whitespace(line, current);
     parse_csv_block(outsWeights);
+    return true;
 }
 
 //---------------------------------------------------------------------------
@@ -280,48 +281,6 @@ Game::Game( vec<int8_t>&    owners,
     for(int i=0; i<nedges; i++) {
         outs[sources[i]].push(i);
         ins [targets[i]].push(i);
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-Game::Game( std::vector<int8_t>     owners,
-            std::vector<int64_t>    priors,
-            std::vector<int32_t>    sources,
-            std::vector<int32_t>    targets,
-            std::vector<float>      weights,
-            int32_t                 init, 
-            objective_type          obj)
-:   owners(owners), priors(priors), sources(sources), targets(targets), 
-    weights(weights), init(init), objective(obj) 
-{
-    nvertices   = owners.size();
-    nedges      = sources.size();
-
-    if (init < 0) {
-        init = 0;
-        std::cerr << "Warning: Initial vertex set to 0." << std::endl;
-    }
-    else if (init >= nvertices) {
-        init = nvertices - 1;
-        std::cerr   << "Warning: Initial vertex set to " << init << "." 
-                    << std::endl;
-    }
-    this->init = init;
-    
-    outs.resize(nvertices);
-    ins .resize(nvertices);
-
-    for(int32_t i=0; i<nvertices; i++) {
-        this->owners[i]=owners[i];
-        this->priors[i]=priors[i];
-    }
-    for(int32_t i=0; i<nedges; i++) {
-        this->sources[i]=sources[i];
-        this->targets[i]=targets[i];
-        this->weights[i]=weights[i];
-        outs[sources[i]].push_back(i);
-        ins [targets[i]].push_back(i);
     }
 }
 
@@ -373,9 +332,9 @@ Game::Game( game_type       type,
         }
         file.close();
 
-        bool hasZero = 
-            (std::find(sources.begin(), sources.end(), 0) != sources.end());
-        if (!hasZero) fixZeros();
+        for (int e=0; e<nedges; e++) {
+            if (sources[e]==0) { fixZeros(); break; }
+        }
         outs.growTo(nvertices);
         ins .growTo(nvertices);
         for(int32_t i=0; i<nedges; i++) {
@@ -385,9 +344,9 @@ Game::Game( game_type       type,
     }
     else if (type == GM) {
         int lastvertex = 0;
-        std::vector<int32_t> verts;
-        std::vector<std::vector<int32_t>> tedges;
-        std::vector<std::vector<int64_t>> tweights;
+        vec<int32_t>        verts;
+        vec<vec<int32_t>>   tedges;
+        vec<vec<int64_t>>   tweights;
         int counter = 0;
 
         std::random_device rd;
@@ -398,70 +357,66 @@ Game::Game( game_type       type,
             if (line.empty()) continue;
             if (line.find("parity") != std::string::npos) {
                 lastvertex = stoi(line.substr(line.find(" ")));
-                verts.resize(lastvertex + 1);
+                verts.growTo(lastvertex + 1);
             } else if (line.find("init") != std::string::npos) {
                 init = stoi(line.substr(line.find(" ")));
             } else {
-                std::vector<int64_t>    vinfo;
-                std::vector<int32_t>    vouts;
-                std::vector<float>      vweights;
-                std::string             vcomment;
+                int32_t         vId;
+                int64_t         vPriority;
+                int8_t          vOwner;
+                vec<int32_t>    vOuts;
+                std::string     vComment;
+                vec<float>      outsWeights;
                 
-                parseline_gm(line, vinfo, vouts, vweights, comment);
-                
-                if ((weights.size() < outs.size())) {
+                bool ok = parseline_gm( line, vId, vPriority, vOwner,
+                                        vOuts, vComment, outsWeights );
+
+                if (!ok) continue;
+
+                if ((outsWeights.size() < vOuts.size())) {
                     size_t missing;
-                    if (rweights[2] == 1) {
-                        weights.clear();
-                        missing = outs.size() - weights.size();
-                    } else {
-                        missing = outs.size() - weights.size();
-                    }
+                    missing = vOuts.size() - outsWeights.size();
                     
-                    if (rweights[0] == rweights[1]) {
-                        weights.insert( weights.end(), missing, 
-                                        (long long)rweights[0]);
-                    } else {
-                        weights.reserve(outs.size());
-                        for (size_t i = 0; i < missing; ++i) {
-                            weights.push_back(rndweight(g));
+                    for (size_t i = 0; i < missing; ++i) {
+                        if (lbound == ubound) {
+                            outsWeights.push(lbound);
+                        } else {
+                            outsWeights.push(rndweight(g));
                         }
                     }
                 }
-                else if (weights.size() > outs.size()) {
-                    weights.resize(outs.size());
+                else if (outsWeights.size() > outs.size()) {
+                    outsWeights.resize(outs.size());
                 }
 
-                if (vinfo.empty()) continue;
+                owners.push(vOwner);
+                priors.push(vPriority);
 
-                verts[vinfo[0]] = counter;
-                tedges.push_back(outs);
-                tweights.push_back(weights);
+                verts[vId] = counter;
+                for(size_t i=0; i<vOuts.size(); i++) {
+                    tedges.push(vOuts[i]);
+                    tweights.push(outsWeights[i]);
+                }
                 
-                owners.push_back(vinfo[2]);
-                priors.push_back(vinfo[1]);
                 counter++;
             }
         }
         file.close();
 
         nvertices = counter;
-        outs.resize(nvertices);
-        ins.resize(nvertices);
-        weights.clear();
+        outs.growTo(nvertices);
+        ins.growTo(nvertices);
 
         nedges = 0;
-        for(int s = 0; s < nvertices; s++) {
-            for(int t = 0; t < tedges[s].size(); t++) {
-                int internal_target = verts[tedges[s][t]];
+        for(int v = 0; v < nvertices; v++) {
+            for(int t = 0; t < tedges[v].size(); t++) {
+                int w = verts[tedges[v][t]];
                 
-                sources.push_back(s); 
-                targets.push_back(internal_target);
-                
-                weights.push_back(tweights[s][t]);
-                
-                outs[s].push_back(nedges);
-                ins[internal_target].push_back(nedges);
+                sources.push(v);
+                targets.push(w);
+                weights.push(tweights[v][t]);                
+                outs[v].push(nedges);
+                ins[w].push(nedges);
                 nedges++;
             }
         }

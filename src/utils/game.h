@@ -30,6 +30,10 @@
 #include <chrono> 
 #include <climits>
 
+#ifndef vec_h
+#include "chuffed/support/vec.h"
+#endif
+
 enum parity_type    {EVEN,ODD};                             // 0,1
 enum objective_type {MIN,MAX};                              // 0,1
 enum game_type      {DEF,JURD,RAND,MLADDER,DZN,GM,GMW,DIM}; // 0,1,2,3,4,5,6
@@ -63,11 +67,18 @@ public:
     //-------------------------------------------------------------------------
 
     void fixZeros();
-    void parseline_dzn (const std::string& line,vec<int>& myvec);
-    void parseline_dzn (const std::string& line,vec<long long>& myvec);
-    void parseline_gm  (const std::string& line,vec<long long>& vinfo, 
-                       vec<int>& outs, vec<long long>& weights,
-                       std::string& comment);
+    void parseline_dzn (const std::string& line,vec<int8_t >& myvec);
+    void parseline_dzn (const std::string& line,vec<int32_t>& myvec);
+    void parseline_dzn (const std::string& line,vec<int64_t>& myvec);
+    void parseline_dzn (const std::string& line,vec<float  >& myvec);
+
+    bool parseline_gm  (const std::string& line,
+                        int32_t         vId,
+                        int64_t         vPriority,
+                        int8_t          vOwner,
+                        vec<int32_t>&   vOuts,
+                        std::string&    vComment,
+                        vec<float>&     outsWeights);
 
     //-------------------------------------------------------------------------
 
@@ -80,14 +91,6 @@ public:
             vec<float>&     weights,
             int32_t         init = 0, 
             objective_type  obj = MAX);
-
-    Game(   std::vector<int8_t>     owners,
-            std::vector<int64_t>    priors,
-            std::vector<int32_t>    sources,
-            std::vector<int32_t>    targets,
-            std::vector<float>      weights = {},
-            int32_t                 init = 0, 
-            objective_type          obj = MAX);
 
     Game(   game_type       type, 
             std::string     filename,
