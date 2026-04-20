@@ -45,40 +45,97 @@ void Game::fixZeros() {
 
 //-----------------------------------------------------------------------------
 
-void Game::parseline_dzn(const std::string& line,std::vector<int>& myvec) {
-    std::regex pattern(R"(\[(.*?)\])");
-    std::smatch match;
-
-    if (regex_search(line, match, pattern)) {
-        std::string values = match[1];
+void Game::parseline_dzn(const std::string& line, vec<int8_t>& myvec) {
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    
+    if (start != std::string::npos && end != std::string::npos && end > start) {
+        std::string values = line.substr(start + 1, end - start - 1);
         std::stringstream ss(values);
         std::string value;
 
-        while (getline(ss, value, ',')) {
-            myvec.push_back(stoi(value));
+        while (std::getline(ss, value, ',')) {
+            try {
+                if (!value.empty()) {
+                    myvec.push(std::stoi(value));
+                }
+            } catch (...) {
+                // Skip values that aren't numbers (like extra spaces)
+            }
         }
     }
 }
 
-//--------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 
-void Game::parseline_dzn(const std::string& line,std::vector<long long>& myvec) {
-    std::regex pattern(R"(\[(.*?)\])");
-    std::smatch match;
-
-    if (regex_search(line, match, pattern)) {
-        std::string values = match[1];
+void Game::parseline_dzn(const std::string& line, vec<int32_t>& myvec) {
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    
+    if (start != std::string::npos && end != std::string::npos && end > start) {
+        std::string values = line.substr(start + 1, end - start - 1);
         std::stringstream ss(values);
         std::string value;
 
-        while (getline(ss, value, ',')) {
-            myvec.push_back(stoll(value));
+        while (std::getline(ss, value, ',')) {
+            try {
+                if (!value.empty()) {
+                    myvec.push(std::stoi(value));
+                }
+            } catch (...) {
+                // Skip values that aren't numbers (like extra spaces)
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+
+void Game::parseline_dzn(const std::string& line, vec<int64_t>& myvec) {
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    
+    if (start != std::string::npos && end != std::string::npos && end > start) {
+        std::string values = line.substr(start + 1, end - start - 1);
+        std::stringstream ss(values);
+        std::string value;
+
+        while (std::getline(ss, value, ',')) {
+            try {
+                if (!value.empty()) {
+                    myvec.push(std::stoll(value));
+                }
+            } catch (...) {
+                // Skip values that aren't numbers (like extra spaces)
+            }
         }
     }
 }
 
 //---------------------------------------------------------------------------
 
+void Game::parseline_dzn(const std::string& line, vec<float>& myvec) {
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    
+    if (start != std::string::npos && end != std::string::npos && end > start) {
+        std::string values = line.substr(start + 1, end - start - 1);
+        std::stringstream ss(values);
+        std::string value;
+
+        while (std::getline(ss, value, ',')) {
+            try {
+                if (!value.empty()) {
+                    myvec.push(std::stof(value));
+                }
+            } catch (...) {
+                // Skip values that aren't numbers (like extra spaces)
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
 
 #include <cstdio>  
 #include <cstring> 
@@ -113,31 +170,40 @@ size_t find_token_end(const std::string& line, size_t init, char delimiter) {
     return non_space_end;
 }
 
-void Game::parseline_gm(const std::string& line, 
-                        std::vector<long long>& vinfo, 
-                        std::vector<int>& outs_targets, 
-                        std::vector<long long>& weights,
-                        std::string& comment) 
+void Game::parseline_gm(const std::string&  line, 
+                        int32_t             vId,
+                        int64_t             vPriority,
+                        int8_t              vOwner,
+                        vec<int32_t>&       vOuts,
+                        std::string&        vComment,
+                        vec<float>&         outsWeights)
 {
-    vinfo.clear();
-    outs_targets.clear();
-    weights.clear();
-    comment.clear();
+    vOuts.clear();
+    outsWeights.clear();
+    vComment.clear();
 
     size_t current = 0;
     
-    // --- Extract Vertex ID, Priority, Owner (Space-separated) ---
-    for (int i = 0; i < 3; ++i) {
-        current = skip_whitespace(line, current);
-        if (current >= line.size()) return;
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return;
+    size_t next = find_token_end(line, current, ' ');
+    vId = std::stoi(line.substr(current, next - current));
+    current = next;
 
-        size_t next = find_token_end(line, current, ' ');
-        vinfo.push_back(std::stoll(line.substr(current, next - current)));
-        current = next;
-    }
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return;
+    size_t next = find_token_end(line, current, ' ');
+    vPriority = std::stoll(line.substr(current, next - current));
+    current = next;
+
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return;
+    size_t next = find_token_end(line, current, ' ');
+    vOwner = std::stoi(line.substr(current, next - current));
+    current = next;
 
     // --- Helper Lambda for Comma-Separated Lists ---
-    auto parse_csv_block = [&](std::vector<long long>& target_vec) {
+    auto parse_csv_block = [&](auto& target_vec) {
         current = skip_whitespace(line, current);
         size_t end_of_block = line.find_first_of(" ;\"", current);
         if (end_of_block == std::string::npos) end_of_block = line.size();
@@ -146,41 +212,88 @@ void Game::parseline_gm(const std::string& line,
         std::stringstream ss(block);
         std::string item;
         
+        // Identify the internal type T (int8_t, int32_t, int64_t, or float)
+        using T = std::decay_t<decltype(target_vec[0])>;
+
         while (std::getline(ss, item, ',')) {
             if (!item.empty()) {
-                target_vec.push_back(std::stoll(item));
+                if constexpr (std::is_floating_point_v<T>) {
+                    target_vec.push(std::stof(item)); // Chuffed vec uses .push()
+                } else {
+                    // stoll is safe for all integer types; we cast it to T
+                    target_vec.push(static_cast<T>(std::stoll(item)));
+                }
             }
         }
         current = end_of_block;
     };
 
     // --- Extract Target Edges (First CSV block) ---
-    std::vector<long long> temp_targets;
-    parse_csv_block(temp_targets);
-    for(auto t : temp_targets) outs_targets.push_back(static_cast<int>(t));
+    std::vector<int32_t> temp_targets;
+    parse_csv_block(vOuts);
+    // for(auto t : temp_targets) outs.push(t);
 
-    // --- Extract Weights (Second CSV block) ---
-    parse_csv_block(weights);
-
-    // --- Extract Optional Comment ---
     current = skip_whitespace(line, current);
     if (current < line.size() && line[current] == '"') {
         current++;
         size_t comment_end = line.find('"', current);
         if (comment_end != std::string::npos) {
-            comment = line.substr(current, comment_end - current);
+            vComment = line.substr(current, comment_end - current);
         }
     }
+
+    // --- Extract Weights (Second CSV block) ---
+    current = skip_whitespace(line, current);
+    parse_csv_block(outsWeights);
 }
 
 //---------------------------------------------------------------------------
 // Default game
 
-Game::Game( std::vector<int> owners,std::vector<long long> priors,
-            std::vector<int> sources,std::vector<int> targets,
-            std::vector<int> weights,int init, reward_type rew) 
+Game::Game( vec<int8_t>&    owners,
+            vec<int64_t>&   priors,
+            vec<int32_t>&   sources,
+            vec<int32_t>&   targets,
+            vec<float>&     weights,
+            int32_t         init,
+            objective_type  obj)
 :   owners(owners), priors(priors), sources(sources), targets(targets), 
-    weights(weights), init(init), reward(rew) 
+    weights(weights), init(init), objective(obj) 
+{
+    nvertices   = owners.size();
+    nedges      = sources.size();
+
+    if (init < 0) {
+        init = 0;
+        std::cerr << "Warning: Initial vertex set to 0." << std::endl;
+    }
+    else if (init >= nvertices) {
+        init = nvertices - 1;
+        std::cerr   << "Warning: Initial vertex set to " << init << "." 
+                    << std::endl;
+    }
+    this->init = init;
+    
+    outs.growTo(nvertices);
+    ins .growTo(nvertices);
+
+    for(int i=0; i<nedges; i++) {
+        outs[sources[i]].push(i);
+        ins [targets[i]].push(i);
+    }
+}
+
+//-----------------------------------------------------------------------------
+
+Game::Game( std::vector<int8_t>     owners,
+            std::vector<int64_t>    priors,
+            std::vector<int32_t>    sources,
+            std::vector<int32_t>    targets,
+            std::vector<float>      weights,
+            int32_t                 init, 
+            objective_type          obj)
+:   owners(owners), priors(priors), sources(sources), targets(targets), 
+    weights(weights), init(init), objective(obj) 
 {
     nvertices   = owners.size();
     nedges      = sources.size();
@@ -199,11 +312,11 @@ Game::Game( std::vector<int> owners,std::vector<long long> priors,
     outs.resize(nvertices);
     ins .resize(nvertices);
 
-    for(int i=0; i<nvertices; i++) {
+    for(int32_t i=0; i<nvertices; i++) {
         this->owners[i]=owners[i];
         this->priors[i]=priors[i];
     }
-    for(int i=0; i<nedges; i++) {
+    for(int32_t i=0; i<nedges; i++) {
         this->sources[i]=sources[i];
         this->targets[i]=targets[i];
         this->weights[i]=weights[i];
@@ -215,9 +328,13 @@ Game::Game( std::vector<int> owners,std::vector<long long> priors,
 //-----------------------------------------------------------------------------
 // Imported game from DZN or GM
 
-Game::Game( int type, std::string filename,  std::vector<int> rweights,
-            int init, reward_type rew) 
-:   nvertices(0), nedges(0), init(init), reward(rew) 
+Game::Game( game_type       type, 
+            std::string     filename,
+            int32_t         init, 
+            objective_type  obj,
+            float           lbound,
+            float           ubound)
+:   nvertices(0), nedges(0), init(init), objective(obj) 
 {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(nullptr);
@@ -259,23 +376,23 @@ Game::Game( int type, std::string filename,  std::vector<int> rweights,
         bool hasZero = 
             (std::find(sources.begin(), sources.end(), 0) != sources.end());
         if (!hasZero) fixZeros();
-        outs.resize(nvertices);
-        ins .resize(nvertices);
-        for(int i=0; i<nedges; i++) {
-            outs[sources[i]].push_back(i);
-            ins [targets[i]].push_back(i);
+        outs.growTo(nvertices);
+        ins .growTo(nvertices);
+        for(int32_t i=0; i<nedges; i++) {
+            outs[sources[i]].push(i);
+            ins [targets[i]].push(i);
         }
-    } 
+    }
     else if (type == GM) {
         int lastvertex = 0;
-        std::vector<int> verts;
-        std::vector<std::vector<int>> tedges;
-        std::vector<std::vector<long long>> tweights;
+        std::vector<int32_t> verts;
+        std::vector<std::vector<int32_t>> tedges;
+        std::vector<std::vector<int64_t>> tweights;
         int counter = 0;
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::uniform_int_distribution<> rndweight(rweights[0], rweights[1]);
+        std::uniform_real_distribution<> rndweight(lbound, ubound);
 
         while (getline(file, line)) {
             if (line.empty()) continue;
@@ -285,14 +402,14 @@ Game::Game( int type, std::string filename,  std::vector<int> rweights,
             } else if (line.find("init") != std::string::npos) {
                 init = stoi(line.substr(line.find(" ")));
             } else {
-                std::vector<long long> vinfo;
-                std::vector<int> outs;
-                std::vector<long long> weights;
-                std::string comment;
+                std::vector<int64_t>    vinfo;
+                std::vector<int32_t>    vouts;
+                std::vector<float>      vweights;
+                std::string             vcomment;
                 
-                parseline_gm(line, vinfo, outs, weights, comment);
+                parseline_gm(line, vinfo, vouts, vweights, comment);
                 
-                if ((weights.size() < outs.size()) || rweights[2] == 1) {
+                if ((weights.size() < outs.size())) {
                     size_t missing;
                     if (rweights[2] == 1) {
                         weights.clear();
@@ -366,7 +483,7 @@ Game::Game( int type, std::string filename,  std::vector<int> rweights,
 // Jurdzinski/Random/Mladder game
 
 Game::Game( int type, std::vector<int> vals, std::vector<int> rweights,
-            int init, reward_type rew) 
+            int init, objective_type rew) 
 :   init(init), reward(rew)  
 {
     if (type == JURD) {
@@ -579,7 +696,7 @@ void Game::setInit(int init) {
 
 //-----------------------------------------------------------------------------
 
-void Game::setReward(reward_type rew) {
+void Game::setObjectiveType(objective_type rew) {
     reward = rew;
 }
 

@@ -38,7 +38,7 @@ struct options {
     int  print_time         = 0;        // 0=Default 1=Solving Time 2=All-times
     int  game_type          = DEF;      // DEF,JURD,RAND,MLADDER,DZN,GM,GMW,DIM
 
-    reward_type         reward          = MAX;          // MAXimize,MINimize
+    objective_type         reward          = MAX;          // MAXimize,MINimize
     std::vector<int>    vals            = {};
     std::vector<int>    weights         = {0,0,0};      // lBound,uBound,Force
     std::vector<int>    init            = {0};

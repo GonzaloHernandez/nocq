@@ -31,7 +31,7 @@
 #include <climits>
 
 enum parity_type    {EVEN,ODD};                             // 0,1
-enum reward_type    {MIN,MAX};                              // 0,1
+enum objective_type {MIN,MAX};                              // 0,1
 enum game_type      {DEF,JURD,RAND,MLADDER,DZN,GM,GMW,DIM}; // 0,1,2,3,4,5,6
 enum parity_comp    {BET,EQU,BEQ};
 
@@ -47,46 +47,65 @@ public:
     friend class CPModel;
     friend int main(int, char*[]);
 public:
-    std::vector<int>        owners;
-    std::vector<long long>  priors;
-    std::vector<int>        sources;
-    std::vector<int>        targets;
-    std::vector<int>        weights;
+    vec<int8_t>         owners;
+    vec<int64_t>        priors;
+    vec<int32_t>        sources;
+    vec<int32_t>        targets;
+    vec<float>          weights;
 
-    std::vector<std::vector<int>>   outs;
-    std::vector<std::vector<int>>   ins;
-    int nvertices;
-    int nedges;
-    int init;
-    reward_type reward;
+    vec<vec<int32_t>>   outs;
+    vec<vec<int32_t>>   ins;
+    int32_t             nvertices;
+    int32_t             nedges;
+    int32_t             init;
+    objective_type      objective;
 
     //-------------------------------------------------------------------------
 
     void fixZeros();
-    void parseline_dzn (const std::string& line,std::vector<int>& myvec);
-    void parseline_dzn (const std::string& line,std::vector<long long>& myvec);
-    void parseline_gm  (const std::string& line,std::vector<long long>& vinfo, 
-                       std::vector<int>& outs, std::vector<long long>& weights,
+    void parseline_dzn (const std::string& line,vec<int>& myvec);
+    void parseline_dzn (const std::string& line,vec<long long>& myvec);
+    void parseline_gm  (const std::string& line,vec<long long>& vinfo, 
+                       vec<int>& outs, vec<long long>& weights,
                        std::string& comment);
 
     //-------------------------------------------------------------------------
 
 public:
     
-    Game(   std::vector<int> owners,std::vector<long long> priors,
-            std::vector<int> sources,std::vector<int> targets,
-            std::vector<int> wei={},int init=0, reward_type rew=MAX);
+    Game(   vec<int8_t>&    owners,
+            vec<int64_t>&   priors,
+            vec<int32_t>&   sources,
+            vec<int32_t>&   targets,
+            vec<float>&     weights,
+            int32_t         init = 0, 
+            objective_type  obj = MAX);
 
-    Game(   int type, std::string filename, std::vector<int> weights, 
-            int init=0, reward_type rew=MAX);
+    Game(   std::vector<int8_t>     owners,
+            std::vector<int64_t>    priors,
+            std::vector<int32_t>    sources,
+            std::vector<int32_t>    targets,
+            std::vector<float>      weights = {},
+            int32_t                 init = 0, 
+            objective_type          obj = MAX);
 
-    Game(   int type, std::vector<int> vals, std::vector<int> weights, 
-            int init=0, reward_type rew=MAX);
+    Game(   game_type       type, 
+            std::string     filename,
+            int32_t         init = 0, 
+            objective_type  obj = MAX,
+            float           lbound = 0.0,
+            float           ubound = 1.0);
 
-    void setInit(int init);
-    void setReward(reward_type rew);
-    bool comparePriorities(int p1,int p2,parity_comp rel=BET);
-    void exportFile(int type, std::string filename);
+    Game(   game_type       type,
+            vec<int32_t>&   vals,
+            vec<float>&     weights,
+            int32_t         init = 0,
+            objective_type  obj = MAX);
+
+    void setInit(int32_t init);
+    void setObjectiveType(objective_type obj);
+    bool comparePriorities(int64_t p1, int64_t p2, parity_comp rel=BET);
+    void exportFile(game_type type, std::string filename);
     void printGame();
     void flipGame();
 };
@@ -97,16 +116,16 @@ class GameView {
 private:
     Game& g;
 public:
-    std::unique_ptr<bool[]> vs;
-    std::unique_ptr<bool[]> es;
+    vec<bool> vs;
+    vec<bool> es;
     GameView(Game& g);
 
     //-------------------------------------------------------------------------
 
-    std::vector<int> getVertices();     // Return a set of active vertices
-    std::vector<int> getEdges();        // Return a set of active edges
-    std::vector<int> getOuts(int v);    // Return a set of active outs of v
-    std::vector<int> getIns(int w);     // Return a set of active ins of w
+    vec<int32_t> getVertices();         // Return a set of active vertices
+    vec<int32_t> getEdges();            // Return a set of active edges
+    vec<int32_t> getOuts(int32_t v);    // Return a set of active outs of v
+    vec<int32_t> getIns(int32_t w);     // Return a set of active ins of w
     std::string viewCurrent();
 
     void activeAll();
