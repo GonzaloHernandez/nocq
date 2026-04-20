@@ -49,7 +49,7 @@ public:
     bool satisfy(vec<int>& pathV,vec<int>& pathE,int cycleIndex) override {
         int m = g.priors[pathV[cycleIndex]];
         for (int i=cycleIndex+1; i<pathV.size(); i++) {
-            if (g.comparePriorities(g.priors[pathV[i]],m)) {
+            if (g.isBetter(g.priors[pathV[i]],m)) {
                 m = g.priors[pathV[i]];
             }
         }

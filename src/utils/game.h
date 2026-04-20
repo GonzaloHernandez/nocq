@@ -100,15 +100,16 @@ public:
             float           ubound = 1.0);
 
     Game(   game_type       type,
-            vec<int32_t>&   vals,
-            vec<float>&     weights,
+            vec<int8_t>&    vals,
             int32_t         init = 0,
-            objective_type  obj = MAX);
+            objective_type  obj = MAX,
+            float           lbound = 0.0,
+            float           ubound = 1.0);
 
-    void setInit(int32_t init);
-    void setObjectiveType(objective_type obj);
-    bool comparePriorities(int64_t p1, int64_t p2, parity_comp rel=BET);
-    void exportFile(game_type type, std::string filename);
+    void setInit            (int32_t init);
+    void setObjectiveType   (objective_type obj);
+    bool isBetter           (int64_t p1, int64_t p2);
+    void exportFile         (game_type type, std::string filename);
     void printGame();
     void flipGame();
 };
@@ -125,10 +126,11 @@ public:
 
     //-------------------------------------------------------------------------
 
-    vec<int32_t> getVertices();         // Return a set of active vertices
-    vec<int32_t> getEdges();            // Return a set of active edges
-    vec<int32_t> getOuts(int32_t v);    // Return a set of active outs of v
-    vec<int32_t> getIns(int32_t w);     // Return a set of active ins of w
+    // Return active elements
+    void getVertices(vec<int32_t>& vs);
+    void getEdges   (vec<int32_t>& es);
+    void getOuts    (vec<int32_t>& es, int32_t v);
+    void getIns     (vec<int32_t>& es,int32_t w);
     std::string viewCurrent();
 
     void activeAll();
