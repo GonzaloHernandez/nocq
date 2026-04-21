@@ -183,24 +183,6 @@ bool Game::parseline_gm(const std::string&  line,
     vComment.clear();
 
     size_t current = 0;
-    
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    size_t next = find_token_end(line, current, ' ');
-    vId = std::stoi(line.substr(current, next - current));
-    current = next;
-
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    next = find_token_end(line, current, ' ');
-    vPriority = std::stoll(line.substr(current, next - current));
-    current = next;
-
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    next = find_token_end(line, current, ' ');
-    vOwner = std::stoi(line.substr(current, next - current));
-    current = next;
 
     // --- Helper Lambda for Comma-Separated Lists ---
     auto parse_csv_block = [&](auto& target_vec) {
@@ -228,6 +210,24 @@ bool Game::parseline_gm(const std::string&  line,
         current = end_of_block;
     };
 
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return false;
+    size_t next = find_token_end(line, current, ' ');
+    vId = std::stoi(line.substr(current, next - current));
+    current = next;
+
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return false;
+    next = find_token_end(line, current, ' ');
+    vPriority = std::stoll(line.substr(current, next - current));
+    current = next;
+
+    current = skip_whitespace(line, current);
+    if (current >= line.size()) return false;
+    next = find_token_end(line, current, ' ');
+    vOwner = std::stoi(line.substr(current, next - current));
+    current = next;
+
     // --- Extract Target Edges (First CSV block) ---
     std::vector<int32_t> temp_targets;
     parse_csv_block(vOuts);
@@ -240,6 +240,7 @@ bool Game::parseline_gm(const std::string&  line,
         if (comment_end != std::string::npos) {
             vComment = line.substr(current, comment_end - current);
         }
+        current = comment_end+1;
     }
 
     // --- Extract Weights (Second CSV block) ---
@@ -323,9 +324,11 @@ Game::Game( game_type       type,
         }
         file.close();
 
+        bool hasZeros = false;
         for (size_t e=0; e<nedges; e++) {
-            if (sources[e]==0) { fixZeros(); break; }
+            if (sources[e]==0) { hasZeros = true; break; }
         }
+        if (!hasZeros) fixZeros();
         outs.growTo(nvertices);
         ins .growTo(nvertices);
         for(int32_t i=0; i<nedges; i++) {
@@ -335,7 +338,7 @@ Game::Game( game_type       type,
     }
     else if (type == GM) {
         int32_t lastvertex = 0;
-        vec<int32_t>        verts;
+        vec<int32_t>        tverts;
         vec<vec<int32_t>>   tedges;
         vec<vec<float>>     tweights;
         int32_t counter = 0;
@@ -348,7 +351,7 @@ Game::Game( game_type       type,
             if (line.empty()) continue;
             if (line.find("parity") != std::string::npos) {
                 lastvertex = stoi(line.substr(line.find(" ")));
-                verts.growTo(lastvertex + 1);
+                tverts.growTo(lastvertex + 1);
             } else if (line.find("init") != std::string::npos) {
                 init = stoi(line.substr(line.find(" ")));
             } else {
@@ -382,11 +385,12 @@ Game::Game( game_type       type,
 
                 owners.push(vOwner);
                 priors.push(vPriority);
-
-                verts[vId] = counter;
+                tedges.push();
+                tweights.push();
+                tverts[vId] = counter;
                 for(size_t i=0; i<vOuts.size(); i++) {
-                    tedges.push(vOuts[i]);
-                    tweights.push(oWeights[i]);
+                    tedges.last().push(vOuts[i]);
+                    tweights.last().push(oWeights[i]);
                 }
                 
                 counter++;
@@ -401,7 +405,7 @@ Game::Game( game_type       type,
         nedges = 0;
         for (size_t v = 0; v < nvertices; v++) {
             for (size_t t = 0; t < tedges[v].size(); t++) {
-                int32_t w = verts[tedges[v][t]];
+                int32_t w = tverts[tedges[v][t]];
                 
                 sources.push(v);
                 targets.push(w);
@@ -679,12 +683,12 @@ void Game::exportFile(game_type type, std::string filename) {
         file << "nedges    = " << nedges << ";" << std::endl;
         file << "sources   = ["; 
         for (size_t i=0; i<sources.size(); i++) {
-            file<<(i?",":"")<<sources[i]+1;
+            file<<(i?",":"")<<sources[i];
         }
         file <<"];"<<std::endl;
         file << "targets   = ["; 
         for (size_t i=0; i<targets.size(); i++) {
-            file<<(i?",":"")<<targets[i]+1;
+            file<<(i?",":"")<<targets[i];
         }
         file <<"];"<<std::endl;
         file << "weights   = ["; 
@@ -764,17 +768,17 @@ GameView::GameView(Game& g) : g(g) {
 
 //-----------------------------------------------------------------------------
 
-void GameView::getVertices(vec<int32_t>&vs) {
+void GameView::getVertices(vec<int32_t>& vertices) {
     for (size_t v=0; v<g.nvertices; v++) {
-        if (vs[v]) vs.push(v);
+        if (vs[v]) vertices.push(v);
     }
 }
 
 //-----------------------------------------------------------------------------
 
-void GameView::getEdges(vec<int32_t>& es){
+void GameView::getEdges(vec<int32_t>& edges){
     for (size_t e=0; e<g.nedges; e++) {
-        if (es[e]) es.push(e);
+        if (es[e]) edges.push(e);
     }
 }
 
@@ -793,21 +797,21 @@ void GameView::deactiveAll() {
 
 //-----------------------------------------------------------------------------
 
-void GameView::getOuts(vec<int32_t>& es, int32_t v) {
+void GameView::getOuts(vec<int32_t>& edges, int32_t v) {
     for (size_t i=0; i<g.outs[v].size(); i++) {
         int32_t e = g.outs[v][i];
         int32_t w = g.targets[e];
-        if (es[e] && vs[w]) es.push(e);
+        if (es[e] && vs[w]) edges.push(e);
     }
 }
 
 //-----------------------------------------------------------------------------
 
-void GameView::getIns(vec<int32_t>& es,int32_t w) {
+void GameView::getIns(vec<int32_t>& edges,int32_t w) {
     for (size_t i=0; i<g.ins[w].size(); i++) {
         int32_t e = g.ins[w][i];
         int32_t w = g.sources[e];
-        if (es[e] && vs[w]) es.push(e);
+        if (es[e] && vs[w]) edges.push(e);
     }
 }
 
