@@ -101,7 +101,8 @@ public:
         }
         else if (definedEdge) {
             pathV.push(v);
-            for (int e : g.outs[v]) {
+            for (size_t i=0; i<g.outs[v].size(); i++) {
+                int32_t e = g.outs[v][i];
                 if (E[e].isFalse()) continue;
 
                 int w = g.targets[e];
@@ -144,13 +145,13 @@ private:
     Game& g;
     vec<BoolView> V;  
     vec<BoolView> E;
-    std::vector<bool> conditions;
+    vec<bool>& conditions;
     int threshold;
     int printtype;
     parity_type playerSAT;
 public:
 
-    NOCModel(Game& g, std::vector<bool> conditions, int threshold=1, 
+    NOCModel(Game& g, vec<bool>& conditions, int threshold=1, 
         int printtype=0, parity_type playerSAT=EVEN) 
     :g(g), conditions(conditions), threshold(threshold), printtype(printtype), 
         playerSAT(playerSAT)
@@ -182,7 +183,8 @@ public:
             {
                 vec<Lit> clause;
                 clause.push( V[v].getLit(false) );
-                for (int e : g.outs[v]) {
+                for (size_t i=0; i<g.outs[v].size(); i++) {
+                    int32_t e = g.outs[v][i];
                     clause.push(E[e].getLit(true));
                 }
                 sat.addClause(clause); // E_0 \/ E_1 \/ ... \/ E_n
@@ -247,7 +249,8 @@ public:
         // --------------------------------------------------------------------
         // For every active OPPONENT vertice, each outgoing edge must be activated
         for (int v=0; v<g.nvertices; v++) if (g.owners[v]==opponent(playerSAT)) {
-            for (int e : g.outs[v]) {
+            for (size_t i=0; i<g.outs[v].size(); i++) {
+                int32_t e = g.outs[v][i];
                 vec<Lit> clause;
                 clause.push( V[v].getLit(false) );        
                 clause.push( E[e].getLit(true) );
@@ -258,7 +261,8 @@ public:
         // --------------------------------------------------------------------
         // For every active edge, the target vertex must be activated
         for (int w=0; w<g.nvertices; w++) if (w != g.init) {
-            for (int e : g.ins[w]) {
+            for (size_t i=0; i<g.ins[w].size(); i++) {
+                int32_t e = g.ins[w][i];
                 vec<Lit> clause;
                 clause.push( E[e].getLit(false) );
                 clause.push( V[w].getLit(true) );

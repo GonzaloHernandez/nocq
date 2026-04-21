@@ -100,7 +100,7 @@ public:
             float           ubound = 1.0);
 
     Game(   game_type       type,
-            vec<int8_t>&    vals,
+            vec<int32_t>&   vals,
             int32_t         init = 0,
             objective_type  obj = MAX,
             float           lbound = 0.0,

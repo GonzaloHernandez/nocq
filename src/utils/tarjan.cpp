@@ -44,7 +44,8 @@ void TarjanSCC::searchRAW(int v) {
     stack.emplace_back(v);
     onstack[v] = true;
 
-    for(auto& e : g.outs[v]) {
+    for (size_t i=0; i<g.outs[v].size(); i++) {
+        size_t e = g.ins[v][i];
         int w = g.targets[e];
         if (indices[w] == -1) {
             searchRAW(w);
@@ -70,7 +71,10 @@ void TarjanSCC::searchRAW(int v) {
 //-----------------------------------------------------------------------------
 
 std::vector<std::vector<int>> TarjanSCC::solve() {
-    for (auto& v : view.getVertices()) {
+    vec<int32_t> vs;
+    view.getVertices(vs);
+    for (size_t i=0; i<vs.size(); i++) {
+        int32_t v = vs[i];
         if (indices[v] ==-1) {
             search(v);
         }
@@ -86,7 +90,10 @@ void TarjanSCC::search(int v) {
     stack.emplace_back(v);
     onstack[v] = true;
 
-    for(auto& e : view.getOuts(v)) {
+    vec<int32_t> es;
+    view.getOuts(es,v);
+    for (size_t i=0; i<es.size(); i++) {
+        int32_t  e = es[i];
         int w = g.targets[e];
         if (indices[w] == -1) {
             search(w);

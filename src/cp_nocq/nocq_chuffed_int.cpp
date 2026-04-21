@@ -157,13 +157,13 @@ class NOCModel : public Problem {
 private:
     Game& g;
     vec<IntVar*> V;
-    std::vector<bool> conditions;
+    vec<bool>& conditions;
     int threshold;
     int printtype;
     parity_type playerSAT;
 public:
 
-    NOCModel(Game& g, std::vector<bool> conditions, int threshold=1, 
+    NOCModel(Game& g, vec<bool>& conditions, int threshold=1, 
         int printtype=0, parity_type playerSAT=EVEN) 
     :g(g), conditions(conditions), threshold(threshold), printtype(printtype), 
         playerSAT(playerSAT)
@@ -261,14 +261,16 @@ public:
 
                 vertices.push_back(v);
                 if (g.owners[v]==playerSAT) {
-                    for (int e: g.outs[v]) {
+                    for (size_t i=0; i<g.outs[v].size(); i++) {
+                        int32_t e = g.outs[v][i];
                         if (g.targets[e]==V[v]->getVal()) {
                             edges.push_back(e);
                             break;
                         }
                     }
                 } else {
-                    for (int e: g.outs[v]) {
+                    for (size_t i=0; i<g.outs[v].size(); i++) {
+                        int32_t e = g.outs[v][i];
                         edges.push_back(e);
                     }
                 }

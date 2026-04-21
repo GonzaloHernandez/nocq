@@ -67,7 +67,7 @@ int findVertexReverse(int vertex,const std::vector<int>& path) {
 //-----------------------------------------------------------------------------
 
 bool isBetter(Game& g,int v1,int v2) {
-    if ((g.reward==MIN && v1 < v2) || (g.reward==MAX && v1 > v2)) {
+    if ((g.objective==MIN && v1 < v2) || (g.objective==MAX && v1 > v2)) {
         return true;
     }
     return false;
@@ -78,8 +78,8 @@ bool isBetter(Game& g,int v1,int v2) {
 long long bestcolor(Game& g, int index,const std::vector<int>& path){
     long long m = g.priors[path[index]];
     for (int i=index+1; i<path.size(); i++) {
-        if ((g.reward==MIN && g.priors[path[i]] < m) || 
-            (g.reward==MAX && g.priors[path[i]] > m)) {
+        if ((g.objective==MIN && g.priors[path[i]] < m) || 
+            (g.objective==MAX && g.priors[path[i]] > m)) {
             m = g.priors[path[i]];
         }
     }
@@ -96,7 +96,8 @@ signed char getPlayBasic(Game& g, std::vector<int> path, int v) {
     }
     else {
         int p = g.owners[v];
-        for(auto& e : g.outs[v]) {
+        for (size_t i=0; i<g.outs[v].size(); i++) {
+            int32_t e = g.outs[v][i];
             std::vector <int> newpath = path;
             newpath.push_back(v);
             auto next = getPlayBasic(g, newpath, g.targets[e]);
@@ -127,7 +128,8 @@ bool getAllCycles(  Game& g, std::vector<int> path, int v,
     }
     else {
         int p = g.owners[v];
-        for(auto& e : g.outs[v]) {
+        for (size_t i=0; i<g.outs[v].size(); i++) {
+            int32_t e = g.outs[v][i];
             if (touched[e]) {
                 std::cout<< path+v << " *" << std::endl;
                 continue;

@@ -42,12 +42,12 @@ std::vector<int> Zielonka::getBestVertices(bool* removed) {
         if (g.priors[i] == bestColor) {
             bestVertices.push_back(i);
         }
-        else if (g.reward==MIN && g.priors[i] < bestColor) {
+        else if (g.objective==MIN && g.priors[i] < bestColor) {
             bestColor = g.priors[i];
             bestVertices.clear();
             bestVertices.push_back(i);
         }
-        else if (g.reward==MAX && g.priors[i] > bestColor) {
+        else if (g.objective==MAX && g.priors[i] > bestColor) {
             bestColor = g.priors[i];
             bestVertices.clear();
             bestVertices.push_back(i);
@@ -65,7 +65,8 @@ void Zielonka::attractor(int player, std::vector<int>&U, bool* removed) {
     for(auto& w : U) d[w] = 1ull;
     for(int i=0ull; i<U.size(); i++) {
         int w = U[i];
-        for(auto& e : g.ins[w]) {
+        for (size_t i=0; i<g.ins[w].size(); i++) {
+            size_t e = g.ins[w][i];
             int v = g.sources[e];
             if (removed[v]) continue;
             bool ally = g.owners[v] == player;
@@ -76,7 +77,8 @@ void Zielonka::attractor(int player, std::vector<int>&U, bool* removed) {
                 }
                 else {
                     int outbound = 0ull;
-                    for(auto& e_ : g.outs[v]) {
+                    for (size_t i=0; i<g.outs[v].size(); i++) {
+                        size_t e_ = g.outs[v][i];
                         if (!removed[g.targets[e_]]) outbound++;
                     }
                     d[v] = outbound;

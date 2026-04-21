@@ -37,7 +37,7 @@ parity_type opponent(parity_type PARITY) {
 //-----------------------------------------------------------------------------
 
 void Game::fixZeros() {
-    for (int i=0; i<sources.size(); i++) {
+    for (size_t i=0; i<sources.size(); i++) {
         sources[i]--;
         targets[i]--;
     }
@@ -269,7 +269,7 @@ Game::Game( vec<int8_t>&    owners,
     outs.growTo(nvertices);
     ins .growTo(nvertices);
 
-    for(int i=0; i<nedges; i++) {
+    for (size_t i=0; i<nedges; i++) {
         outs[sources[i]].push(i);
         ins [targets[i]].push(i);
     }
@@ -323,7 +323,7 @@ Game::Game( game_type       type,
         }
         file.close();
 
-        for (int e=0; e<nedges; e++) {
+        for (size_t e=0; e<nedges; e++) {
             if (sources[e]==0) { fixZeros(); break; }
         }
         outs.growTo(nvertices);
@@ -334,11 +334,11 @@ Game::Game( game_type       type,
         }
     }
     else if (type == GM) {
-        int lastvertex = 0;
+        int32_t lastvertex = 0;
         vec<int32_t>        verts;
         vec<vec<int32_t>>   tedges;
         vec<vec<int64_t>>   tweights;
-        int counter = 0;
+        int32_t counter = 0;
 
         std::random_device rd;
         std::mt19937 g(rd());
@@ -399,9 +399,9 @@ Game::Game( game_type       type,
         ins.growTo(nvertices);
 
         nedges = 0;
-        for(int v = 0; v < nvertices; v++) {
-            for(int t = 0; t < tedges[v].size(); t++) {
-                int w = verts[tedges[v][t]];
+        for (size_t v = 0; v < nvertices; v++) {
+            for (size_t t = 0; t < tedges[v].size(); t++) {
+                int32_t w = verts[tedges[v][t]];
                 
                 sources.push(v);
                 targets.push(w);
@@ -419,12 +419,8 @@ Game::Game( game_type       type,
 //-----------------------------------------------------------------------------
 // Jurdzinski/Random/Mladder game
 
-// Game::Game( game_type type, std::vector<int> vals, std::vector<int> rweights,
-//             int init, objective_type rew) 
-
-
 Game::Game( game_type       type,
-            vec<int8_t>&    vals,
+            vec<int32_t>&   vals,
             int32_t         init,
             objective_type  obj,
             float           lbound,
@@ -432,20 +428,20 @@ Game::Game( game_type       type,
 :   nvertices(0), nedges(0), init(init), objective(obj) 
 {
     if (type == JURD) {
-        int levels  = vals[0];
-        int blocks  = vals[1];
+        int32_t levels  = vals[0];
+        int32_t blocks  = vals[1];
         nvertices   = ((blocks*3)+1)*(levels-1) + ((blocks*2)+1);
         nedges      = (blocks*6)*(levels-1) + (blocks*4) + (blocks*2*(levels-1));
 
         std::random_device rd;
         std::mt19937 g(rd());
         std::uniform_real_distribution<> rndweight(lbound,ubound);
-        int es = 1;
-        int os = 0;
+        int32_t es = 1;
+        int32_t os = 0;
         
-        for (int l=1; l<levels; l++) {
+        for (size_t l=1; l<levels; l++) {
             os = ((blocks*3)+1)*(levels-1)+1;
-            for (int b=0; b<blocks; b++) {
+            for (size_t b=0; b<blocks; b++) {
                 owners.push(1);
                 owners.push(0);
                 owners.push(0);
@@ -479,8 +475,8 @@ Game::Game( game_type       type,
             priors.push((levels-l)*2);
             es += 1;
         }
-        int l = levels;
-        for (int b=0; b<blocks; b++) {
+        int32_t l = levels;
+        for (size_t b=0; b<blocks; b++) {
             owners.push(0);
             owners.push(1);
 
@@ -504,7 +500,7 @@ Game::Game( game_type       type,
         fixZeros();
         outs.growTo(nvertices);
         ins .growTo(nvertices);
-        for(int i=0; i<nedges; i++) {
+        for (size_t i=0; i<nedges; i++) {
             outs[sources[i]].push(i);
             ins [targets[i]].push(i);
         }
@@ -520,9 +516,9 @@ Game::Game( game_type       type,
         owners.growTo(nvertices,1);
         std::uniform_int_distribution<> rndPositons(0, nvertices-1);
         for(size_t i=0; i<nvertices/10; i++) {
-            int o1 = rndPositons(g);
-            int o2 = rndPositons(g);
-            size_t temp = owners[o1];
+            int32_t o1 = rndPositons(g);
+            int32_t o2 = rndPositons(g);
+            int8_t temp = owners[o1];
             owners[o1] = owners[o2];
             owners[o2] = temp;
         }
@@ -530,20 +526,20 @@ Game::Game( game_type       type,
         std::uniform_int_distribution<> rndPriors(0, vals[1]);
         std::uniform_real_distribution<> rndweight(lbound,ubound);
 
-        for(int i=0; i<nvertices; i++) {
+        for (size_t i=0; i<nvertices; i++) {
             priors.push(rndPriors(g));
         }
     
         outs.growTo(nvertices);
         ins .growTo(nvertices);
-        for(int v=0; v<nvertices; v++) {
+        for (size_t v=0; v<nvertices; v++) {
             std::vector<int> ws;
-            for (int i=0; i < nvertices; i++) { ws.push_back(i); }
+            for (size_t i=0; i < nvertices; i++) { ws.push_back(i); }
             std::shuffle(ws.begin(), ws.end(), g);
             std::uniform_int_distribution<> rndNedges(vals[2], vals[3]);
 
-            int es = rndNedges(g);
-            for (int i=0; i<es; i++) {
+            int32_t es = rndNedges(g);
+            for (size_t i=0; i<es; i++) {
                 sources.push(v);
                 targets.push(ws[i]);
                 weights.push(rndweight(g));
@@ -554,7 +550,7 @@ Game::Game( game_type       type,
         }
     }
     else if (type == MLADDER) {
-        int bl = vals[0];
+        int32_t bl  = vals[0];
         nvertices   = bl*3+1;
         nedges      = bl*4+1;
 
@@ -564,9 +560,9 @@ Game::Game( game_type       type,
         owners.growTo(nvertices,1);
         std::uniform_int_distribution<> rndPositons(0, nvertices-1);
         for(size_t i=0; i<nvertices/10; i++) {
-            int o1 = rndPositons(g);
-            int o2 = rndPositons(g);
-            size_t temp = owners[o1];
+            int32_t o1 = rndPositons(g);
+            int32_t o2 = rndPositons(g);
+            int8_t temp = owners[o1];
             owners[o1] = owners[o2];
             owners[o2] = temp;
         }
@@ -580,16 +576,16 @@ Game::Game( game_type       type,
         outs    .growTo(nvertices);
         ins     .growTo(nvertices);
 
-        int consecutive = bl*2;
+        int64_t consecutive = bl*2;
         priors[0] = consecutive--;
-        for (int i=0; i<bl; i++) {
+        for (size_t i=0; i<bl; i++) {
             priors[i*3+1] = 0;
             priors[i*3+2] = consecutive--;
             priors[i*3+3] = consecutive--;
         }
 
-        int e = 0;
-        for (int i=0; i<bl; i++) {
+        int32_t e = 0;
+        for (size_t i=0; i<bl; i++) {
             sources[e] = i*3+0;
             targets[e] = i*3+1;
             weights[e] = rndweight(g);
@@ -631,7 +627,7 @@ Game::Game( game_type       type,
 
 //-----------------------------------------------------------------------------
 
-void Game::setInit(int init) {
+void Game::setInit(int32_t init) {
     if (init < 0) {
         init = 0;
         std::cerr << "Warning: Initial vertex set to 0." << std::endl;
@@ -671,28 +667,28 @@ void Game::exportFile(game_type type, std::string filename) {
     case DZN:
         file << "nvertices = " << nvertices << ";" << std::endl;
         file << "owners    = ["; 
-        for(int i=0; i<owners.size(); i++) {
+        for (size_t i=0; i<owners.size(); i++) {
             file<<(i?",":"")<<owners[i];
         }
         file <<"];"<<std::endl;
         file << "priors    = ["; 
-        for(int i=0; i<priors.size(); i++) {
+        for (size_t i=0; i<priors.size(); i++) {
             file<<(i?",":"")<<priors[i];
         }
         file <<"];"<<std::endl;
         file << "nedges    = " << nedges << ";" << std::endl;
         file << "sources   = ["; 
-        for(int i=0; i<sources.size(); i++) {
+        for (size_t i=0; i<sources.size(); i++) {
             file<<(i?",":"")<<sources[i]+1;
         }
         file <<"];"<<std::endl;
         file << "targets   = ["; 
-        for(int i=0; i<targets.size(); i++) {
+        for (size_t i=0; i<targets.size(); i++) {
             file<<(i?",":"")<<targets[i]+1;
         }
         file <<"];"<<std::endl;
         file << "weights   = ["; 
-        for(int i=0; i<weights.size(); i++) {
+        for (size_t i=0; i<weights.size(); i++) {
             file<<(i?",":"")<<weights[i];
         }
         file <<"];"<<std::endl;
@@ -700,14 +696,14 @@ void Game::exportFile(game_type type, std::string filename) {
 
     case GM: case GMW:
         file << "parity " << (nvertices-1) << ";" << std::endl;
-        for (int v=0; v<nvertices; v++) {
+        for (size_t v=0; v<nvertices; v++) {
             file << v << " " << priors[v] << " " << owners[v] << " ";
-            for (int e=0; e<outs[v].size(); e++) {
+            for (size_t e=0; e<outs[v].size(); e++) {
                 file << (e?",":"") << targets[outs[v][e]];
             }
             if (type == GMW) {
                 file << " ";
-                for (int e=0; e<outs[v].size(); e++) {
+                for (size_t e=0; e<outs[v].size(); e++) {
                     file << (e?",":"") << weights[outs[v][e]];
                 }
             }
@@ -722,29 +718,29 @@ void Game::exportFile(game_type type, std::string filename) {
 void Game::printGame() {
     std::cout << "nvertices: " << owners.size() << std::endl;
     std::cout << "owners:    {";
-    for(int v=0; v<nvertices; v++) {
+    for (size_t v=0; v<nvertices; v++) {
         std::cout<<owners[v]<<(v<owners.size()-1?",":"");
     }
     std::cout << "}" << std::endl;
     std::cout << "priors:    {";
-    for(int v=0; v<nvertices; v++) {
+    for (size_t v=0; v<nvertices; v++) {
         std::cout<<priors[v]<<(v<priors.size()-1?",":"");
     }
     std::cout << "}" << std::endl;
 
     std::cout << "nedges:    " << sources.size() << std::endl;
     std::cout << "sources:   {";
-    for(int e=0; e<nedges; e++) {
+    for (size_t e=0; e<nedges; e++) {
         std::cout<<sources[e]<<(e<sources.size()-1?",":"");
     }
     std::cout << "}" << std::endl;
     std::cout << "targets:   {";
-    for(int e=0; e<nedges; e++) {
+    for (size_t e=0; e<nedges; e++) {
         std::cout<<targets[e]<<(e<targets.size()-1?",":"");
     }
     std::cout << "}" << std::endl;
     std::cout << "weights:   {";
-    for(int e=0; e<nedges; e++) {
+    for (size_t e=0; e<nedges; e++) {
         std::cout<<weights[e]<<(e<weights.size()-1?",":"");
     }
     std::cout << "}" << std::endl;
@@ -753,7 +749,7 @@ void Game::printGame() {
 //-----------------------------------------------------------------------------
 
 void Game::flipGame() {
-    for(int v=0; v<nvertices; v++) {
+    for (size_t v=0; v<nvertices; v++) {
         owners[v] = 1-owners[v];
         priors[v]++;
     }
@@ -799,8 +795,8 @@ void GameView::deactiveAll() {
 
 void GameView::getOuts(vec<int32_t>& es, int32_t v) {
     for (size_t i=0; i<g.outs[v].size(); i++) {
-        size_t e = g.outs[v][i];
-        size_t w = g.targets[e];
+        int32_t e = g.outs[v][i];
+        int32_t w = g.targets[e];
         if (es[e] && vs[w]) es.push(e);
     }
 }
@@ -809,8 +805,8 @@ void GameView::getOuts(vec<int32_t>& es, int32_t v) {
 
 void GameView::getIns(vec<int32_t>& es,int32_t w) {
     for (size_t i=0; i<g.ins[w].size(); i++) {
-        size_t e = g.ins[w][i];
-        size_t w = g.sources[e];
+        int32_t e = g.ins[w][i];
+        int32_t w = g.sources[e];
         if (es[e] && vs[w]) es.push(e);
     }
 }
@@ -820,12 +816,12 @@ void GameView::getIns(vec<int32_t>& es,int32_t w) {
 std::string GameView::viewCurrent() {
     std::stringstream ss;
     ss << "{";
-    for(int i=0; i<g.nvertices; i++) if (vs[i]) {
+    for (size_t i=0; i<g.nvertices; i++) if (vs[i]) {
         if (i>0) ss << ",";
         ss << i << ",";
     }
     ss << "} {";
-    for(int i=0; i<g.nedges; i++) if (es[i]) {
+    for (size_t i=0; i<g.nedges; i++) if (es[i]) {
         if (i>0) ss << ",";
         ss << i << ",";
     }

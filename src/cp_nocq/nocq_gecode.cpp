@@ -174,12 +174,12 @@ protected:
     Game& g;
     BoolVarArray V;
     BoolVarArray E;
-    std::vector<bool> conditions;
+    vec<bool>& conditions;
     int threshold;
     parity_type playerSAT;
 public:
     // ------------------------------------------------------------------------
-    NocModel(Game& g, std::vector<bool> conditions, int threshold=1, 
+    NocModel(Game& g, vec<bool>& conditions, int threshold=1, 
         parity_type playerSAT=EVEN) 
     :   V(*this, g.nvertices, 0, 1),E(*this, g.nedges, 0, 1),
         g(g), conditions(conditions), threshold(threshold), playerSAT(playerSAT)
