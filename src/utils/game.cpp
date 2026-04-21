@@ -171,15 +171,15 @@ size_t find_token_end(const std::string& line, size_t init, char delimiter) {
 }
 
 bool Game::parseline_gm(const std::string&  line, 
-                        int32_t             vId,
-                        int64_t             vPriority,
-                        int8_t              vOwner,
+                        int32_t&            vId,
+                        int64_t&            vPriority,
+                        int8_t&             vOwner,
                         vec<int32_t>&       vOuts,
                         std::string&        vComment,
-                        vec<float>&         outsWeights)
+                        vec<float>&         oWeights)
 {
     vOuts.clear();
-    outsWeights.clear();
+    oWeights.clear();
     vComment.clear();
 
     size_t current = 0;
@@ -244,7 +244,7 @@ bool Game::parseline_gm(const std::string&  line,
 
     // --- Extract Weights (Second CSV block) ---
     current = skip_whitespace(line, current);
-    parse_csv_block(outsWeights);
+    parse_csv_block(oWeights);
     return true;
 }
 
@@ -337,7 +337,7 @@ Game::Game( game_type       type,
         int32_t lastvertex = 0;
         vec<int32_t>        verts;
         vec<vec<int32_t>>   tedges;
-        vec<vec<int64_t>>   tweights;
+        vec<vec<float>>     tweights;
         int32_t counter = 0;
 
         std::random_device rd;
@@ -357,27 +357,27 @@ Game::Game( game_type       type,
                 int8_t          vOwner;
                 vec<int32_t>    vOuts;
                 std::string     vComment;
-                vec<float>      outsWeights;
+                vec<float>      oWeights;
                 
                 bool ok = parseline_gm( line, vId, vPriority, vOwner,
-                                        vOuts, vComment, outsWeights );
+                                        vOuts, vComment, oWeights );
 
                 if (!ok) continue;
 
-                if ((outsWeights.size() < vOuts.size())) {
+                if ((oWeights.size() < vOuts.size())) {
                     size_t missing;
-                    missing = vOuts.size() - outsWeights.size();
+                    missing = vOuts.size() - oWeights.size();
                     
                     for (size_t i = 0; i < missing; ++i) {
                         if (lbound == ubound) {
-                            outsWeights.push(lbound);
+                            oWeights.push(lbound);
                         } else {
-                            outsWeights.push(rndweight(g));
+                            oWeights.push(rndweight(g));
                         }
                     }
                 }
-                else if (outsWeights.size() > outs.size()) {
-                    outsWeights.growTo(outs.size());
+                else if (oWeights.size() > outs.size()) {
+                    oWeights.growTo(outs.size());
                 }
 
                 owners.push(vOwner);
@@ -386,7 +386,7 @@ Game::Game( game_type       type,
                 verts[vId] = counter;
                 for(size_t i=0; i<vOuts.size(); i++) {
                     tedges.push(vOuts[i]);
-                    tweights.push(outsWeights[i]);
+                    tweights.push(oWeights[i]);
                 }
                 
                 counter++;
@@ -668,7 +668,7 @@ void Game::exportFile(game_type type, std::string filename) {
         file << "nvertices = " << nvertices << ";" << std::endl;
         file << "owners    = ["; 
         for (size_t i=0; i<owners.size(); i++) {
-            file<<(i?",":"")<<owners[i];
+            file<<(i?",":"")<<(int)owners[i];
         }
         file <<"];"<<std::endl;
         file << "priors    = ["; 
@@ -697,12 +697,12 @@ void Game::exportFile(game_type type, std::string filename) {
     case GM: case GMW:
         file << "parity " << (nvertices-1) << ";" << std::endl;
         for (size_t v=0; v<nvertices; v++) {
-            file << v << " " << priors[v] << " " << owners[v] << " ";
+            file << v << " " << priors[v] << " " << (int)owners[v] << " ";
             for (size_t e=0; e<outs[v].size(); e++) {
                 file << (e?",":"") << targets[outs[v][e]];
             }
             if (type == GMW) {
-                file << " ";
+                file << " \"\" ";
                 for (size_t e=0; e<outs[v].size(); e++) {
                     file << (e?",":"") << weights[outs[v][e]];
                 }
@@ -719,29 +719,29 @@ void Game::printGame() {
     std::cout << "nvertices: " << owners.size() << std::endl;
     std::cout << "owners:    {";
     for (size_t v=0; v<nvertices; v++) {
-        std::cout<<owners[v]<<(v<owners.size()-1?",":"");
+        std::cout << (v?",":"") << (int)owners[v];
     }
     std::cout << "}" << std::endl;
     std::cout << "priors:    {";
     for (size_t v=0; v<nvertices; v++) {
-        std::cout<<priors[v]<<(v<priors.size()-1?",":"");
+        std::cout << (v?",":"") << priors[v];
     }
     std::cout << "}" << std::endl;
 
     std::cout << "nedges:    " << sources.size() << std::endl;
     std::cout << "sources:   {";
     for (size_t e=0; e<nedges; e++) {
-        std::cout<<sources[e]<<(e<sources.size()-1?",":"");
+        std::cout << (e?",":"") << sources[e];
     }
     std::cout << "}" << std::endl;
     std::cout << "targets:   {";
     for (size_t e=0; e<nedges; e++) {
-        std::cout<<targets[e]<<(e<targets.size()-1?",":"");
+        std::cout << (e?",":"") << targets[e];
     }
     std::cout << "}" << std::endl;
     std::cout << "weights:   {";
     for (size_t e=0; e<nedges; e++) {
-        std::cout<<weights[e]<<(e<weights.size()-1?",":"");
+        std::cout << (e?",":"") << weights[e];
     }
     std::cout << "}" << std::endl;
 }

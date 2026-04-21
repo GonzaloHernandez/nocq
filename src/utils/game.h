@@ -73,9 +73,9 @@ public:
     void parseline_dzn (const std::string& line,vec<float  >& myvec);
 
     bool parseline_gm  (const std::string& line,
-                        int32_t         vId,
-                        int64_t         vPriority,
-                        int8_t          vOwner,
+                        int32_t&        vId,
+                        int64_t&        vPriority,
+                        int8_t&         vOwner,
                         vec<int32_t>&   vOuts,
                         std::string&    vComment,
                         vec<float>&     outsWeights);

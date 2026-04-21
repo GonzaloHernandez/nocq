@@ -42,10 +42,34 @@ inline std::string dbg_boolviews(const vec<BoolView>& obj) {
 
 //-----------------------------------------------------------------------------
 
-inline std::string dbg_ints(const vec<int>& obj) {
+inline std::string dbg_int8s(const vec<int8_t>& obj) {
     std::stringstream ss;
     ss << "{";
-    for (int i = 0; i < obj.size(); i++) {
+    for (size_t i = 0; i < obj.size(); i++) {
+        ss << (i?",":"") << (int)obj[i];
+    }
+    ss << "}";
+    return ss.str();
+}
+
+//-----------------------------------------------------------------------------
+
+inline std::string dbg_int32s(const vec<int32_t>& obj) {
+    std::stringstream ss;
+    ss << "{";
+    for (size_t i = 0; i < obj.size(); i++) {
+        ss << (i?",":"") << obj[i];
+    }
+    ss << "}";
+    return ss.str();
+}
+
+//-----------------------------------------------------------------------------
+
+inline std::string dbg_int64s(const vec<int64_t>& obj) {
+    std::stringstream ss;
+    ss << "{";
+    for (size_t i = 0; i < obj.size(); i++) {
         ss << (i?",":"") << obj[i];
     }
     ss << "}";
@@ -89,13 +113,17 @@ inline std::string dbg_clause(const Clause& obj) {
 inline void launchdbg() {
     vec<IntVar*>    vs;
     vec<BoolView>   bs;
-    vec<int>        is;
+    vec<int8_t>     i8s;
+    vec<int32_t>    i32s;
+    vec<int64_t>    i64s;
     vec<Lit>        ls;
     Clause*         c = Clause_new(ls);
 
     dbg_intvars(vs);
     dbg_boolviews(bs);
-    dbg_ints(is);
+    dbg_int8s(i8s);
+    dbg_int32s(i32s);
+    dbg_int64s(i64s);
     dbg_lits(ls);
     dbg_clause(*c);
 }

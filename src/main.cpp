@@ -28,6 +28,7 @@
 #ifdef HAS_GECODE
 #include "cp_nocq/nocq_gecode.cpp"
 #endif
+
 //-----------------------------------------------------------------------------
 
 struct options {
@@ -41,7 +42,7 @@ struct options {
     objective_type  objective       = MAX;          // MAXimize,MINimize
     vec<int32_t>    vals;
     float           lbound          = 0.0;
-    float           ubound          = 1.0;
+    float           ubound          = 0.0;
     vec<int32_t>    init;
     std::string     game_filename   = "";
     std::string     export_filename = "";
@@ -60,6 +61,7 @@ struct options {
 //-----------------------------------------------------------------------------
 
 bool parseMyOptions(int argc, char *argv[]) {
+    options.init.push(0);
     int i=1;
     //-------------------------------------------------------------------------
     auto validateArg = [&](const char* flagName) -> char* {
