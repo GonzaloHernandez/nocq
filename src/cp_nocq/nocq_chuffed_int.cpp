@@ -46,25 +46,27 @@ public:
         parity_type playerSAT, vec<WinningCondition*> conditions)
     : g(g), V(V), playerSAT(playerSAT), conditions(conditions)
     {
-        for (int i=0; i<g.nvertices;i++) V[i]->attach(this, 1 , EVENT_F );
+        for (size_t i=0; i<g.nvertices;i++) V[i]->attach(this, 1 , EVENT_F );
     }
     //-------------------------------------------------------------------------
-    int findVertex(int vertex,vec<int>& path) {
-        for (int i=0; i<path.size(); i++) {
+    int32_t findVertex(int vertex,vec<int>& path) {
+        for (size_t i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
     //-------------------------------------------------------------------------
-    void clausify(vec<int>& path, vec<BoolView> &B, vec<Lit>& lits,int from) {
-        for (int i=from; i<path.size()-1; i++) {
+    void clausify(vec<int32_t>& path, vec<BoolView> &B, vec<Lit>& lits) {
+        for (size_t i=0; i<path.size()-1; i++) {
             lits.push(B[path[i]].getValLit());
         }
     }
     //-------------------------------------------------------------------------
-    bool satisfiedConditions(vec<int>& pathV, vec<int>& pathE, int index) {
+    bool satisfiedConditions(vec<int32_t>& pathV, vec<int32_t>& pathE,
+        int32_t index) 
+    {
         if (playerSAT==EVEN) {
-            for (int i=0; i<conditions.size(); i++) {
+            for (size_t i=0; i<conditions.size(); i++) {
                 if (!conditions[i]->satisfy(pathV,pathE,index)) {
                     return false;
                 }
@@ -72,7 +74,7 @@ public:
             return true;
         }
         else {
-            for (int i=0; i<conditions.size(); i++) {
+            for (size_t i=0; i<conditions.size(); i++) {
                 if (conditions[i]->satisfy(pathV,pathE,index)) {
                     return true;
                 }
@@ -81,15 +83,15 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    int filter(vec<int>& pathV, vec<int>& pathE, int v, int last, int out, 
-        bool isFixed) 
+    int filter(vec<int32_t>& pathV, vec<int32_t>& pathE, int32_t v, 
+        int32_t last, int32_t out, bool isFixed) 
     {
         int index = findVertex(v,pathV);
         if (index >= 0) {
             if (!satisfiedConditions(pathV,pathE,index)) {
                 Clause* r = Reason_new(pathV.size());
-                for (int i=0; i<pathV.size()-1; i++) {
-                    int v_ = pathV[i];
+                for (size_t i=0; i<pathV.size()-1; i++) {
+                    int32_t v_ = pathV[i];
                     (*r)[i+1] = V[v_]->getValLit();
                 }
                 if (g.owners[last]==playerSAT) {
@@ -105,21 +107,23 @@ public:
             pathV.push(v);
             if (g.owners[v]==playerSAT) {
                 int i = V[v]->getVal();
-                int e = g.outs[v][i];
-                int w = g.targets[e];
+                int32_t e = g.outs[v][i];
+                int32_t w = g.targets[e];
                 if (!V[w]->isFixed() || V[w]->getVal()>=0) {
                     pathE.push(e);
-                    int status = filter(pathV, pathE, w, v, i, V[w]->isFixed());
+                    int status = filter(pathV, pathE, w, v, i, 
+                                        V[w]->isFixed());
                     pathE.pop();
                     if (status != CF_STAY) return status;
                 }
             } else {
                 for (int i=0; i<g.outs[v].size(); i++) {
-                    int e = g.outs[v][i];
-                    int w = g.targets[e];
+                    int32_t e = g.outs[v][i];
+                    int32_t w = g.targets[e];
                     if (!V[w]->isFixed() || V[w]->getVal()>=0) {
                         pathE.push(e);
-                        int status = filter(pathV, pathE, w, v, i, V[w]->isFixed());
+                        int status = filter(pathV, pathE, w, v, i, 
+                                            V[w]->isFixed());
                         pathE.pop();
                         if (status != CF_STAY) return status;
                     }
@@ -131,8 +135,8 @@ public:
     }
     //-------------------------------------------------------------------------
     bool propagate() override {
-        vec<int> pathV;
-        vec<int> pathO;
+        vec<int32_t> pathV;
+        vec<int32_t> pathO;
 
         if (!V[g.init]->isFixed()) return true;
 
@@ -158,12 +162,12 @@ private:
     Game& g;
     vec<IntVar*> V;
     vec<bool>& conditions;
-    int threshold;
+    float threshold;
     int printtype;
     parity_type playerSAT;
 public:
 
-    NOCModel(Game& g, vec<bool>& conditions, int threshold=1, 
+    NOCModel(Game& g, vec<bool>& conditions, float threshold=1, 
         int printtype=0, parity_type playerSAT=EVEN) 
     :g(g), conditions(conditions), threshold(threshold), printtype(printtype), 
         playerSAT(playerSAT)
@@ -177,7 +181,7 @@ public:
     void setupConstraints() {
 
         // Creating variables and fixing domains for playerSAT's vertices
-        for (int v=0; v<g.nvertices; v++) {
+        for (size_t v=0; v<g.nvertices; v++) {
             if (g.owners[v]==playerSAT) {
                 createVar(V[v],-1,g.outs[v].size()-1);
             } else { // opponent' vertices
@@ -189,11 +193,11 @@ public:
         int_rel(V[g.init], IRT_GE, 0);
 
         // Connection vertices (V_v -> V_w)
-        for (int v=0; v<g.nvertices; v++) {
+        for (size_t v=0; v<g.nvertices; v++) {
             if (g.owners[v] == playerSAT) {
-                for (int i=0; i<g.outs[v].size(); i++) {
-                    int e = g.outs[v][i];
-                    int w = g.targets[e];
+                for (size_t i=0; i<g.outs[v].size(); i++) {
+                    int32_t e = g.outs[v][i];
+                    int32_t w = g.targets[e];
                     BoolView sel = newBoolVar();
                     int_rel_reif(V[v], IRT_EQ, i, sel);
                     BoolView geq = newBoolVar();
@@ -207,9 +211,9 @@ public:
             else {
                 BoolView sel = newBoolVar();
                 int_rel_reif(V[v],IRT_GE, 0, sel);
-                for (int i=0; i<g.outs[v].size(); i++) {
-                    int e = g.outs[v][i];
-                    int w = g.targets[e];
+                for (size_t i=0; i<g.outs[v].size(); i++) {
+                    int32_t e = g.outs[v][i];
+                    int32_t w = g.targets[e];
                     BoolView geq = newBoolVar();
                     int_rel_reif(V[w], IRT_GE,  0, geq);
                     vec<Lit> clause;
@@ -254,9 +258,9 @@ public:
 
     void print(std::ostream& out) override {
         if (printtype) {
-            std::vector<int> vertices;
-            std::vector<int> edges;
-            for (int v=0; v<V.size(); v++) {
+            std::vector<int32_t> vertices;
+            std::vector<int32_t> edges;
+            for (size_t v=0; v<V.size(); v++) {
                 if (V[v]->getVal() < 0) continue;
 
                 vertices.push_back(v);
@@ -277,11 +281,11 @@ public:
             }
 
             out << "V=[";
-            for (int v=0 ; v < vertices.size(); v++) {
+            for (size_t v=0 ; v < vertices.size(); v++) {
                 out << (v?",":"") << vertices[v];
             }
             out << "]\nE=[";
-            for (int e=0 ; e < edges.size(); e++) {
+            for (size_t e=0 ; e < edges.size(); e++) {
                 out << (e?",":"") << edges[e];
             }
             out << "]";

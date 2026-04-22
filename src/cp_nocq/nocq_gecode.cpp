@@ -71,8 +71,8 @@ public:
     }    
     // ------------------------------------------------------------------------
     virtual ExecStatus propagate(Space& home, const ModEventDelta&) {
-        vec<int> pathV;
-        vec<int> pathE;
+        vec<int32_t> pathV;
+        vec<int32_t> pathE;
 
         if (filter(home, pathV,pathE,g.init,-1,true) == ES_FAILED)
             return ES_FAILED;
@@ -96,16 +96,16 @@ public:
         return sizeof(*this);
     }
     //-------------------------------------------------------------------------
-    int findVertex(int vertex,vec<int>& path) {
-        for (int i=0; i<path.size(); i++) {
+    int findVertex(int32_t vertex,vec<int32_t>& path) {
+        for (int32_t i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
     //-------------------------------------------------------------------------
-    bool satisfiedConditions(vec<int>& pathV,vec<int>& pathE,int index) {
+    bool satisfiedConditions(vec<int32_t>& pathV,vec<int32_t>& pathE,int32_t index) {
         if (playerSAT==EVEN) {
-            for (int i=0; i<conditions.size(); i++) {
+            for (int32_t i=0; i<conditions.size(); i++) {
                 if (!conditions[i]->satisfy(pathV,pathE,index)) {
                     return false;
                 }
@@ -113,7 +113,7 @@ public:
             return true;
         }
         else {
-            for (int i=0; i<conditions.size(); i++) {
+            for (int32_t i=0; i<conditions.size(); i++) {
                 if (conditions[i]->satisfy(pathV,pathE,index)) {
                     return true;
                 }
@@ -122,11 +122,11 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    ExecStatus filter( Space& home, 
-                            vec<int>& pathV, vec<int>& pathE, int v, 
-                            int lastEdge, bool definedEdge) 
+    ExecStatus filter(  Space& home, 
+                        vec<int32_t>& pathV, vec<int32_t>& pathE, int32_t v, 
+                        int32_t lastEdge, bool definedEdge) 
     {
-        int index = findVertex(v,pathV);
+        int32_t index = findVertex(v,pathV);
         if (index >= 0) {
 
             if (!satisfiedConditions(pathV,pathE,index)) {
@@ -137,10 +137,11 @@ public:
         }
         else if (definedEdge) {
             pathV.push(v);
-            for (int e : g.outs[v]) {
+            for (size_t i=0; i<g.outs[v].size(); i++) {
+                int32_t e = g.outs[v][i];
                 if (E[e].zero()) continue;
 
-                int w = g.targets[e];
+                int32_t w = g.targets[e];
                 pathE.push(e);
                 ExecStatus status = 
                     filter(home, pathV, pathE, w, e, E[e].one());
@@ -196,11 +197,11 @@ public:
 
         // --------------------------------------------------------------------
         // For every PLAYER active vertex, one outgoing edge must be activated
-        for (int v=0; v<g.nvertices; v++) if (g.owners[v] == playerSAT) {
-            int n = g.outs[v].size();
+        for (size_t v=0; v<g.nvertices; v++) if (g.owners[v] == playerSAT) {
+            size_t n = g.outs[v].size();
             BoolVarArgs edgeVars(n);
-            for (int i = 0; i < n; i++) {
-                int e = g.outs[v][i];
+            for (size_t i = 0; i < n; i++) {
+                int32_t e = g.outs[v][i];
                 edgeVars[i] = E[e];
             }
             BoolVar sumIsOne(*this, 0, 1);
@@ -210,10 +211,10 @@ public:
 
         // --------------------------------------------------------------------
         // For every OPPONENT active vertex, each outgoing edge must be activated
-        for (int v=0; v<g.nvertices; v++) if (g.owners[v] == opponent(playerSAT)) {
-            int n = g.outs[v].size();
-            for (int i = 0; i < n; i++) {
-                int e = g.outs[v][i];
+        for (size_t v=0; v<g.nvertices; v++) if (g.owners[v] == opponent(playerSAT)) {
+            size_t n = g.outs[v].size();
+            for (size_t i = 0; i < n; i++) {
+                int32_t e = g.outs[v][i];
                 rel(*this, V[v], BOT_IMP, E[e], 1);
             }
 
@@ -221,9 +222,10 @@ public:
 
         // --------------------------------------------------------------------
         // For every activated edge, the target vertex must be activated
-        for (int w = 0; w < g.nvertices; w++) {
+        for (size_t w = 0; w < g.nvertices; w++) {
             if (w != g.init) {
-                for (int e : g.ins[w]) {
+                for (size_t i=0; i<g.ins[w].size(); i++) {
+                    int32_t e = g.ins[w][i];
                     rel(*this, E[e], BOT_IMP, V[w], 1);
                 }
             }
@@ -268,10 +270,11 @@ public:
         return new NocModel(*this);
     }
 
+    // ------------------------------------------------------------------------
     void print() const {
         std::cout << "{";
         bool first = true;
-        for (int v=0; v<g.nvertices; v++) {
+        for (int32_t v=0; v<g.nvertices; v++) {
             if (V[v].val() == 0) continue;
             if (!first) std::cout << ",";
             std::cout << v;
@@ -279,7 +282,7 @@ public:
         }
         std::cout << "} {";
         first = true;
-        for (int e=0; e<g.nedges; e++) {
+        for (int32_t e=0; e<g.nedges; e++) {
             if (E[e].val() == 0) continue;
             if (!first) std::cout << ",";
             std::cout << e;

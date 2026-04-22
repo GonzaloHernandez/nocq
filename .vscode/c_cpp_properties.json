@@ -6,7 +6,9 @@
                 "${workspaceFolder}/**",
                 "${env:HOME}/.local/include"
             ],
-            "defines": [],
+            "defines": [
+                "HAS_GECODE"
+            ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++17",

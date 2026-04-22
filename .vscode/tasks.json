@@ -30,6 +30,8 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 
+                "-DHAS_GECODE",
+
                 // -- using precompiled util's files
                 "${workspaceFolder}/build/satencoder.o",
                 "${workspaceFolder}/build/zielonka.o",
@@ -53,10 +55,10 @@
                 "-lchuffed",
                 "${env:HOME}/.local/lib/libchuffed_fzn.a",
                 "${env:HOME}/.local/lib/libchuffed.a",
-                // "-lgecodesearch",
-                // "-lgecodeint",
-                // "-lgecodekernel",
-                // "-lgecodesupport",
+                "-lgecodesearch",
+                "-lgecodeint",
+                "-lgecodekernel",
+                "-lgecodesupport",
                 "-Wl,-Bdynamic"
             ],
             "problemMatcher": [

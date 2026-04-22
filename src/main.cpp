@@ -44,17 +44,17 @@ struct options {
     float           lbound          = 0.0;
     float           ubound          = 0.0;
     vec<int32_t>    init;
-    std::string     game_filename   = "";
-    std::string     export_filename = "";
-    int             export_type     = 0;            // 0=not DZN,GM,GMW,DIM
-    std::string     solver          = "";           // NOC-EVEN,NOC-ODD,SAT
+    std::string     gameFilename    = "";
+    std::string     exportFilename  = "";
+    int             exportType      = 0;            // 0=not DZN,GM,GMW,DIM
+    std::string     method          = "";           // NOC-EVEN,NOC-ODD,SAT
                                                     // ZRA,FRA,SCC
-    std::string     cpengine        = "chuffed";    // chuffed,gecode,
+    std::string     solver          = "chuffed";    // chuffed, gecode,
                                                     // chuffed-int
     bool            flip            = false;
-    bool            parity_cond     = false;
-    bool            energy_cond     = false;
-    bool            meanpayoff_cond = false;
+    bool            parityCond      = false;
+    bool            energyCond      = false;
+    bool            meanpayoffCond  = false;
     float           threshold       = 0.0;
 } options;
 
@@ -149,12 +149,12 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--dzn")==0) {
             options.gameType = DZN;
             validateArg("--dzn <filename>");
-            options.game_filename = argv[i];                
+            options.gameFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--gm")==0) {
             options.gameType = GM;
             validateArg("--gm <filename>");
-            options.game_filename = argv[i];                
+            options.gameFilename = argv[i];                
         }        
         else if (strcmp(argv[i],"--init")==0) {
             validateArg("--init <initial_vertex>");
@@ -175,24 +175,24 @@ bool parseMyOptions(int argc, char *argv[]) {
         }
         else if (strcmp(argv[i],"--export-dzn")==0) {
             validateArg("--export-dzn <filename>");
-            options.export_type = DZN;
-            options.export_filename = argv[i];                
+            options.exportType = DZN;
+            options.exportFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--export-gm")==0) {
             validateArg("--export-gm <filename>");
-            options.export_type = GM;
-            options.export_filename = argv[i];                
+            options.exportType = GM;
+            options.exportFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--export-gmw")==0) {
             validateArg("--export-gmw <filename>");
-            options.export_type = GMW;
-            options.export_filename = argv[i];                
+            options.exportType = GMW;
+            options.exportFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--sat-encoding")==0) {
             validateArg("--sat-encoding <filename>");
-            options.solver = "SAT";
-            options.export_type = DIM;
-            options.export_filename = argv[i];
+            options.method = "SAT";
+            options.exportType = DIM;
+            options.exportFilename = argv[i];
         }
         else if (strcmp(argv[i],"--nsolutions")==0) {
             validateArg("--nsolutions <number>");
@@ -208,25 +208,25 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--min")==0)
                                 { options.objective         = MIN; }
         else if (strcmp(argv[i],"--testing")==0)
-                                { options.solver            = "testing"; }
+                                { options.method            = "testing"; }
         else if (strcmp(argv[i],"--noc")==0)
-                                { options.solver            = "noc-even"; }
+                                { options.method            = "noc-even"; }
         else if (strcmp(argv[i],"--noc-even")==0)
-                                { options.solver            = "noc-even"; }
+                                { options.method            = "noc-even"; }
         else if (strcmp(argv[i],"--noc-odd")==0)
-                                { options.solver            = "noc-odd"; }
+                                { options.method            = "noc-odd"; }
         else if (strcmp(argv[i],"--zra")==0)
-                                { options.solver            = "zra"; }
+                                { options.method            = "zra"; }
         else if (strcmp(argv[i],"--fra")==0)
-                                { options.solver            = "fra"; }
+                                { options.method            = "fra"; }
         else if (strcmp(argv[i],"--scc")==0)
-                                { options.solver            = "scc"; }
+                                { options.method            = "scc"; }
         else if (strcmp(argv[i],"--chuffed")==0)
-                                { options.cpengine          = "chuffed"; }
+                                { options.solver          = "chuffed"; }
         else if (strcmp(argv[i],"--gecode")==0)
-                                { options.cpengine          = "gecode"; }
+                                { options.solver          = "gecode"; }
         else if (strcmp(argv[i],"--chuffed-int")==0)
-                                { options.cpengine          = "chuffed-int"; }
+                                { options.solver          = "chuffed-int"; }
         else if (strcmp(argv[i],"--print-only-times")==0)
                                 { options.printTime        = -2; }
         else if (strcmp(argv[i],"--print-only-time")==0)
@@ -246,11 +246,11 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--flip")==0)
                                 { options.flip              = true;}
         else if (strcmp(argv[i],"--parity")==0)
-                                { options.parity_cond       = true; }
+                                { options.parityCond       = true; }
         else if (strcmp(argv[i],"--energy")==0)
-                                { options.energy_cond       = true; }
+                                { options.energyCond       = true; }
         else if (strcmp(argv[i],"--mean-payoff")==0)
-                                { options.meanpayoff_cond   = true; }
+                                { options.meanpayoffCond   = true; }
 
         else if (strcmp(argv[i],"--help")==0) {
             std::cout << "Usage: " << argv[0] << " [options] <args>\n"
@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
     switch (options.gameType) {
         case DZN: case GM:
             game = new Game(options.gameType, 
-                            options.game_filename, 
+                            options.gameFilename, 
                             options.init[0],
                             options.objective,
                             options.lbound, options.ubound);
@@ -351,42 +351,42 @@ int main(int argc, char *argv[])
         std::cout << "Game creation time : " << launchinggame << std::endl;
     }
 
-    if (options.export_type == DZN) {
-        game->exportFile(DZN, options.export_filename);
+    if (options.exportType == DZN) {
+        game->exportFile(DZN, options.exportFilename);
     }
-    else if (options.export_type == GM) {
-        game->exportFile(GM, options.export_filename);
+    else if (options.exportType == GM) {
+        game->exportFile(GM, options.exportFilename);
     }
-    else if (options.export_type == GMW) {
-        game->exportFile(GMW, options.export_filename);
+    else if (options.exportType == GMW) {
+        game->exportFile(GMW, options.exportFilename);
     }
 
     // Ensure at least one winning condition is selected, default --parity
-    if (!options.parity_cond && !options.energy_cond && 
-        !options.meanpayoff_cond) 
+    if (!options.parityCond && !options.energyCond && 
+        !options.meanpayoffCond) 
     {
-        options.parity_cond = true;
+        options.parityCond = true;
     }
 
     //-------------------------------------------------------------------------
     // For testing purposes
 
-    if (options.solver=="testing") {
+    if (options.method=="testing") {
     }
 
     //-------------------------------------------------------------------------
     // CP-NOC-Chuffed
 
-    else if (options.solver.substr(0,3)=="noc"&&options.cpengine=="chuffed") {
+    else if (options.method.substr(0,3)=="noc"&&options.solver=="chuffed") {
         vec<bool> win_conditions;
-        win_conditions.push(options.parity_cond);
-        win_conditions.push(options.energy_cond);
-        win_conditions.push(options.meanpayoff_cond);
+        win_conditions.push(options.parityCond);
+        win_conditions.push(options.energyCond);
+        win_conditions.push(options.meanpayoffCond);
         startClock(); //.............................................
         Chuffed::NOCModel* model = new Chuffed::NOCModel(
                             *game, win_conditions, options.threshold, 
                             (options.printSolution || options.printVerbose),
-                            options.solver=="noc-even"?EVEN:ODD);
+                            options.method=="noc-even"?EVEN:ODD);
 
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
             std::cout << "Mem used           : " << memUsed() << std::endl;
         }
 
-        if (options.solver=="noc-even") {
+        if (options.method=="noc-even") {
             if (options.printTime>=0 || options.printVerbose)
                 std::cout   << game->init << ": " 
                             << (engine.solutions>0?"EVEN ":"ODD ");
@@ -445,18 +445,18 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // CP-NOC-Chuffed-Int
 
-    else if (   options.solver.substr(0,3)=="noc" &&
-                options.cpengine=="chuffed-int") 
+    else if (   options.method.substr(0,3)=="noc" &&
+                options.solver=="chuffed-int") 
     {
         vec<bool> win_conditions;
-        win_conditions.push(options.parity_cond);
-        win_conditions.push(options.energy_cond);
-        win_conditions.push(options.meanpayoff_cond);
+        win_conditions.push(options.parityCond);
+        win_conditions.push(options.energyCond);
+        win_conditions.push(options.meanpayoffCond);
         startClock(); //.............................................
         ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
                             *game, win_conditions, options.threshold, 
                             (options.printSolution || options.printVerbose),
-                            options.solver=="noc-even"?EVEN:ODD);
+                            options.method=="noc-even"?EVEN:ODD);
 
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
@@ -483,7 +483,7 @@ int main(int argc, char *argv[])
             std::cout << "Mem used           : " << memUsed() << std::endl;
         }
 
-        if (options.solver=="noc-even") {
+        if (options.method=="noc-even") {
             if (options.printTime>=0 || options.printVerbose)
                 std::cout   << game->init << ": " 
                             << (engine.solutions>0?"EVEN ":"ODD ");
@@ -515,22 +515,22 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // CP-NOC-Gecode
 
-    else if (options.solver.substr(0,3)=="noc"&&options.cpengine=="gecode") {
+    else if (options.method.substr(0,3)=="noc"&&options.solver=="gecode") {
 
     #ifdef HAS_GECODE
         vec<bool> win_conditions;
-        win_conditions.push(options.parity_cond);
-        win_conditions.push(options.energy_cond);
-        win_conditions.push(options.meanpayoff_cond);
+        win_conditions.push(options.parityCond);
+        win_conditions.push(options.energyCond);
+        win_conditions.push(options.meanpayoffCond);
 
         startClock(); //.............................................
         Gecode::NocModel* model = new Gecode::NocModel(
                             *game, win_conditions, options.threshold, 
-                            options.solver=="noc-even"?EVEN:ODD);
+                            options.method=="noc-even"?EVEN:ODD);
 
         double preptime = stopClock(); //............................
 
-        if (options.print_time>1) {
+        if (options.printTime>1) {
             std::cout << "Init time          : " << preptime << std::endl;
         }
 
@@ -539,37 +539,37 @@ int main(int argc, char *argv[])
         delete model;
         Gecode::NocModel* solution = dfs.next();
 
-        if (options.printSolution || options.print_verbose) {
+        if (options.printSolution || options.printVerbose) {
             if (solution) solution->print();
             else std::cout << "UNSATISFIABLE" << std::endl;
         }
         double totaltime = stopClock(); //...........................
 
-        if (options.print_time>1 || options.print_verbose) {
+        if (options.printTime>1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             std::cout << "Mem used           : " << "???" << std::endl;
         }
 
-        if (options.solver=="noc-even") {
-            if (options.print_time>=0 || options.print_verbose)
+        if (options.method=="noc-even") {
+            if (options.printTime>=0 || options.printVerbose)
                 std::cout << game->init << ": " << (solution?"EVEN ":"ODD ");
         }
         else {
-            if (options.print_time>=0 || options.print_verbose)
+            if (options.printTime>=0 || options.printVerbose)
                 std::cout << game->init << ": " << (!solution?"ODD ":"EVEN ");
         }
 
-        if (options.print_time<=-2 || options.print_verbose) {
+        if (options.printTime<=-2 || options.printVerbose) {
             std::cout   << preptime << "\t";
         }
 
-        if (options.print_time!=0 || options.print_verbose) {
+        if (options.printTime!=0 || options.printVerbose) {
             std::cout   << totaltime;
         }        
 
         std::cout << std::endl;
 
-        if (options.printStatistics || options.print_verbose) {
+        if (options.printStatistics || options.printVerbose) {
             // engine.printStats();
             std::cout << "Statistics";
         }
@@ -588,7 +588,7 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // SAT Encoding
 
-    else if (options.solver == "SAT") {
+    else if (options.method == "sat") {
         SATEncoder encoder(*game);
 
         startClock(); //.............................................
@@ -596,7 +596,7 @@ int main(int argc, char *argv[])
         double encodetime = stopClock(); //..........................
 
         startClock(); //.............................................
-        encoder.dimacs(cnf,options.export_filename);
+        encoder.dimacs(cnf,options.exportFilename);
         double dimacstime = stopClock(); //..........................
 
         if (options.printTime>=0 || options.printVerbose) {
@@ -608,7 +608,7 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // ZRA
 
-    else if (options.solver=="zra") {
+    else if (options.method=="zra") {
 
         startClock(); //.............................................
         Zielonka zlk(*game);
@@ -655,7 +655,7 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // FRA
 
-    else if (options.solver=="fra") {
+    else if (options.method=="fra") {
         if (options.printSolution || options.printVerbose) {
             options.init.growTo(game->nvertices);
             for (int32_t v=0; v<game->nvertices; v++) options.init[v]=v;
@@ -680,7 +680,7 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // SCC
 
-    else if (options.solver=="scc") { 
+    else if (options.method=="scc") { 
         GameView view(*game);
         TarjanSCC tscc(*game,view);
         auto sccs = tscc.solve();

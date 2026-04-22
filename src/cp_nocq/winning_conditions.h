@@ -37,7 +37,8 @@ public:
     }
     virtual ~WinningCondition() = default;
     //-----------------------------------------------------------------------
-    virtual bool satisfy(vec<int>& pathV,vec<int>& pathE,int cycleIndex) = 0;
+    virtual bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                            int32_t cycleIndex) = 0;
 };
 
 //===========================================================================
@@ -46,9 +47,11 @@ class ParityCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 public:
 
-    bool satisfy(vec<int>& pathV,vec<int>& pathE,int cycleIndex) override {
-        int m = g.priors[pathV[cycleIndex]];
-        for (int i=cycleIndex+1; i<pathV.size(); i++) {
+    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    int32_t cycleIndex) override 
+    {
+        int64_t m = g.priors[pathV[cycleIndex]];
+        for (int32_t i=cycleIndex+1; i<pathV.size(); i++) {
             if (g.isBetter(g.priors[pathV[i]],m)) {
                 m = g.priors[pathV[i]];
             }
@@ -63,9 +66,11 @@ class EnergyCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 public:
 
-    bool satisfy(vec<int>& pathV,vec<int>& pathE,int cycleIndex) override {
-        int sum = 0;
-        for (int i=cycleIndex; i<pathE.size(); i++) {
+    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    int32_t cycleIndex) override 
+    {
+        float sum = 0;
+        for (int32_t i=cycleIndex; i<pathE.size(); i++) {
             sum += g.weights[pathE[i]];
         }
         
@@ -81,17 +86,19 @@ public:
 class MeanPayoffCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 private:
-    int threshold;
+    float threshold;
 public:
 
-    void setThreshold(int t) { threshold = t; }
+    void setThreshold(float t) { threshold = t; }
 
-    bool satisfy(vec<int>& pathV,vec<int>& pathE,int cycleIndex) override {
-        int sum = 0;
-        for (int i=cycleIndex; i<pathE.size(); i++) {
+    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    int32_t cycleIndex) override 
+    {
+        float sum = 0;
+        for (int32_t i=cycleIndex; i<pathE.size(); i++) {
             sum += g.weights[pathE[i]];
         }
-        double avg = (double)sum / (double)(pathE.size() - cycleIndex);
+        float avg = sum / (float)(pathE.size() - cycleIndex);
 
         if (playerSAT == EVEN) {
             return avg >= threshold;

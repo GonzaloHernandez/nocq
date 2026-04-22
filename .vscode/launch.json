@@ -23,14 +23,14 @@
                 // "--print-times",
                 // "--print-statistics",
                 "--print-game",
-                // "--noc",
+                "--noc",
                 // "--scc",
                 // "--zra",
                 // "--help"
                 // "--parity",
                 // "--energy",
                 // "--threshold","3",
-                // "--chuffed-int",
+                "--chuffed-int",
                 // "--gecode"
             ],
             "cwd": "${workspaceFolder}",
