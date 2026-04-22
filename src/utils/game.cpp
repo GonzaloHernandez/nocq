@@ -121,12 +121,29 @@ void Game::parseline_dzn(const std::string& line, vec<float>& myvec) {
     if (start != std::string::npos && end != std::string::npos && end > start) {
         std::string values = line.substr(start + 1, end - start - 1);
         std::stringstream ss(values);
-        std::string value;
+        std::string segment;
 
-        while (std::getline(ss, value, ',')) {
+        while (std::getline(ss, segment, ',')) {
             try {
-                if (!value.empty()) {
-                    myvec.push(std::stof(value));
+                segment.erase(0, segment.find_first_not_of(" \t\r\n"));
+                segment.erase(segment.find_last_not_of(" \t\r\n") + 1);
+
+                if (segment.empty()) continue;
+
+                size_t slashPos = segment.find('/');
+                if (slashPos != std::string::npos) {
+                    // It's a fraction: split into numerator and denominator
+                    float num = std::stof(segment.substr(0, slashPos));
+                    float den = std::stof(segment.substr(slashPos + 1));
+                    
+                    if (den != 0.0f) {
+                        myvec.push(num / den);
+                    } else {
+                        // Handle division by zero if necessary
+                    }
+                } else {
+                    // It's a standard float
+                    myvec.push(std::stof(segment));
                 }
             } catch (...) {
                 // Skip values that aren't numbers (like extra spaces)
