@@ -37,7 +37,8 @@ struct options {
     bool printStatistics    = false; 
     bool printVerbose       = false; 
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
-    game_type  gameType     = DEF;      // DEF,JURD,RAND,MLADDER,DZN,GM,GMW,DIM
+    game_type  gameType     = DEF;      // DEF,JURD,RAND,MLADDER,SPRAND,
+                                        // DZN,GM,GMW,DIM
 
     objective_type  objective       = MAX;          // MAXimize,MINimize
     vec<int32_t>    vals;
@@ -139,6 +140,13 @@ bool parseMyOptions(int argc, char *argv[]) {
             validateArg("--mladder <blocks>");
             options.vals.push(parseInteger(argv[i], 1, 1000000));
             options.gameType = MLADDER;
+        }
+        else if (strcmp(argv[i],"--sprand")==0) {
+            validateArg("--sprand <vertices>");
+            options.vals.push(parseInteger(argv[i], 1, 10000000));
+            validateArg("--sprand <density>");
+            options.vals.push(parseInteger(argv[i], 1, 1000));
+            options.gameType = SPRAND;
         }
         else if (strcmp(argv[i],"--weights")==0) {
             validateArg("--weights <lower_bound upper_bound>");
@@ -260,6 +268,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             << "  --jurd <levels> <blocks>   : Jurdzinski game\n"
             << "  --rand <ns> <ps> <d1> <d2> : Random game\n"
             << "  --mladder <bl>             : ModelcheckerLadder game\n"
+            << "  --sprand <vs> <density>    : Random SPRAND game\n"
             << "  --weights <w1> <w2>        : Weights range\n"
             << "  --init <vertex>            : Initial vertex\n"
             << "  --print-only-time          : Print only solving time\n"

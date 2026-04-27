@@ -438,7 +438,7 @@ Game::Game( game_type       type,
 }
 
 //-----------------------------------------------------------------------------
-// Jurdzinski/Random/Mladder game
+// Jurdzinski/Random/Mladder game/SPRAND-Randx
 
 Game::Game( game_type       type,
             vec<int32_t>&   vals,
@@ -641,6 +641,75 @@ Game::Game( game_type       type,
         weights[e] = rndweight(g);
         outs[bl*3].push(e);
         ins [0].push(e);
+    }
+    else if (type == SPRAND) {
+        nvertices       = vals[0];
+        int32_t density = vals[1];
+        nedges          = vals[0]*density;
+    
+        std::random_device rd;
+        std::mt19937 g(rd());
+    
+        owners.growTo(nvertices/2,0);
+        owners.growTo(nvertices,1);
+        std::uniform_int_distribution<> rndPositons(0, nvertices-1);
+        for(size_t i=0; i<nvertices/10; i++) {
+            int32_t o1 = rndPositons(g);
+            int32_t o2 = rndPositons(g);
+            int8_t temp = owners[o1];
+            owners[o1] = owners[o2];
+            owners[o2] = temp;
+        }
+
+        std::uniform_int_distribution<> rndPriors(0, nvertices-1);
+        std::uniform_real_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndNode(0, nvertices-1);
+
+        for (size_t i=0; i<nvertices; i++) {
+            priors.push(rndPriors(g));
+        }
+    
+        outs.growTo(nvertices);
+        ins .growTo(nvertices);
+
+        // Hamilton path
+        std::vector<int32_t> cycle(nvertices);
+        std::iota(cycle.begin(), cycle.end(), 0); 
+        std::shuffle(cycle.begin(), cycle.end(), g);
+        for (size_t i = 0; i < nvertices; i++) {
+            int32_t u = cycle[i];
+            int32_t v_cycle = cycle[(i + 1) % nvertices];
+            uint32_t edgeIdx = sources.size();
+            sources.push(u);
+            targets.push(v_cycle);
+            weights.push(rndweight(g));
+            outs[u].push(i);
+            ins[v_cycle].push(i);
+            // Create the remaining x-1 edges
+            int32_t edgesAdded = 1;
+            while (edgesAdded < density) {
+                int32_t v_rand = rndNode(g);
+
+                bool isDuplicate = (v_rand == v_cycle);
+                for (size_t j=0; j<outs[u].size(); j++) {
+                    int32_t eIdx = outs[u][j];
+                    if (targets[eIdx] == v_rand) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+
+                if (u != v_rand && !isDuplicate) {
+                    edgeIdx = sources.size();
+                    sources.push(u);
+                    targets.push(v_rand);
+                    weights.push(rndweight(g));
+                    outs[u].push(edgeIdx);
+                    ins[v_rand].push(edgeIdx);
+                    edgesAdded++;
+                }
+            }
+        }
     }
 
     setInit(init);
