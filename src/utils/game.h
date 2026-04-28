@@ -54,7 +54,7 @@ public:
     vec<int64_t>        priors;
     vec<int32_t>        sources;
     vec<int32_t>        targets;
-    vec<float>          weights;
+    vec<int64_t>        weights;
 
     vec<vec<int32_t>>   outs;
     vec<vec<int32_t>>   ins;
@@ -77,7 +77,7 @@ public:
                         int8_t&         vOwner,
                         vec<int32_t>&   vOuts,
                         std::string&    vComment,
-                        vec<float>&     outsWeights);
+                        vec<int64_t>&   outsWeights);
 
     //-------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ public:
             vec<int64_t>&   priors,
             vec<int32_t>&   sources,
             vec<int32_t>&   targets,
-            vec<float>&     weights,
+            vec<int64_t>&   weights,
             int32_t         init = 0, 
             objective_type  obj = MAX);
 
@@ -95,15 +95,15 @@ public:
             std::string     filename,
             int32_t         init = 0, 
             objective_type  obj = MAX,
-            float           lbound = 0.0,
-            float           ubound = 1.0);
+            int64_t         lbound = 0,
+            int64_t         ubound = 0);
 
     Game(   game_type       type,
             vec<int32_t>&   vals,
             int32_t         init = 0,
             objective_type  obj = MAX,
-            float           lbound = 0.0,
-            float           ubound = 1.0);
+            int64_t         lbound = 0,
+            int64_t         ubound = 0);
 
     void setInit            (int32_t init);
     void setObjectiveType   (objective_type obj);

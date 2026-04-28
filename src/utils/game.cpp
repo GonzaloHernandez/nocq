@@ -193,7 +193,7 @@ bool Game::parseline_gm(const std::string&  line,
                         int8_t&             vOwner,
                         vec<int32_t>&       vOuts,
                         std::string&        vComment,
-                        vec<float>&         oWeights)
+                        vec<int64_t>&       oWeights)
 {
     vOuts.clear();
     oWeights.clear();
@@ -273,7 +273,7 @@ Game::Game( vec<int8_t>&    owners,
             vec<int64_t>&   priors,
             vec<int32_t>&   sources,
             vec<int32_t>&   targets,
-            vec<float>&     weights,
+            vec<int64_t>&   weights,
             int32_t         init,
             objective_type  obj)
 :   owners(owners), priors(priors), sources(sources), targets(targets), 
@@ -300,8 +300,8 @@ Game::Game( game_type       type,
             std::string     filename,
             int32_t         init, 
             objective_type  obj,
-            float           lbound,
-            float           ubound)
+            int64_t         lbound,
+            int64_t         ubound)
 :   nvertices(0), nedges(0), init(init), objective(obj) 
 {
     std::ios_base::sync_with_stdio(false);
@@ -357,12 +357,12 @@ Game::Game( game_type       type,
         int32_t lastvertex = 0;
         vec<int32_t>        tverts;
         vec<vec<int32_t>>   tedges;
-        vec<vec<float>>     tweights;
+        vec<vec<int64_t>>     tweights;
         int32_t counter = 0;
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::uniform_real_distribution<> rndweight(lbound, ubound);
+        std::uniform_int_distribution<> rndweight(lbound, ubound);
 
         while (getline(file, line)) {
             if (line.empty()) continue;
@@ -377,7 +377,7 @@ Game::Game( game_type       type,
                 int8_t          vOwner;
                 vec<int32_t>    vOuts;
                 std::string     vComment;
-                vec<float>      oWeights;
+                vec<int64_t>      oWeights;
                 
                 bool ok = parseline_gm( line, vId, vPriority, vOwner,
                                         vOuts, vComment, oWeights );
@@ -444,8 +444,8 @@ Game::Game( game_type       type,
             vec<int32_t>&   vals,
             int32_t         init,
             objective_type  obj,
-            float           lbound,
-            float           ubound)
+            int64_t         lbound,
+            int64_t         ubound)
 :   nvertices(0), nedges(0), init(init), objective(obj) 
 {
     if (type == JURD) {
@@ -456,7 +456,7 @@ Game::Game( game_type       type,
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::uniform_real_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndweight(lbound,ubound);
         int32_t es = 1;
         int32_t os = 0;
         
@@ -545,7 +545,7 @@ Game::Game( game_type       type,
         }
 
         std::uniform_int_distribution<> rndPriors(0, vals[1]);
-        std::uniform_real_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndweight(lbound,ubound);
 
         for (size_t i=0; i<nvertices; i++) {
             priors.push(rndPriors(g));
@@ -588,7 +588,7 @@ Game::Game( game_type       type,
             owners[o2] = temp;
         }
 
-        std::uniform_real_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndweight(lbound,ubound);
 
         priors  .growTo(nvertices);
         sources .growTo(nedges);
@@ -662,7 +662,7 @@ Game::Game( game_type       type,
         }
 
         std::uniform_int_distribution<> rndPriors(0, nvertices-1);
-        std::uniform_real_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndweight(lbound,ubound);
         std::uniform_int_distribution<> rndNode(0, nvertices-1);
 
         for (size_t i=0; i<nvertices; i++) {
@@ -685,7 +685,8 @@ Game::Game( game_type       type,
             weights.push(rndweight(g));
             outs[u].push(i);
             ins[v_cycle].push(i);
-            // Create the remaining x-1 edges
+
+            // Creating the remaining x-1 edges
             int32_t edgesAdded = 1;
             while (edgesAdded < density) {
                 int32_t v_rand = rndNode(g);

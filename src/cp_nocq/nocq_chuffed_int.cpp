@@ -34,7 +34,7 @@ private:
     Game& g;
     vec<IntVar*> V;
     parity_type playerSAT;
-    vec<WinningCondition*> conditions;
+    vec<WinningCondition*> winConditions;
 
     const int CF_STAY     = 1;
     const int CF_CONFLICT = 2;
@@ -43,8 +43,8 @@ private:
 public:
     //-------------------------------------------------------------------------
     NoOpponentCycle(Game& g, vec<IntVar*>& V, 
-        parity_type playerSAT, vec<WinningCondition*> conditions)
-    : g(g), V(V), playerSAT(playerSAT), conditions(conditions)
+        parity_type playerSAT, vec<WinningCondition*> winConditions)
+    : g(g), V(V), playerSAT(playerSAT), winConditions(winConditions)
     {
         for (size_t i=0; i<g.nvertices;i++) V[i]->attach(this, 1 , EVENT_F );
     }
@@ -66,16 +66,16 @@ public:
         int32_t index) 
     {
         if (playerSAT==EVEN) {
-            for (size_t i=0; i<conditions.size(); i++) {
-                if (!conditions[i]->satisfy(pathV,pathE,index)) {
+            for (size_t i=0; i<winConditions.size(); i++) {
+                if (!winConditions[i]->satisfy(pathV,pathE,index)) {
                     return false;
                 }
             }
             return true;
         }
         else {
-            for (size_t i=0; i<conditions.size(); i++) {
-                if (conditions[i]->satisfy(pathV,pathE,index)) {
+            for (size_t i=0; i<winConditions.size(); i++) {
+                if (winConditions[i]->satisfy(pathV,pathE,index)) {
                     return true;
                 }
             }
@@ -161,15 +161,14 @@ class NOCModel : public Problem {
 private:
     Game& g;
     vec<IntVar*> V;
-    vec<bool>& conditions;
-    float threshold;
+    vec<WinningCondition*>& winConditions;
     int printtype;
     parity_type playerSAT;
 public:
 
-    NOCModel(Game& g, vec<bool>& conditions, float threshold=1, 
+    NOCModel(Game& g, vec<WinningCondition*>& winConditions, 
         int printtype=0, parity_type playerSAT=EVEN) 
-    :g(g), conditions(conditions), threshold(threshold), printtype(printtype), 
+    :g(g), winConditions(winConditions), printtype(printtype), 
         playerSAT(playerSAT)
     {
         V.growTo(g.nvertices);
@@ -226,27 +225,7 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        WinningCondition* cond = nullptr;
-
-        vec<WinningCondition*> conds;
-
-        if (conditions[0]) {
-            ParityCondition* c = new ParityCondition(g,playerSAT);
-            conds.push(c);
-        }
-            
-        if (conditions[1]) {
-            EnergyCondition* c = new EnergyCondition(g,playerSAT);
-            conds.push(c);
-        }
-            
-        if (conditions[2]) {
-            MeanPayoffCondition* c = new MeanPayoffCondition(g,playerSAT);
-            c->setThreshold(threshold);
-            conds.push(c);
-        }
-
-        new NoOpponentCycle(g,V,playerSAT,conds);
+        new NoOpponentCycle(g,V,playerSAT,winConditions);
 
         //---------------------------------------------------------------------
 

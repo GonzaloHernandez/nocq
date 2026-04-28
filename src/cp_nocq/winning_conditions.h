@@ -64,20 +64,24 @@ public:
 
 class EnergyCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
+private:
+    int64_t threshold;
 public:
 
+    void setThreshold(int64_t t) { threshold = t; }
+    
     bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
                     int32_t cycleIndex) override 
     {
-        float sum = 0;
+        int64_t sum = 0;
         for (int32_t i=cycleIndex; i<pathE.size(); i++) {
             sum += g.weights[pathE[i]];
         }
         
         if (playerSAT == EVEN) {
-            return sum >= 0;
+            return sum >= threshold;
         }
-        return sum < 0;
+        return sum < threshold;
     };
 };
 

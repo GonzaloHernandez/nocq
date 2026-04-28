@@ -42,8 +42,8 @@ struct options {
 
     objective_type  objective       = MAX;          // MAXimize,MINimize
     vec<int32_t>    vals;
-    float           lbound          = 0.0;
-    float           ubound          = 0.0;
+    int64_t         lbound          = 0;
+    int64_t         ubound          = 0;
     vec<int32_t>    init;
     std::string     gameFilename    = "";
     std::string     exportFilename  = "";
@@ -56,7 +56,8 @@ struct options {
     bool            parityCond      = false;
     bool            energyCond      = false;
     bool            meanpayoffCond  = false;
-    float           threshold       = 0.0;
+    int64_t         thresholdEnergy = 0;
+    float           thresholdMPG    = 0.0;
 } options;
 
 //-----------------------------------------------------------------------------
@@ -150,9 +151,9 @@ bool parseMyOptions(int argc, char *argv[]) {
         }
         else if (strcmp(argv[i],"--weights")==0) {
             validateArg("--weights <lower_bound upper_bound>");
-            options.lbound = parseFloat(argv[i], -1000000.0, 1000000.0);
-            validateArg("--weights <final weight>");
-            options.ubound = parseFloat(argv[i], -1000000.0, 1000000.0);
+            options.lbound = parseInteger(argv[i], -1000000, 1000000);
+            validateArg("--weights <final_weight>");
+            options.ubound = parseInteger(argv[i], -1000000, 1000000);
         }
         else if (strcmp(argv[i],"--dzn")==0) {
             options.gameType = DZN;
@@ -206,9 +207,23 @@ bool parseMyOptions(int argc, char *argv[]) {
             validateArg("--nsolutions <number>");
             so.nof_solutions = parseInteger(argv[i], 0, 10);
         }
-        else if (strcmp(argv[i],"--threshold")==0) {
-            validateArg("--threshold <value>");
-            options.threshold = parseFloat(argv[i], -1000000.0, 1000000.0);
+        else if (strcmp(argv[i],"--energy")==0) {
+            i++; // Move to the next argument
+            if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
+                options.thresholdEnergy = 0;
+            } else {
+                options.thresholdEnergy = parseInteger(argv[i], -1000000000, 1000000000);
+            }
+            options.energyCond = true;
+        }
+        else if (strcmp(argv[i],"--mean-payoff")==0) {
+            i++; // Move to the next argument
+            if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
+                options.thresholdMPG = 0.0;
+            } else {
+                options.thresholdMPG = parseFloat(argv[i], -1000000, 1000000);
+            }
+            options.meanpayoffCond = true;
         }
 
         else if (strcmp(argv[i],"--max")==0)
@@ -294,8 +309,8 @@ bool parseMyOptions(int argc, char *argv[]) {
             << "  --flip                     : Complement the game\n"
             << "  --threshold <value>        : Threshold for MeanPayoff\n"
             << "  --parity                   : Parity condition (default)\n"
-            << "  --energy                   : Energy condition\n"
-            << "  --mean-payoff              : Mean-Payoff condition\n";
+            << "  --energy (value*)          : Energy condition (default Threshold=0)\n"
+            << "  --mean-payoff (value*)     : Mean-Payoff condition (default Threshold=0.0)\n";
             exit(0);
         }
         else {
@@ -338,7 +353,7 @@ int main(int argc, char *argv[])
                             options.objective,
                             options.lbound, options.ubound);
             break;
-        case JURD: case RAND: case MLADDER:
+        case JURD: case RAND: case MLADDER: case SPRAND:
             game = new Game(options.gameType, 
                             options.vals,
                             options.init[0],
@@ -377,6 +392,25 @@ int main(int argc, char *argv[])
         options.parityCond = true;
     }
 
+    vec<WinningCondition*> winConditions;
+    if (options.parityCond) {
+        ParityCondition* c = new ParityCondition(*game,
+                                    options.method=="noc-even"?EVEN:ODD);
+        winConditions.push(c);
+    }
+    if (options.energyCond) {
+        EnergyCondition* c = new EnergyCondition(*game,
+                                    options.method=="noc-even"?EVEN:ODD);
+        c->setThreshold(options.thresholdEnergy);
+        winConditions.push(c);
+    }
+    if (options.meanpayoffCond) {
+        MeanPayoffCondition* c = new MeanPayoffCondition(*game,
+                                    options.method=="noc-even"?EVEN:ODD);
+        c->setThreshold(options.thresholdMPG);
+        winConditions.push(c);
+    }        
+
     //-------------------------------------------------------------------------
     // For testing purposes
 
@@ -387,13 +421,9 @@ int main(int argc, char *argv[])
     // CP-NOC-Chuffed
 
     else if (options.method.substr(0,3)=="noc"&&options.solver=="chuffed") {
-        vec<bool> win_conditions;
-        win_conditions.push(options.parityCond);
-        win_conditions.push(options.energyCond);
-        win_conditions.push(options.meanpayoffCond);
         startClock(); //.............................................
         Chuffed::NOCModel* model = new Chuffed::NOCModel(
-                            *game, win_conditions, options.threshold, 
+                            *game, winConditions, 
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD);
 
@@ -457,13 +487,9 @@ int main(int argc, char *argv[])
     else if (   options.method.substr(0,3)=="noc" &&
                 options.solver=="chuffed-int") 
     {
-        vec<bool> win_conditions;
-        win_conditions.push(options.parityCond);
-        win_conditions.push(options.energyCond);
-        win_conditions.push(options.meanpayoffCond);
         startClock(); //.............................................
         ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
-                            *game, win_conditions, options.threshold, 
+                            *game, winConditions,
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD);
 
@@ -527,14 +553,9 @@ int main(int argc, char *argv[])
     else if (options.method.substr(0,3)=="noc"&&options.solver=="gecode") {
 
     #ifdef HAS_GECODE
-        vec<bool> win_conditions;
-        win_conditions.push(options.parityCond);
-        win_conditions.push(options.energyCond);
-        win_conditions.push(options.meanpayoffCond);
-
         startClock(); //.............................................
         Gecode::NocModel* model = new Gecode::NocModel(
-                            *game, win_conditions, options.threshold, 
+                            *game, winConditions,
                             options.method=="noc-even"?EVEN:ODD);
 
         double preptime = stopClock(); //............................

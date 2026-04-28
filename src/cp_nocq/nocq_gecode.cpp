@@ -34,15 +34,15 @@ protected:
     ViewArray<Int::BoolView> V;
     ViewArray<Int::BoolView> E;
     parity_type playerSAT;
-    vec<WinningCondition*> conditions;
+    vec<WinningCondition*> winConditions;
 public:
     // ------------------------------------------------------------------------
     NoOpponentCycle(Space& home, Game& g,
                     ViewArray<Int::BoolView> vs,
                     ViewArray<Int::BoolView> es,
-                    parity_type playerSAT, vec<WinningCondition*> conditions)
+                    parity_type playerSAT, vec<WinningCondition*> winConditions)
     :   Propagator(home), g(g), V(vs), E(es), 
-        playerSAT(playerSAT), conditions(conditions)
+        playerSAT(playerSAT), winConditions(winConditions)
     {
         V.subscribe(home, *this, Int::PC_BOOL_VAL);
         E.subscribe(home, *this, Int::PC_BOOL_VAL);
@@ -52,15 +52,15 @@ public:
         Game& g,
         ViewArray<Int::BoolView> vs,
         ViewArray<Int::BoolView> es,
-        parity_type playerSAT, vec<WinningCondition*> conditions)
+        parity_type playerSAT, vec<WinningCondition*> winConditions)
     {
-        new (home) NoOpponentCycle(home, g, vs, es, playerSAT, conditions);
+        new (home) NoOpponentCycle(home, g, vs, es, playerSAT, winConditions);
         return ES_OK;
     }
     // ------------------------------------------------------------------------
     NoOpponentCycle(Space& home, NoOpponentCycle& source) 
     :   Propagator(home,source), g(source.g),
-        playerSAT(source.playerSAT), conditions(source.conditions)
+        playerSAT(source.playerSAT), winConditions(source.winConditions)
     {
         V.update(home, source.V);
         E.update(home, source.E);
@@ -105,16 +105,16 @@ public:
     //-------------------------------------------------------------------------
     bool satisfiedConditions(vec<int32_t>& pathV,vec<int32_t>& pathE,int32_t index) {
         if (playerSAT==EVEN) {
-            for (int32_t i=0; i<conditions.size(); i++) {
-                if (!conditions[i]->satisfy(pathV,pathE,index)) {
+            for (int32_t i=0; i<winConditions.size(); i++) {
+                if (!winConditions[i]->satisfy(pathV,pathE,index)) {
                     return false;
                 }
             }
             return true;
         }
         else {
-            for (int32_t i=0; i<conditions.size(); i++) {
-                if (conditions[i]->satisfy(pathV,pathE,index)) {
+            for (int32_t i=0; i<winConditions.size(); i++) {
+                if (winConditions[i]->satisfy(pathV,pathE,index)) {
                     return true;
                 }
             }
@@ -175,15 +175,15 @@ protected:
     Game& g;
     BoolVarArray V;
     BoolVarArray E;
-    vec<bool>& conditions;
+    vec<WinningCondition*>& winConditions;
     int threshold;
     parity_type playerSAT;
 public:
     // ------------------------------------------------------------------------
-    NocModel(Game& g, vec<bool>& conditions, int threshold=1, 
+    NocModel(Game& g, vec<WinningCondition*>& winConditions, 
         parity_type playerSAT=EVEN) 
     :   V(*this, g.nvertices, 0, 1),E(*this, g.nedges, 0, 1),
-        g(g), conditions(conditions), threshold(threshold), playerSAT(playerSAT)
+        g(g), winConditions(winConditions), threshold(threshold), playerSAT(playerSAT)
     {
         setupConstraints();
         branch(*this, V, BOOL_VAR_NONE(), BOOL_VAL_MIN());
@@ -233,32 +233,12 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        WinningCondition* cond = nullptr;
-
-        vec<WinningCondition*> conds;
-
-        if (conditions[0]) {
-            ParityCondition* c = new ParityCondition(g,playerSAT);
-            conds.push(c);
-        }
-            
-        if (conditions[1]) {
-            EnergyCondition* c = new EnergyCondition(g,playerSAT);
-            conds.push(c);
-        }
-            
-        if (conditions[2]) {
-            MeanPayoffCondition* c = new MeanPayoffCondition(g,playerSAT);
-            c->setThreshold(threshold);
-            conds.push(c);
-        }
-
-        noopponentcyclegecode(*this,g,V,E,playerSAT,conds);
+        noopponentcyclegecode(*this,g,V,E,playerSAT,winConditions);
     }
 
     // ------------------------------------------------------------------------
     NocModel(NocModel& source) 
-    : Space(source), g(source.g), conditions(source.conditions), 
+    : Space(source), g(source.g), winConditions(source.winConditions), 
         threshold(source.threshold), playerSAT(source.playerSAT) 
     {
         V.update(*this, source.V);
