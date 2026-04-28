@@ -62,12 +62,12 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    bool satisfiedConditions(vec<int32_t>& pathV, vec<int32_t>& pathE,
-        int32_t index) 
+    bool satisfiedConditions(   vec<int32_t>& pathV, vec<int32_t>& pathE,
+                                vec<int64_t>& pathW, int32_t index) 
     {
         if (playerSAT==EVEN) {
             for (size_t i=0; i<winConditions.size(); i++) {
-                if (!winConditions[i]->satisfy(pathV,pathE,index)) {
+                if (!winConditions[i]->satisfy(pathV,pathE,pathW,index)) {
                     return false;
                 }
             }
@@ -75,7 +75,7 @@ public:
         }
         else {
             for (size_t i=0; i<winConditions.size(); i++) {
-                if (winConditions[i]->satisfy(pathV,pathE,index)) {
+                if (winConditions[i]->satisfy(pathV,pathE,pathW,index)) {
                     return true;
                 }
             }
@@ -83,12 +83,12 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    int filter(vec<int32_t>& pathV, vec<int32_t>& pathE, int32_t v, 
-        int32_t last, int32_t out, bool isFixed) 
+    int filter(vec<int32_t>& pathV, vec<int32_t>& pathE, vec<int64_t>& pathW,
+        int32_t v, int32_t last, int32_t out, bool isFixed) 
     {
         int index = findVertex(v,pathV);
         if (index >= 0) {
-            if (!satisfiedConditions(pathV,pathE,index)) {
+            if (!satisfiedConditions(pathV,pathE,pathW,index)) {
                 Clause* r = Reason_new(pathV.size());
                 for (size_t i=0; i<pathV.size()-1; i++) {
                     int32_t v_ = pathV[i];
@@ -110,9 +110,13 @@ public:
                 int32_t e = g.outs[v][i];
                 int32_t w = g.targets[e];
                 if (!V[w]->isFixed() || V[w]->getVal()>=0) {
+                    int64_t acum = pathW.size() ? g.weights[e]+pathW.last()
+                                                : g.weights[e];
                     pathE.push(e);
-                    int status = filter(pathV, pathE, w, v, i, 
+                    pathW.push(acum);
+                    int status = filter(pathV, pathE, pathW,  w, v, i, 
                                         V[w]->isFixed());
+                    pathW.pop();
                     pathE.pop();
                     if (status != CF_STAY) return status;
                 }
@@ -121,9 +125,13 @@ public:
                     int32_t e = g.outs[v][i];
                     int32_t w = g.targets[e];
                     if (!V[w]->isFixed() || V[w]->getVal()>=0) {
+                        int64_t acum = pathW.size() ? g.weights[e]+pathW.last()
+                                                    : g.weights[e];
                         pathE.push(e);
-                        int status = filter(pathV, pathE, w, v, i, 
+                        pathW.push(acum);
+                        int status = filter(pathV, pathE, pathW, w, v, i, 
                                             V[w]->isFixed());
+                        pathW.pop();
                         pathE.pop();
                         if (status != CF_STAY) return status;
                     }
@@ -137,10 +145,11 @@ public:
     bool propagate() override {
         vec<int32_t> pathV;
         vec<int32_t> pathO;
+        vec<int64_t> pathW;
 
         if (!V[g.init]->isFixed()) return true;
 
-        if (filter(pathV,pathO,g.init,-1,-1,true) == CF_CONFLICT)
+        if (filter(pathV,pathO,pathW,g.init,-1,-1,true) == CF_CONFLICT)
             return false;
 
         return true;

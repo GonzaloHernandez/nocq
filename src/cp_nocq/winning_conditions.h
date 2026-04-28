@@ -38,6 +38,7 @@ public:
     virtual ~WinningCondition() = default;
     //-----------------------------------------------------------------------
     virtual bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                            vec<int64_t>& pathW,
                             int32_t cycleIndex) = 0;
 };
 
@@ -48,6 +49,7 @@ class ParityCondition : public WinningCondition {
 public:
 
     bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
                     int32_t cycleIndex) override 
     {
         int64_t m = g.priors[pathV[cycleIndex]];
@@ -71,12 +73,14 @@ public:
     void setThreshold(int64_t t) { threshold = t; }
     
     bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
                     int32_t cycleIndex) override 
     {
         int64_t sum = 0;
-        for (int32_t i=cycleIndex; i<pathE.size(); i++) {
-            sum += g.weights[pathE[i]];
-        }
+        // for (int32_t i=cycleIndex; i<pathE.size(); i++) {
+        //     sum += g.weights[pathE[i]];
+        // }
+        sum = pathW.last()-pathW[cycleIndex]+g.weights[pathE[cycleIndex]];
         
         if (playerSAT == EVEN) {
             return sum >= threshold;
@@ -96,6 +100,7 @@ public:
     void setThreshold(float t) { threshold = t; }
 
     bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
                     int32_t cycleIndex) override 
     {
         float sum = 0;

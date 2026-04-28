@@ -8,7 +8,7 @@
             "program": "${workspaceFolder}/build/nocq",
             "args": [   
                 // "--gm", "${env:HOME}/gm/recursiveladder-1000.gm",
-                "--dzn", "${workspaceFolder}/build/rand5_.dzn",
+                "--dzn", "${workspaceFolder}/build/sprand.dzn",
                 // "--dzn", "${workspaceFolder}/examples/jurd-2-1.dzn",
                 // "--gm", "${env:HOME}/gm/randomgame-1000-10-1-20-0.gm",
                 // "--jurd","2","1","--max",
@@ -20,8 +20,8 @@
                 // "--min",
                 // "--export-gm","/home/chalo/dbg.gm",
                 // "--verbose"
-                "--print-solution",
-                "--print-times",
+                // "--print-solution",
+                // "--print-times",
                 // "--print-statistics",
                 // "--print-game",
                 "--noc",
@@ -29,7 +29,7 @@
                 // "--zra",
                 // "--help"
                 // "--parity",
-                "--energy","1000000",
+                "--energy","10",
                 // "--threshold","3",
                 "--chuffed",
                 // "--gecode"

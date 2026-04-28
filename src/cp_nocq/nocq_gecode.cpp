@@ -103,10 +103,11 @@ public:
         return -1;
     }
     //-------------------------------------------------------------------------
-    bool satisfiedConditions(vec<int32_t>& pathV,vec<int32_t>& pathE,int32_t index) {
+    bool satisfiedConditions(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+                                vec<int64_t>& pathW,int32_t index) {
         if (playerSAT==EVEN) {
             for (int32_t i=0; i<winConditions.size(); i++) {
-                if (!winConditions[i]->satisfy(pathV,pathE,index)) {
+                if (!winConditions[i]->satisfy(pathV,pathE,pathW,index)) {
                     return false;
                 }
             }
@@ -114,7 +115,7 @@ public:
         }
         else {
             for (int32_t i=0; i<winConditions.size(); i++) {
-                if (winConditions[i]->satisfy(pathV,pathE,index)) {
+                if (winConditions[i]->satisfy(pathV,pathE,pathW,index)) {
                     return true;
                 }
             }
@@ -122,14 +123,14 @@ public:
         }
     }
     //-------------------------------------------------------------------------
-    ExecStatus filter(  Space& home, 
-                        vec<int32_t>& pathV, vec<int32_t>& pathE, int32_t v, 
+    ExecStatus filter(  Space& home, vec<int32_t>& pathV, vec<int32_t>& pathE, 
+                        vec<int64_t>& pathW, int32_t v, 
                         int32_t lastEdge, bool definedEdge) 
     {
         int32_t index = findVertex(v,pathV);
         if (index >= 0) {
 
-            if (!satisfiedConditions(pathV,pathE,index)) {
+            if (!satisfiedConditions(pathV,pathE,pathW,index)) {
                 if (me_failed(E[lastEdge].zero(home))) {
                     return ES_FAILED;
                 }
@@ -142,9 +143,13 @@ public:
                 if (E[e].zero()) continue;
 
                 int32_t w = g.targets[e];
+                int64_t acum = pathW.size() ? g.weights[e]+pathW.last()
+                                            : g.weights[e];
                 pathE.push(e);
+                pathW.push(acum);
                 ExecStatus status = 
-                    filter(home, pathV, pathE, w, e, E[e].one());
+                    filter(home, pathV, pathE, pathW, w, e, E[e].one());
+                pathW.pop();
                 pathE.pop();
                 if (status == ES_FAILED) {
                     return status;
