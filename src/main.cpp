@@ -151,9 +151,9 @@ bool parseMyOptions(int argc, char *argv[]) {
         }
         else if (strcmp(argv[i],"--sqnc")==0) {
             validateArg("--sqnc <size> <type>");
-            options.vals.push(parseInteger(argv[i], 1, 10000));
+            options.vals.push(parseInteger(argv[i], 1, 100000));
             validateArg("--sqnc <type>");
-            options.vals.push(parseInteger(argv[i], 1, 10));
+            options.vals.push(parseInteger(argv[i], 1, 5));
             options.gameType = SQNC;
         }
         else if (strcmp(argv[i],"--weights")==0) {

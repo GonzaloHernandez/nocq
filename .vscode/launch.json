@@ -30,7 +30,7 @@
                 // "--help"
                 // "--parity",
                 // "--energy","10",
-                "--sqnc","4","2",
+                "--sqnc","2","2",
                 // "--chuffed",
                 // "--gecode"
             ],

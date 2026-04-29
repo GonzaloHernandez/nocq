@@ -770,100 +770,216 @@ Game::Game( game_type       type,
             }            
         }
 
+        std::uniform_int_distribution<> rndCycle(0, nvertices-1);
         if (type==2) {
-            std::uniform_int_distribution<> rndCycle(0, nvertices-1);
+            int32_t nCycles = 1;
+            for (size_t c=0; c<nCycles; c++) {
+                int32_t cycleLen = 3;
 
-            int32_t len=3;
-            vec<int32_t> cycleNodes(len);
-            for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
-            for (size_t i=0; i<len; i++) {
-                int32_t u = cycleNodes[i];
-                int32_t v = cycleNodes[(i + 1) % len];
+                int32_t v = rndCycle(g);
+                int32_t f = v;
+                int32_t added = 1;
+                while (added < cycleLen) {
+                    int32_t w = rndCycle(g);
+                    
+                    bool found = false;
+                    for (size_t i=0; i<outs[v].size(); i++) {
+                        int32_t e = outs[v][i];
+                        if (targets[e]==w) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) continue;
 
-                sources.push(u);
-                targets.push(v);
-                outs[u].push(e);
-                ins[v].push(e);
-                weights.push(i == 0 ? -1 : 0);                
+                    if (added == cycleLen-1) {
+                        for (size_t i=0; i<outs[w].size(); i++) {
+                            int32_t e = outs[w][i];
+                            if (targets[e]==f) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) continue;
+                    }
+
+                    sources.push(v);
+                    targets.push(w);
+                    outs[v].push(e);
+                    ins[w].push(e);
+                    weights.push(v == f ? -1 : 0);
+                    e++;
+                    v = w;
+                    added++;
+                }
+                sources.push(v);
+                targets.push(f);
+                outs[v].push(e);
+                ins[f].push(e);
+                weights.push(0);
                 e++;
-            }
-            nedges = e;
-
-            // Transformation
-            vec<int32_t> potentials(nvertices);
-            for (int32_t i = 0; i < nvertices; ++i) {
-                potentials[i] = std::rand() % 16384;
-            }
-
-            for (size_t i = 0; i < nedges; ++i) {
-                int32_t u = sources[i];
-                int32_t v = targets[i];
-                weights[i] = weights[i] + potentials[u] - potentials[v];
             }
         }
         else if (type==3) {
-            for (size_t c = 0; c < nedges; c++) {
-                std::uniform_int_distribution<> rndCycle(0, nvertices-1);
-                int32_t len=size;
-                vec<int32_t> cycleNodes(len);
-                for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
-                for (size_t i=0; i<len; i++) {
-                    int32_t u = cycleNodes[i];
-                    int32_t v = cycleNodes[(i + 1) % len];
+            int32_t nCycles = size;
+            for (size_t c=0; c<nCycles; c++) {
+                int32_t cycleLen = 3;
 
-                    sources.push(u);
-                    targets.push(v);
-                    outs[u].push(e);
-                    ins[v].push(e);
-                    weights.push(i == 0 ? -1 : 0);                
+                int32_t v = rndCycle(g);
+                int32_t f = v;
+                int32_t added = 1;
+                while (added < cycleLen) {
+                    int32_t w = rndCycle(g);
+                    
+                    bool found = false;
+                    for (size_t i=0; i<outs[v].size(); i++) {
+                        int32_t e = outs[v][i];
+                        if (targets[e]==w) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) continue;
+
+                    if (added == cycleLen-1) {
+                        for (size_t i=0; i<outs[w].size(); i++) {
+                            int32_t e = outs[w][i];
+                            if (targets[e]==f) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) continue;
+                    }
+
+                    sources.push(v);
+                    targets.push(w);
+                    outs[v].push(e);
+                    ins[w].push(e);
+                    weights.push(v == f ? -1 : 0);
                     e++;
+                    v = w;
+                    added++;
                 }
+                sources.push(v);
+                targets.push(f);
+                outs[v].push(e);
+                ins[f].push(e);
+                weights.push(0);
+                e++;
             }
-            nedges = e;
 
-            // Transformation
-            vec<int32_t> potentials(nvertices);
-            for (int32_t i = 0; i < nvertices; ++i) {
-                potentials[i] = std::rand() % 16384;
-            }
-
-            for (size_t i = 0; i < nedges; ++i) {
-                int32_t u = sources[i];
-                int32_t v = targets[i];
-                weights[i] = weights[i] + potentials[u] - potentials[v];
-            }
         }
         else if (type==4) {
-            for (size_t c = 0; c < nedges; c++) {
-                std::uniform_int_distribution<> rndCycle(0, nvertices-1);
-                int32_t len=size
-                vec<int32_t> cycleNodes(len);
-                for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
-                for (size_t i=0; i<len; i++) {
-                    int32_t u = cycleNodes[i];
-                    int32_t v = cycleNodes[(i + 1) % len];
+            int32_t nCycles = size/2;
+            for (size_t c=0; c<nCycles; c++) {
+                int32_t cycleLen = size;
 
-                    sources.push(u);
-                    targets.push(v);
-                    outs[u].push(e);
-                    ins[v].push(e);
-                    weights.push(i == 0 ? -1 : 0);                
+                int32_t v = rndCycle(g);
+                int32_t f = v;
+                int32_t added = 1;
+                while (added < cycleLen) {
+                    int32_t w = rndCycle(g);
+                    
+                    bool found = false;
+                    for (size_t i=0; i<outs[v].size(); i++) {
+                        int32_t e = outs[v][i];
+                        if (targets[e]==w) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) continue;
+
+                    if (added == cycleLen-1) {
+                        for (size_t i=0; i<outs[w].size(); i++) {
+                            int32_t e = outs[w][i];
+                            if (targets[e]==f) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) continue;
+                    }
+
+                    sources.push(v);
+                    targets.push(w);
+                    outs[v].push(e);
+                    ins[w].push(e);
+                    weights.push(v == f ? -1 : 0);
                     e++;
+                    v = w;
+                    added++;
                 }
+                sources.push(v);
+                targets.push(f);
+                outs[v].push(e);
+                ins[f].push(e);
+                weights.push(0);
+                e++;
             }
-            nedges = e;
+        }
+        else if (type==5) {
+            int32_t nCycles = 1;
+            for (size_t c=0; c<nCycles; c++) {
+                int32_t cycleLen = nvertices;
 
-            // Transformation
-            vec<int32_t> potentials(nvertices);
-            for (int32_t i = 0; i < nvertices; ++i) {
-                potentials[i] = std::rand() % 16384;
-            }
+                int32_t v = rndCycle(g);
+                int32_t f = v;
+                int32_t added = 1;
+                while (added < cycleLen) {
+                    int32_t w = rndCycle(g);
+                    
+                    bool found = false;
+                    for (size_t i=0; i<outs[v].size(); i++) {
+                        int32_t e = outs[v][i];
+                        if (targets[e]==w) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) continue;
 
-            for (size_t i = 0; i < nedges; ++i) {
-                int32_t u = sources[i];
-                int32_t v = targets[i];
-                weights[i] = weights[i] + potentials[u] - potentials[v];
+                    if (added == cycleLen-1) {
+                        for (size_t i=0; i<outs[w].size(); i++) {
+                            int32_t e = outs[w][i];
+                            if (targets[e]==f) {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found) continue;
+                    }
+
+                    sources.push(v);
+                    targets.push(w);
+                    outs[v].push(e);
+                    ins[w].push(e);
+                    weights.push(v == f ? -1 : 0);
+                    e++;
+                    v = w;
+                    added++;
+                }
+                sources.push(v);
+                targets.push(f);
+                outs[v].push(e);
+                ins[f].push(e);
+                weights.push(0);
+                e++;
             }
+        }
+        nedges = e;
+
+        // Transformation
+        vec<int32_t> potentials(nvertices);
+        for (int32_t i = 0; i < nvertices; i++) {
+            potentials[i] = std::rand() % 16384;
+        }
+
+        for (size_t i = 0; i < nedges; i++) {
+            int32_t u = sources[i];
+            int32_t v = targets[i];
+            weights[i] = weights[i] + potentials[u] - potentials[v];
         }
 
     }
