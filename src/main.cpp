@@ -75,10 +75,10 @@ bool parseMyOptions(int argc, char *argv[]) {
         return argv[i];
     };
     //-------------------------------------------------------------------------
-    auto parseInteger = [&](const char* str, int min, int max) -> int {
+    auto parseInteger = [&](const char* str, int64_t min, int64_t max) -> int {
         char* endptr;
         errno = 0;
-        long val = std::strtol(str, &endptr, 10);
+        int64_t val = std::strtoll(str, &endptr, 10);
 
         if (errno == ERANGE || val < min || val > max) {
             std::cerr   << "ERROR: Value [" << str << "] out of range (" 
@@ -89,7 +89,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             std::cerr<< "ERROR: Value [" << str << "] is not a valid number\n";
             exit(1);
         }
-        return (int)val;
+        return (int64_t)val;
     };
     //-------------------------------------------------------------------------
     auto parseFloat = [&](const char* str, float min, float max) -> float {
@@ -148,6 +148,13 @@ bool parseMyOptions(int argc, char *argv[]) {
             validateArg("--sprand <density>");
             options.vals.push(parseInteger(argv[i], 1, 1000));
             options.gameType = SPRAND;
+        }
+        else if (strcmp(argv[i],"--sqnc")==0) {
+            validateArg("--sqnc <size> <type>");
+            options.vals.push(parseInteger(argv[i], 1, 10000));
+            validateArg("--sqnc <type>");
+            options.vals.push(parseInteger(argv[i], 1, 10));
+            options.gameType = SQNC;
         }
         else if (strcmp(argv[i],"--weights")==0) {
             validateArg("--weights <lower_bound upper_bound>");
@@ -212,7 +219,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
                 options.thresholdEnergy = 0;
             } else {
-                options.thresholdEnergy = parseInteger(argv[i], -1000000000, 1000000000);
+                options.thresholdEnergy = parseInteger(argv[i], -10000000000, 10000000000);
             }
             options.energyCond = true;
         }
@@ -353,7 +360,7 @@ int main(int argc, char *argv[])
                             options.objective,
                             options.lbound, options.ubound);
             break;
-        case JURD: case RAND: case MLADDER: case SPRAND:
+        case JURD: case RAND: case MLADDER: case SPRAND: case SQNC:
             game = new Game(options.gameType, 
                             options.vals,
                             options.init[0],

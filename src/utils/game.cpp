@@ -362,7 +362,7 @@ Game::Game( game_type       type,
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::uniform_int_distribution<> rndweight(lbound, ubound);
+        std::uniform_int_distribution<> rndWeight(lbound, ubound);
 
         while (getline(file, line)) {
             if (line.empty()) continue;
@@ -392,7 +392,7 @@ Game::Game( game_type       type,
                         if (lbound == ubound) {
                             oWeights.push(lbound);
                         } else {
-                            oWeights.push(rndweight(g));
+                            oWeights.push(rndWeight(g));
                         }
                     }
                 }
@@ -456,7 +456,7 @@ Game::Game( game_type       type,
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::uniform_int_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndWeight(lbound,ubound);
         int32_t es = 1;
         int32_t os = 0;
         
@@ -471,23 +471,23 @@ Game::Game( game_type       type,
                 priors.push((levels-l)*2);
 
                 sources.push(es);   targets.push(es+1);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 sources.push(es);   targets.push(es+2);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 sources.push(es+1); targets.push(es+2);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 sources.push(es+2); targets.push(es);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
 
                 sources.push(es+2); targets.push(es+3);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 sources.push(es+3); targets.push(es+2);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
 
                 sources.push(es+2); targets.push(os+1);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 sources.push(os+1); targets.push(es+2);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
 
                 es += 3;
                 os += 2;
@@ -505,13 +505,13 @@ Game::Game( game_type       type,
             priors.push((levels-l)*2+1);
 
             sources.push(es);   targets.push(es+1);
-            weights.push(rndweight(g));
+            weights.push(rndWeight(g));
             sources.push(es+1); targets.push(es);
-            weights.push(rndweight(g));
+            weights.push(rndWeight(g));
             sources.push(es+1); targets.push(es+2);
-            weights.push(rndweight(g));
+            weights.push(rndWeight(g));
             sources.push(es+2); targets.push(es+1);
-            weights.push(rndweight(g));
+            weights.push(rndWeight(g));
 
             es += 2;
         }
@@ -545,7 +545,7 @@ Game::Game( game_type       type,
         }
 
         std::uniform_int_distribution<> rndPriors(0, vals[1]);
-        std::uniform_int_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndWeight(lbound,ubound);
 
         for (size_t i=0; i<nvertices; i++) {
             priors.push(rndPriors(g));
@@ -563,7 +563,7 @@ Game::Game( game_type       type,
             for (size_t i=0; i<es; i++) {
                 sources.push(v);
                 targets.push(ws[i]);
-                weights.push(rndweight(g));
+                weights.push(rndWeight(g));
                 outs[v].push(nedges);
                 ins[ws[i]].push(nedges);
                 nedges++;
@@ -588,7 +588,7 @@ Game::Game( game_type       type,
             owners[o2] = temp;
         }
 
-        std::uniform_int_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndWeight(lbound,ubound);
 
         priors  .growTo(nvertices);
         sources .growTo(nedges);
@@ -609,28 +609,28 @@ Game::Game( game_type       type,
         for (size_t i=0; i<bl; i++) {
             sources[e] = i*3+0;
             targets[e] = i*3+1;
-            weights[e] = rndweight(g);
+            weights[e] = rndWeight(g);
             outs[i*3+0].push(e);
             ins [i*3+1].push(e);
             e++;
 
             sources[e] = i*3+1;
             targets[e] = i*3+2;
-            weights[e] = rndweight(g);
+            weights[e] = rndWeight(g);
             outs[i*3+1].push(e);
             ins [i*3+2].push(e);
             e++;
 
             sources[e] = i*3+1;
             targets[e] = i*3+3;
-            weights[e] = rndweight(g);
+            weights[e] = rndWeight(g);
             outs[i*3+1].push(e);
             ins [i*3+3].push(e);
             e++;
 
             sources[e] = i*3+2;
             targets[e] = i*3+3;
-            weights[e] = rndweight(g);
+            weights[e] = rndWeight(g);
             outs[i*3+2].push(e);
             ins [i*3+3].push(e);
             e++;
@@ -638,7 +638,7 @@ Game::Game( game_type       type,
 
         sources[e] = bl*3;
         targets[e] = 0;
-        weights[e] = rndweight(g);
+        weights[e] = rndWeight(g);
         outs[bl*3].push(e);
         ins [0].push(e);
     }
@@ -662,7 +662,7 @@ Game::Game( game_type       type,
         }
 
         std::uniform_int_distribution<> rndPriors(0, nvertices-1);
-        std::uniform_int_distribution<> rndweight(lbound,ubound);
+        std::uniform_int_distribution<> rndWeight(lbound,ubound);
         std::uniform_int_distribution<> rndNode(0, nvertices-1);
 
         for (size_t i=0; i<nvertices; i++) {
@@ -682,7 +682,7 @@ Game::Game( game_type       type,
             uint32_t edgeIdx = sources.size();
             sources.push(u);
             targets.push(v_cycle);
-            weights.push(rndweight(g));
+            weights.push(rndWeight(g));
             outs[u].push(i);
             ins[v_cycle].push(i);
 
@@ -704,13 +704,168 @@ Game::Game( game_type       type,
                     edgeIdx = sources.size();
                     sources.push(u);
                     targets.push(v_rand);
-                    weights.push(rndweight(g));
+                    weights.push(rndWeight(g));
                     outs[u].push(edgeIdx);
                     ins[v_rand].push(edgeIdx);
                     edgesAdded++;
                 }
             }
         }
+    }
+    else if (type == SQNC) {
+        int32_t size    = vals[0];
+        nvertices       = size*size;    // sqrt(desired_size)
+        int32_t type    = vals[1];
+        nedges          = nvertices*2;  // temporary
+    
+        std::random_device rd;
+        std::mt19937 g(rd());
+    
+        owners.growTo(nvertices/2,0);
+        owners.growTo(nvertices,1);
+        std::uniform_int_distribution<> rndPositons(0, nvertices-1);
+        for(size_t i=0; i<nvertices/10; i++) {
+            int32_t o1 = rndPositons(g);
+            int32_t o2 = rndPositons(g);
+            int8_t temp = owners[o1];
+            owners[o1] = owners[o2];
+            owners[o2] = temp;
+        }
+
+        std::uniform_int_distribution<> rndPriors(0, nvertices-1);
+        std::uniform_int_distribution<> rndWeightShort(1,100);
+        std::uniform_int_distribution<> rndWeightLong(1000,10000);
+        std::uniform_int_distribution<> rndNode(0, nvertices-1);
+
+        for (size_t i=0; i<nvertices; i++) {
+            priors.push(rndPriors(g));
+        }
+    
+        outs.growTo(nvertices);
+        ins .growTo(nvertices);
+
+        int32_t e=0;
+        for (size_t r=0; r<size; r++) {
+            // Horizontal edges
+            for (size_t c=0; c<size; c++) {
+                int32_t v = r*size+c;
+                int32_t w = c<size-1 ? r*size+c+1 : r*size;
+                sources.push(v);
+                targets.push(w);
+                outs[v].push(e);
+                ins[w].push(e);
+                weights.push(rndWeightLong(g));
+                e++;
+            }
+            // Vertical edges
+            for (size_t c=0; c<size; c++) {
+                int32_t v = r * size + c;
+                int32_t w = (r < size - 1) ? (r + 1) * size + c : c;
+                sources.push(v);
+                targets.push(w);
+                outs[v].push(e);
+                ins[w].push(e);
+                weights.push(rndWeightShort(g));
+                e++;
+            }            
+        }
+
+        if (type==2) {
+            std::uniform_int_distribution<> rndCycle(0, nvertices-1);
+
+            int32_t len=3;
+            vec<int32_t> cycleNodes(len);
+            for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
+            for (size_t i=0; i<len; i++) {
+                int32_t u = cycleNodes[i];
+                int32_t v = cycleNodes[(i + 1) % len];
+
+                sources.push(u);
+                targets.push(v);
+                outs[u].push(e);
+                ins[v].push(e);
+                weights.push(i == 0 ? -1 : 0);                
+                e++;
+            }
+            nedges = e;
+
+            // Transformation
+            vec<int32_t> potentials(nvertices);
+            for (int32_t i = 0; i < nvertices; ++i) {
+                potentials[i] = std::rand() % 16384;
+            }
+
+            for (size_t i = 0; i < nedges; ++i) {
+                int32_t u = sources[i];
+                int32_t v = targets[i];
+                weights[i] = weights[i] + potentials[u] - potentials[v];
+            }
+        }
+        else if (type==3) {
+            for (size_t c = 0; c < nedges; c++) {
+                std::uniform_int_distribution<> rndCycle(0, nvertices-1);
+                int32_t len=size;
+                vec<int32_t> cycleNodes(len);
+                for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
+                for (size_t i=0; i<len; i++) {
+                    int32_t u = cycleNodes[i];
+                    int32_t v = cycleNodes[(i + 1) % len];
+
+                    sources.push(u);
+                    targets.push(v);
+                    outs[u].push(e);
+                    ins[v].push(e);
+                    weights.push(i == 0 ? -1 : 0);                
+                    e++;
+                }
+            }
+            nedges = e;
+
+            // Transformation
+            vec<int32_t> potentials(nvertices);
+            for (int32_t i = 0; i < nvertices; ++i) {
+                potentials[i] = std::rand() % 16384;
+            }
+
+            for (size_t i = 0; i < nedges; ++i) {
+                int32_t u = sources[i];
+                int32_t v = targets[i];
+                weights[i] = weights[i] + potentials[u] - potentials[v];
+            }
+        }
+        else if (type==4) {
+            for (size_t c = 0; c < nedges; c++) {
+                std::uniform_int_distribution<> rndCycle(0, nvertices-1);
+                int32_t len=size
+                vec<int32_t> cycleNodes(len);
+                for (size_t i=0; i<len; i++) cycleNodes.push(rndCycle(g));
+                for (size_t i=0; i<len; i++) {
+                    int32_t u = cycleNodes[i];
+                    int32_t v = cycleNodes[(i + 1) % len];
+
+                    sources.push(u);
+                    targets.push(v);
+                    outs[u].push(e);
+                    ins[v].push(e);
+                    weights.push(i == 0 ? -1 : 0);                
+                    e++;
+                }
+            }
+            nedges = e;
+
+            // Transformation
+            vec<int32_t> potentials(nvertices);
+            for (int32_t i = 0; i < nvertices; ++i) {
+                potentials[i] = std::rand() % 16384;
+            }
+
+            for (size_t i = 0; i < nedges; ++i) {
+                int32_t u = sources[i];
+                int32_t v = targets[i];
+                weights[i] = weights[i] + potentials[u] - potentials[v];
+            }
+        }
+
     }
 
     setInit(init);
