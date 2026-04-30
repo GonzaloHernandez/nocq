@@ -57,7 +57,7 @@ struct options {
     bool            energyCond      = false;
     bool            meanpayoffCond  = false;
     int64_t         thresholdEnergy = 0;
-    float           thresholdMPG    = 0.0;
+    double          thresholdMPG    = 0.0;
 } options;
 
 //-----------------------------------------------------------------------------
@@ -109,6 +109,33 @@ bool parseMyOptions(int argc, char *argv[]) {
         if (*endptr != '\0') {
             const char* check = endptr;
             while (std::isspace(*check)) check++;
+            if (*check != '\0') {
+                std::cerr << "ERROR: Value [" << str << "] contains invalid characters\n";
+                exit(1);
+            }
+        }        
+        return val;
+    };
+    //-------------------------------------------------------------------------
+    auto parseDouble = [&](const char* str, double min, double max) -> double {
+        char* endptr;
+        errno = 0;
+        double val = std::strtod(str, &endptr); 
+        
+        if (errno == ERANGE) {
+            std::cerr << "ERROR: Value [" << str << "] out of range\n";
+            exit(1);
+        }
+        
+        if (val < min || val > max) {
+            std::cerr << "ERROR: Value [" << str << "] out of bounds (" 
+                    << min << "-" << max << ")\n";
+            exit(1);
+        }
+
+        if (*endptr != '\0') {
+            const char* check = endptr;
+            while (std::isspace(static_cast<unsigned char>(*check))) check++;
             if (*check != '\0') {
                 std::cerr << "ERROR: Value [" << str << "] contains invalid characters\n";
                 exit(1);
@@ -228,7 +255,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
                 options.thresholdMPG = 0.0;
             } else {
-                options.thresholdMPG = parseFloat(argv[i], -1000000, 1000000);
+                options.thresholdMPG = parseDouble(argv[i], -1000000, 1000000);
             }
             options.meanpayoffCond = true;
         }

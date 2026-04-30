@@ -25,6 +25,8 @@
 
 #include "chuffed/support/vec.h"
 
+//=============================================================================
+
 class WinningCondition {
 protected:
     Game& g;
@@ -37,9 +39,10 @@ public:
     }
     virtual ~WinningCondition() = default;
     //-----------------------------------------------------------------------
-    virtual bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+    virtual bool satisfy(   vec<int32_t>& pathV,
+                            vec<int32_t>& pathE,
                             vec<int64_t>& pathW,
-                            int32_t cycleIndex) = 0;
+                            int32_t cycleIndex ) = 0;
 };
 
 //===========================================================================
@@ -48,9 +51,10 @@ class ParityCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 public:
 
-    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
                     vec<int64_t>& pathW,
-                    int32_t cycleIndex) override 
+                    int32_t cycleIndex ) override 
     {
         int64_t m = g.priors[pathV[cycleIndex]];
         for (int32_t i=cycleIndex+1; i<pathV.size(); i++) {
@@ -72,14 +76,12 @@ public:
 
     void setThreshold(int64_t t) { threshold = t; }
     
-    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
                     vec<int64_t>& pathW,
-                    int32_t cycleIndex) override 
+                    int32_t cycleIndex ) override 
     {
         int64_t sum = 0;
-        // for (int32_t i=cycleIndex; i<pathE.size(); i++) {
-        //     sum += g.weights[pathE[i]];
-        // }
         sum = pathW.last()-pathW[cycleIndex]+g.weights[pathE[cycleIndex]];
         
         if (playerSAT == EVEN) {
@@ -94,20 +96,19 @@ public:
 class MeanPayoffCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 private:
-    float threshold;
+    double threshold;
 public:
 
-    void setThreshold(float t) { threshold = t; }
+    void setThreshold(double t) { threshold = t; }
 
-    bool satisfy(   vec<int32_t>& pathV,vec<int32_t>& pathE,
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
                     vec<int64_t>& pathW,
-                    int32_t cycleIndex) override 
+                    int32_t cycleIndex ) override 
     {
-        float sum = 0;
-        for (int32_t i=cycleIndex; i<pathE.size(); i++) {
-            sum += g.weights[pathE[i]];
-        }
-        float avg = sum / (float)(pathE.size() - cycleIndex);
+        int64_t sum = 0;
+        sum = pathW.last()-pathW[cycleIndex]+g.weights[pathE[cycleIndex]];
+        double avg = static_cast<double>(sum) / (pathE.size() - cycleIndex);
 
         if (playerSAT == EVEN) {
             return avg >= threshold;
