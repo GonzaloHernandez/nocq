@@ -1,10 +1,13 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/modelling.h"
 
 #include <cassert>
-#include <cstdio>
+#include <ostream>
 
 class GraphColouring : public Problem {
 public:
@@ -19,8 +22,8 @@ public:
 	vec<IntVar*> x;   // Vectex labels
 	IntVar* colours;  // Number of colours
 
-	GraphColouring(char* filename) {
-		int max_degree = v - 1;
+	GraphColouring(char* /*filename*/) {
+		const int max_degree = v - 1;
 
 		// Create vars
 

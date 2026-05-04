@@ -1,8 +1,15 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
+
+#include <cstdint>
 
 void var_sym_break(vec<IntVar*>& x) {
-	for (int i = 0; i < x.size() - 1; i++) {
+	for (unsigned int i = 0; i < x.size() - 1; i++) {
 		int_rel(x[i], IRT_LE, x[i + 1]);
 	}
 }
@@ -22,7 +29,7 @@ public:
 
 	bool propagate() override {
 		if (y.getMax() < k) {
-			int64_t m = y.getMax() - 1;
+			const int64_t m = y.getMax() - 1;
 			setDom(x, setMax, m, y.getMaxLit());
 		}
 
@@ -39,11 +46,11 @@ public:
 void val_sym_break(vec<IntVar*>& x, int l, int u) {
 	vec<IntVar*> y;
 	createVars(y, u - l + 1, 0, x.size(), true);
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		x[i]->specialiseToEL();
 	}
 	for (int i = l; i <= u; i++) {
-		for (int j = 0; j < x.size(); j++) {
+		for (unsigned int j = 0; j < x.size(); j++) {
 			bool_rel(y[i - l]->getLit(j, LR_EQ), BRT_R_IMPL, x[j]->getLit(i, LR_EQ));
 			bool_rel(x[j]->getLit(i, LR_EQ), BRT_R_IMPL, y[i - l]->getLit(j, LR_LE));
 		}

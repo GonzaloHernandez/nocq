@@ -1,6 +1,16 @@
-#include <chuffed/mip/mip.h>
-#include <chuffed/mip/simplex.h>
-#include <chuffed/support/misc.h>
+#include "chuffed/mip/simplex.h"
+
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 
 #define REFACTOR_FREQ 100
 #define AVOID_SMALL_PIVOT 0
@@ -11,14 +21,7 @@
 
 Simplex simplex;
 
-Simplex::Simplex()
-		: L_cols_zeros(0),
-			U_diag_units(0),
-			recalc_time(0),
-			simplexs(0),
-			refactors(0),
-			sort_col_ratio(ratio),
-			sort_col_nz(AV_nz) {}
+Simplex::Simplex() : sort_col_ratio(ratio), sort_col_nz(AV_nz) {}
 
 void Simplex::init() {
 	m = mip->ineqs.size();
@@ -141,8 +144,8 @@ void Simplex::init() {
 	for (int i = 0; i < m; i++) {
 		AH[i] = cur_A;
 		LinearIneq& li = mip->ineqs[i];
-		for (int j = 0; j < li.x.size(); j++) {
-			int c = mip->var_map.find(li.x[j])->second;
+		for (unsigned int j = 0; j < li.x.size(); j++) {
+			const int c = mip->var_map.find(li.x[j])->second;
 			assert(0 <= c && c < n);
 			long double v = (li.lb_notR ? -li.a[j] : li.a[j]);
 			if (c == 0 && engine.opt_type == OPT_MAX) {
@@ -153,7 +156,7 @@ void Simplex::init() {
 			//			fprintf(stderr, "%d:%.0Lf ", c, v);
 		}
 		//		fprintf(stderr, "%.0Lf %.0Lf\n", mip->ineqs[i].lb, mip->ineqs[i].ub);
-		AH_nz[i] = cur_A - AH[i];
+		AH_nz[i] = static_cast<int>(cur_A - AH[i]);
 		lb[n + i] = (int)(li.lb_notR ? mip->ineqs[i].lb : -mip->ineqs[i].ub);
 		ub[n + i] = (int)(li.lb_notR ? mip->ineqs[i].ub : -mip->ineqs[i].lb);
 		//		for (int j = 0; j < n; j++) fprintf(stderr, "%.0Lf ", A[j][i]); fprintf(stderr, "\n");
@@ -164,10 +167,10 @@ void Simplex::init() {
 	cur_A = AV_mem;
 	for (int i = 0; i < n; i++) {
 		AV[i] = cur_A;
-		for (int j = 0; j < temp_A[i].size(); j++) {
+		for (unsigned int j = 0; j < temp_A[i].size(); j++) {
 			*cur_A++ = temp_A[i][j];
 		}
-		AV_nz[i] = cur_A - AV[i];
+		AV_nz[i] = static_cast<int>(cur_A - AV[i]);
 	}
 	for (int i = 0; i < m; i++) {
 		AV[n + i] = cur_A;
@@ -312,12 +315,12 @@ bool Simplex::findPivotRow() {
 
 	// find exiting row
 	for (int i = 0; i < m; i++) {
-		int v = rtoc[i];
+		const int v = rtoc[i];
 		if (v == 0) {
 			continue;
 		}
 		float a;
-		float val = rhs[i] + (shift[v] != 0 ? ub[v] : lb[v]);
+		const float val = static_cast<float>(rhs[i] + (shift[v] != 0 ? ub[v] : lb[v]));
 		//		fprintf(stderr, "cr %d: %.3Lf %d %d\n", i, val, (int) lb[v], (int) ub[v]);
 		// check lower bound
 		a = lb[v] - val;
@@ -354,7 +357,7 @@ bool Simplex::findPivotRow() {
 
 	// perform bound swap if necessary
 
-	int v = rtoc[pivot_row];
+	const int v = rtoc[pivot_row];
 	if (vio_type != shift[v]) {
 		boundSwap(v);
 	}
@@ -372,7 +375,7 @@ void Simplex::regeneratePivotRow() {
 
 	calcBInvRow(Z, pivot_row);
 
-	int v = rtoc[pivot_row];
+	const int v = rtoc[pivot_row];
 
 	for (int i = 0; i < m; i++) {
 		if (ctor[n + i] >= 0) {
@@ -394,7 +397,7 @@ void Simplex::regeneratePivotRow() {
 	if (v >= n) {
 		row[v] = (shift[v] != 0 ? -1 : 1);
 		R_nz.push(v);
-		int i = v - n;
+		const int i = v - n;
 		for (int j = 0; j < AH_nz[i]; j++) {
 			row[AH[i][j].index()] += Z[i] * AH[i][j].val();
 		}
@@ -420,10 +423,10 @@ bool Simplex::findPivotCol() {
 	long double pivot_inc = 1e100;
 	pivot_col = -1;
 
-	for (int i = 0; i < R_nz.size(); i++) {
-		int k = R_nz[i];
+	for (unsigned int i = 0; i < R_nz.size(); i++) {
+		const int k = R_nz[i];
 		if ((shift[k] == 0 && row[k] < -pivot_limit) || (shift[k] == 1 && row[k] > pivot_limit)) {
-			long double a = -obj[k] / row[k];
+			const long double a = -obj[k] / row[k];
 			if (a < 0) {
 				fprintf(stderr, "%.18Lf %.18Lf\n", obj[k], row[k]);
 			}
@@ -454,8 +457,8 @@ bool Simplex::findPivotCol2() {
 
 	vec<int> pivot_cands;
 
-	for (int i = 0; i < R_nz.size(); i++) {
-		int k = R_nz[i];
+	for (unsigned int i = 0; i < R_nz.size(); i++) {
+		const int k = R_nz[i];
 		if ((shift[k] == 0 && row[k] < 0) || (shift[k] == 1 && row[k] > 0)) {
 			assert(ctor[k] == -1);
 			pivot_cands.push(k);
@@ -468,13 +471,13 @@ bool Simplex::findPivotCol2() {
 	}
 
 	// sort based on ratio asc, then pivot size asc
-	sort((int*)pivot_cands, (int*)pivot_cands + pivot_cands.size(), sort_col_ratio);
+	std::sort((int*)pivot_cands, (int*)pivot_cands + pivot_cands.size(), sort_col_ratio);
 
 	long double best_psize = 0;
 
-	for (int i = 0; i < pivot_cands.size(); i++) {
-		int k = pivot_cands[i];
-		long double r = (shift[k] != 0 ? row[k] : -row[k]);
+	for (unsigned int i = 0; i < pivot_cands.size(); i++) {
+		const int k = pivot_cands[i];
+		const long double r = (shift[k] != 0 ? row[k] : -row[k]);
 		if (r > best_psize || (!AVOID_SMALL_PIVOT && r >= 0.001)) {
 			best_psize = r;
 			pivot_col = k;
@@ -518,9 +521,9 @@ void Simplex::pivot() {
 	rtoc[pivot_row] = pivot_col;
 
 	// update objective row
-	long double a = obj[pivot_col] / row[pivot_col];
-	for (int i = 0; i < R_nz.size(); i++) {
-		int k = R_nz[i];
+	const long double a = obj[pivot_col] / row[pivot_col];
+	for (unsigned int i = 0; i < R_nz.size(); i++) {
+		const int k = R_nz[i];
 		obj[k] -= a * row[k];
 		checkZero13(obj[k]);
 	}

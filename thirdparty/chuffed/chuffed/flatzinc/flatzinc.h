@@ -23,17 +23,20 @@
 #ifndef flatzinc_h
 #define flatzinc_h
 
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/flatzinc/ast.h>
-#include <chuffed/support/vec.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/flatzinc/ast.h"
+#include "chuffed/support/vec.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <map>
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -42,7 +45,7 @@ extern std::map<BoolView, std::string> boolVarString;
 
 // Controls whether expressions like bool_sum_eq([x[i] = j | i in 1..n], 1)
 // access the underlying literals x[i] = j or new ones via int_eq_reif(...)
-// NOTE:    Implemention isn't 100% ideal at this stage so kept it conditional
+// NOTE:    Implementation isn't 100% ideal at this stage so kept it conditional
 #define EXPOSE_INT_LITS 0
 
 namespace FlatZinc {
@@ -88,7 +91,7 @@ public:
 	/// Whether the variable *looks* introduced by the mzn2fzn translation
 	bool looks_introduced;
 	/// Destructor
-	virtual ~VarSpec() {}
+	virtual ~VarSpec() = default;
 	/// Variable index
 	int i;
 	/// Whether the variable aliases another variable
@@ -216,6 +219,18 @@ public:
 		assigned = false;
 		domain = d;
 	}
+	FloatVarSpec(double d, bool output, bool introduced, bool looks = false)
+			: VarSpec(output, introduced, looks) {
+		alias = false;
+		assigned = true;
+		if (d == 0.0) {
+			i = 0;
+		} else if (d == 1.0) {
+			i = 1;
+		} else {
+			domain = Option<std::vector<double>*>::some(new std::vector<double>(d));
+		}
+	}
 	FloatVarSpec(bool b, bool output, bool introduced, bool looks = false)
 			: VarSpec(output, introduced, looks) {
 		alias = false;
@@ -253,7 +268,7 @@ public:
 class Registry {
 public:
 	/// Type of constraint posting function
-	typedef void (*poster)(const ConExpr&, AST::Node*);
+	using poster = void (*)(const ConExpr&, AST::Node*);
 	/// Add posting function \a p with identifier \a id
 	void add(const std::string& id, poster p);
 	/// Post constraint specified by \a ce
@@ -290,9 +305,9 @@ public:
 class FlatZincSpace : public Problem {
 public:
 	/// Number of integer variables
-	int intVarCount;
+	int intVarCount{0};
 	/// Number of Boolean variables
-	int boolVarCount;
+	int boolVarCount{0};
 
 	/// The integer variables
 	vec<IntVar*> iv;
@@ -305,7 +320,42 @@ public:
 
 	vec<BoolView> assumptions;
 
-	AST::Array* output;
+	AST::Array* output{nullptr};
+
+	// === Experimental `on_restart` support ===
+	// Index of the status() variable
+	int restart_status = -1;
+	// When set to true, the search is marked as complete the next time onRestart() is called
+	bool mark_complete = false;
+	// Whether any solution has been found
+	bool solution_found = false;
+	// Whether a solution was found since the last restart
+	bool new_solution = false;
+	// Definition for variables given uniformly random values on restart
+	// (lower bound, upper bound, variable index)
+	std::vector<std::array<int, 3>> int_uniform;
+	// Definition for solution values stored and assigned on restart
+	// (variable index for solution being stored, stored value, variable index being assigned)
+	std::vector<std::array<int, 3>> int_sol;
+	std::vector<std::tuple<int, bool, int>> bool_sol;
+	// Definition for last assigned values stored and assigned on restart
+	// (variable index being assigned, value stored)
+	// Note that `LastVal` propagators are used to store the values when assigned
+	std::vector<std::array<int, 2>> int_last_val;
+	std::vector<std::pair<int, bool>> bool_last_val;
+
+	// Method called when a new solution is found.
+	// Note this method is a no-op if `int_sol` is empty.
+	void storeSolution();
+	// Whether storeSolution() should be called
+	bool enable_store_solution = false;
+	// Method called before the search process is restarted
+	// Returns false when the search should be marked as complete
+	bool onRestart(Engine* e);
+	// Whether onRestart() should be called
+	bool enable_on_restart = false;
+
+	// === End `on_restart` ===
 
 	/// Construct problem with given number of variables
 	FlatZincSpace(int intVars, int boolVars, int setVars);
@@ -348,9 +398,9 @@ public:
 		for (auto* ai : output->a) {
 			if (ai->isArray()) {
 				AST::Array* aia = ai->getArray();
-				int size = aia->a.size();
+				const auto size = aia->a.size();
 				out << "[";
-				for (int j = 0; j < size; j++) {
+				for (unsigned int j = 0; j < size; j++) {
 					printElem(aia->a[j], out);
 					if (j < size - 1) {
 						out << ", ";
@@ -366,16 +416,16 @@ public:
 						printElem(aia->a[2], out);
 					}
 				} else if (aia->a[0]->isBoolVar()) {
-					BoolView b = bv[aia->a[0]->getBoolVar()];
+					const BoolView b = bv[aia->a[0]->getBoolVar()];
 					if (b.isTrue()) {
 						printElem(aia->a[1], out);
 					} else if (b.isFalse()) {
 						printElem(aia->a[2], out);
 					} else {
-						std::cerr << "% Error: Condition not fixed." << std::endl;
+						std::cerr << "% Error: Condition not fixed." << '\n';
 					}
 				} else {
-					std::cerr << "% Error: Condition not Boolean." << std::endl;
+					std::cerr << "% Error: Condition not Boolean." << '\n';
 				}
 			} else {
 				printElem(ai, out);
@@ -389,13 +439,13 @@ public:
 		out << "{";
 		bool outerFirst = true;
 
-		for (int i = 0; i < iv.size(); i++) {
+		for (unsigned int i = 0; i < iv.size(); i++) {
 			if (iv_introduced[i]) {
 				continue;
 			}
 
 			IntVar* var = iv[i];
-			std::string varName = intVarString[var];
+			const std::string varName = intVarString[var];
 
 			if (varName.empty() || varName.find(so.filter_domains) == std::string::npos) {
 				continue;
@@ -425,12 +475,12 @@ public:
 			out << "]";
 		}
 
-		for (int i = 0; i < bv.size(); i++) {
+		for (unsigned int i = 0; i < bv.size(); i++) {
 			if (bv_introduced[i]) {
 				continue;
 			}
 
-			BoolView bview = bv[i];
+			const BoolView bview = bv[i];
 			std::string bvstring = boolVarString[bview];
 
 			if (bvstring.find(so.filter_domains) == std::string::npos) {
@@ -457,7 +507,6 @@ public:
 			out << boolVarString[bview] << ":";
 			/* out << litString[toInt(bview.getLit(true))] << ":"; */
 			/* out << litString[toInt(bview.getLit(false))] << ":"; */
-			bool first = true;
 			if (!bview.isFixed()) {
 				out << "'undef'";
 			} else if (bview.isTrue()) {
@@ -495,14 +544,19 @@ private:
 
 extern FlatZincSpace* s;
 
-typedef std::pair<std::string, Option<std::vector<int>*> > intvartype;
-typedef std::pair<std::string, VarSpec*> varspec;
+using intvartype = std::pair<std::string, Option<std::vector<int>*>>;
+using varspec = std::pair<std::string, VarSpec*>;
 
 /// State of the FlatZinc parser
 class ParserState {
 public:
 	ParserState(const std::string& b, std::ostream& err0)
-			: buf(b.c_str()), pos(0), length(b.size()), fg(nullptr), hadError(false), err(err0) {}
+			: buf(b.c_str()),
+				pos(0),
+				length(static_cast<unsigned int>(b.size())),
+				fg(nullptr),
+				hadError(false),
+				err(err0) {}
 
 	ParserState(const char* buf0, int length0, std::ostream& err0)
 			: buf(buf0), pos(0), length(length0), fg(nullptr), hadError(false), err(err0) {}
@@ -511,32 +565,35 @@ public:
 	const char* buf;
 	unsigned int pos, length;
 	FlatZinc::FlatZincSpace* fg;
-	std::vector<std::pair<std::string, AST::Node*> > _output;
+	std::vector<std::pair<std::string, AST::Node*>> _output;
 
 	SymbolTable<int> intvarTable;
 	SymbolTable<int> boolvarTable;
 	SymbolTable<int> floatvarTable;
 	SymbolTable<int> setvarTable;
-	SymbolTable<std::vector<int> > intvararrays;
-	SymbolTable<std::vector<int> > boolvararrays;
-	SymbolTable<std::vector<int> > floatvararrays;
-	SymbolTable<std::vector<int> > setvararrays;
-	SymbolTable<std::vector<int> > intvalarrays;
-	SymbolTable<std::vector<int> > boolvalarrays;
+	SymbolTable<std::vector<int>> intvararrays;
+	SymbolTable<std::vector<int>> boolvararrays;
+	SymbolTable<std::vector<int>> floatvararrays;
+	SymbolTable<std::vector<int>> setvararrays;
+	SymbolTable<std::vector<int>> intvalarrays;
+	SymbolTable<std::vector<int>> boolvalarrays;
 	SymbolTable<int> intvals;
 	SymbolTable<bool> boolvals;
 	SymbolTable<AST::SetLit> setvals;
-	SymbolTable<std::vector<AST::SetLit> > setvalarrays;
+	SymbolTable<std::vector<AST::SetLit>> setvalarrays;
 
 	std::vector<varspec> intvars;
 	std::vector<varspec> boolvars;
 	std::vector<varspec> setvars;
 
+	std::vector<std::pair<int, int>> last_val_bool;
+	std::vector<std::pair<int, int>> last_val_int;
+
 	std::vector<ConExpr*> domainConstraints;
 #if EXPOSE_INT_LITS
 	// for some reason the above list is posted in reverse order,
 	// don't want to disturb things so add the following (forward):
-	std::vector<std::pair<ConExpr*, AST::Node*> > domainConstraints2;
+	std::vector<std::pair<ConExpr*, AST::Node*>> domainConstraints2;
 #endif
 
 	bool hadError;
@@ -546,13 +603,13 @@ public:
 		if (pos >= length) {
 			return 0;
 		}
-		int num = std::min(length - pos, lexBufSize);
+		const int num = std::min(length - pos, lexBufSize);
 		memcpy(lexBuf, buf + pos, num);
 		pos += num;
 		return num;
 	}
 
-	void output(std::string x, AST::Node* n) { _output.emplace_back(x, n); }
+	void output(const std::string& x, AST::Node* n) { _output.emplace_back(x, n); }
 
 	AST::Array* getOutput() {
 		std::sort(_output.begin(), _output.end());
@@ -573,6 +630,20 @@ public:
 		}
 		return a;
 	}
+
+	void postOnRestartPropagators() {
+		fg->bool_last_val.resize(last_val_bool.size());
+		for (size_t i = 0; i < last_val_bool.size(); ++i) {
+			fg->bool_last_val[i] = std::pair<int, bool>{last_val_bool[i].second, false};
+			last_val(&fg->bv[last_val_bool[i].first], &(fg->bool_last_val[i].second));
+		}
+		fg->int_last_val.resize(last_val_int.size());
+		for (size_t i = 0; i < last_val_int.size(); ++i) {
+			fg->int_last_val[i] =
+					std::array<int, 2>{last_val_int[i].second, fg->iv[last_val_int[i].first]->getMin()};
+			last_val(fg->iv[last_val_int[i].first], &(fg->int_last_val[i][1]));
+		}
+	}
 };
 
 /// Exception class for FlatZinc errors
@@ -582,6 +653,7 @@ private:
 
 public:
 	Error(const std::string& where, const std::string& what) : msg(where + ": " + what) {}
+	~Error() noexcept = default;
 	const std::string& toString() const { return msg; }
 };
 

@@ -1,7 +1,7 @@
 #ifndef vars_h
 #define vars_h
 
-#include <chuffed/branching/branching.h>
+#include "chuffed/branching/branching.h"
 
 enum EVENT_TYPE {
 	EVENT_C = 1,    // Any change in the domain of the variable
@@ -30,7 +30,7 @@ class Var : public Branching {
 public:
 	virtual VarType getType() = 0;
 	virtual void setPreferredVal(PreferredVal vb) = 0;
-	virtual ~Var() {}
+	virtual ~Var() = default;
 };
 
 #endif

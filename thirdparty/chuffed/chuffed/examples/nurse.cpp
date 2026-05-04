@@ -1,37 +1,40 @@
-#include <cerrno>
-#include <cstdint>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/globals/mddglobals.h"
+#include "chuffed/mdd/MDD.h"
+#include "chuffed/mdd/circ_fns.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/ParseUtils.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <iostream>
-#include <utility>
-
-// #define DUMP_ONLY
-
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/mddglobals.h>
-#include <chuffed/support/ParseUtils.h>
-#include <chuffed/vars/modelling.h>
-// #include <globals/circglobals.h>
-#include <chuffed/mdd/circ_fns.h>
+#include <zlib.h>
 
 #define HORIZON 28
+// #define DUMP_ONLY
 
 template <class T>
 T circ_gcc(T fff, vec<vec<T> >& xs, CardOp rel, const vec<int>& cards) {
 	assert(cards.size() > 0);
 
 	vec<vec<T> > vals(cards.size());
-	for (int ii = 0; ii < xs.size(); ii++) {
+	for (unsigned int ii = 0; ii < xs.size(); ii++) {
 		assert(xs[ii].size() == cards.size());
-		for (int jj = 0; jj < cards.size(); jj++) {
+		for (unsigned int jj = 0; jj < cards.size(); jj++) {
 			vals[jj].push(xs[ii][jj]);
 		}
 	}
 
 	T ret = card(fff, vals[0], rel, cards[0]);
-	for (int jj = 1; jj < cards.size(); jj++) {
+	for (unsigned int jj = 1; jj < cards.size(); jj++) {
 		assert(vals[jj].size() == xs.size());
 		ret = ret & (card(fff, vals[jj], rel, cards[jj]));
 	}
@@ -42,22 +45,22 @@ void mdd_gcc(vec<IntVar*>& vs, CardOp op, const vec<int>& cards) {
 	MDDTable tab(vs.size());
 
 	vec<vec<MDD> > vars;
-	for (int ii = 0; ii < vs.size(); ii++) {
+	for (unsigned int ii = 0; ii < vs.size(); ii++) {
 		vars.push();
-		for (int jj = 0; jj < cards.size(); jj++) {
+		for (unsigned int jj = 0; jj < cards.size(); jj++) {
 			vars.last().push(tab.vareq(ii, jj));
 		}
 	}
-	MDD ret(circ_gcc(tab.fff(), vars, op, cards));
+	MDD const ret(circ_gcc(tab.fff(), vars, op, cards));
 
-	MDDOpts opts;
+	const MDDOpts opts;
 	addMDD(vs, ret, opts);
 }
 
 MDD multi_sequence(MDDTable& tab, int nDays, vec<int>& bmin, vec<int>& bmax, vec<int>& bsz) {
 	MDD seq = tab.ttt();
 
-	for (int ii = 0; ii < bsz.size(); ii++) {
+	for (unsigned int ii = 0; ii < bsz.size(); ii++) {
 		vec<MDD> terms;
 		for (int jj = 0; jj < nDays; jj++) {
 			terms.push(tab.vareq(jj, ii));
@@ -73,10 +76,10 @@ class NurseSeq : public Problem {
 public:
 	class Opts {
 	public:
-		Opts() : model(1), gcard(0) {}
+		Opts() = default;
 
-		int model;
-		int gcard;
+		int model{1};
+		int gcard{0};
 	};
 
 	NurseSeq(Opts& opts) {
@@ -116,7 +119,7 @@ public:
 		// Shifts:   n1 n2 n3 ... nN  n1 n2 ...   nN
 		//          [      Day 1   ][      ....        ]
 		createVars(xs, nNurses * nDays, 0, nShifts - 1, true);  // Eager literals
-		assert(xs.size() == nNurses * nDays);
+		assert(static_cast<int>(xs.size()) == nNurses * nDays);
 
 		//    for(int xi = 0; xi < xs.size(); xi++)
 		//      fprintf(out, "var x%d %d %d\n", xs[xi]->var_id, xs[xi]->getMin(), xs[xi]->getMax());
@@ -125,12 +128,12 @@ public:
 		// sat_sets_mid_order(&S,nNurses*nDays,nShifts,tempvars,false);
 		//
 		// Coverage
-		vec<int> cov_props;  // Coverage propagator ids.
+		const vec<int> cov_props;  // Coverage propagator ids.
 		for (int j = 0; j < nDays; j++) {
 			if (opts.gcard == 0) {
 				for (int i = 0; i < nShifts; i++) {
 					// Required coverage for the day.
-					int req = coverage[j][i];
+					const int req = coverage[j][i];
 					if (req == 0) {
 						continue;
 					}
@@ -140,16 +143,14 @@ public:
 						rostered.push(xs[(nNurses * j) + k]->getLit(i, LR_EQ));  // [[ nurse_shift = i ]]
 					}
 					bool_linear_decomp(rostered, IRT_GE, req);
-#if 0
-              fprintf(out, "bool_linear_ge(["); 
-              bool first = true;
-              for(int xi = 0; xi < nNurses; xi++)
-              {
-                fprintf(out, "%sx%d=%d", first ? "" : ", ", xs[nNurses*j + xi]->var_id, i);
-                first = false;
-              }
-              fprintf(out, "], %d)\n", req);
-#endif
+					// fprintf(out, "bool_linear_ge([");
+					// bool first = true;
+					// for(int xi = 0; xi < nNurses; xi++)
+					// {
+					//   fprintf(out, "%sx%d=%d", first ? "" : ", ", xs[nNurses*j + xi]->var_id, i);
+					//   first = false;
+					// }
+					// fprintf(out, "], %d)\n", req);
 				}
 			} else {
 				vec<int> lbs;
@@ -223,13 +224,13 @@ public:
 		accepts.push(2);
 		accepts.push(3);
 
-		int nStates = 4;
-		int q0 = 1;
+		const int nStates = 4;
+		const int q0 = 1;
 
 		MDDTable tab(nDays);
 
-		MDDNodeInt _spacing = fd_regular(tab, nDays, nStates, trans, q0, accepts, false);
-		MDD spacing(&tab, _spacing);
+		const MDDNodeInt _spacing = fd_regular(tab, nDays, nStates, trans, q0, accepts, false);
+		MDD const spacing(&tab, _spacing);
 		/* /
 		MDD spacing = tab.ttt();
 		/ */
@@ -280,11 +281,11 @@ public:
 			bsz.push(5);
 		}
 
-		MDD seq(multi_sequence(tab, nDays, bmin, bmax, bsz));
-		MDD seqprop(seq & spacing);
+		MDD const seq(multi_sequence(tab, nDays, bmin, bmax, bsz));
+		MDD const seqprop(seq & spacing);
 		//      MDD seqprop(spacing);
 
-		MDDOpts mopts;
+		const MDDOpts mopts;
 		vec<IntVar*> inst;
 		for (int i = 0; i < nNurses; i++) {
 			// Multi-sequence constraint
@@ -321,7 +322,7 @@ protected:
 };
 
 static char* hasPrefix(char* str, const char* prefix) {
-	int len = strlen(prefix);
+	const int len = strlen(prefix);
 	if (strncmp(str, prefix, len) == 0) {
 		return str + len;
 	}

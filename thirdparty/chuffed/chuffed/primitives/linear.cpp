@@ -1,6 +1,20 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/mip/mip.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <cassert>
+#include <climits>
+#include <cstdint>
+#include <cstdlib>
 #include <utility>
 
 // sum x_i >= c <- r
@@ -11,13 +25,13 @@ class LinearGE : public Propagator {
 	vec<int> pos;
 	vec<IntView<2 * S> > x;
 	vec<IntView<2 * S + 1> > y;
-	int const c;
+	const int c;
 	BoolView r;
 
 	// persistent data
-	int fix;
-	int fix_x;
-	int fix_y;
+	int fix{0};
+	int fix_x{0};
+	int fix_y{0};
 	int64_t fix_sum;
 	vec<Lit> ps;
 
@@ -26,21 +40,19 @@ public:
 			: pos(_x.size()),
 				c(_c),
 				r(std::move(_r)),
-				fix(0),
-				fix_x(0),
-				fix_y(0),
+
 				fix_sum(-c),
 				ps(R + _x.size()) {
 		priority = 2;
 
-		for (int i = 0; i < _x.size(); i++) {
+		for (unsigned int i = 0; i < _x.size(); i++) {
 			assert(a[i]);
 			if (a[i] > 0) {
 				pos[i] = x.size();
 				x.push(IntView<2 * S>(_x[i], a[i]));
 				_x[i]->attach(this, i, EVENT_U);
 			} else {
-				pos[i] = -y.size() - 1;
+				pos[i] = -static_cast<int>(y.size()) - 1;
 				y.push(IntView<2 * S + 1>(_x[i], -a[i]));
 				_x[i]->attach(this, i, EVENT_L);
 			}
@@ -50,7 +62,7 @@ public:
 		}
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int /*i*/, int /*c*/) override {
 		if ((R == 0) || !r.isFalse()) {
 			pushInQueue();
 		}
@@ -63,24 +75,24 @@ public:
 
 		int64_t max_sum = fix_sum;
 
-		for (int i = fix_x; i < x.size(); i++) {
+		for (unsigned int i = fix_x; i < x.size(); i++) {
 			max_sum += x[i].getMax();
 		}
-		for (int i = fix_y; i < y.size(); i++) {
+		for (unsigned int i = fix_y; i < y.size(); i++) {
 			max_sum += y[i].getMax();
 		}
 
 		//		if (R && max_sum < 0) setDom2(r, setVal, 0, x.size()+y.size());
 
 		if ((R != 0) && max_sum < 0) {
-			int64_t v = 0;
+			const int64_t v = 0;
 			if (r.setValNotR(v != 0)) {
 				Reason expl;
 				if (so.lazy) {
-					for (int j = 0; j < x.size(); j++) {
+					for (unsigned int j = 0; j < x.size(); j++) {
 						ps[j + 1] = x[j].getMaxLit();
 					}
-					for (int j = 0; j < y.size(); j++) {
+					for (unsigned int j = 0; j < y.size(); j++) {
 						ps[j + 1 + x.size()] = y[j].getMaxLit();
 					}
 					expl = Reason_new(ps);
@@ -103,18 +115,18 @@ public:
 		//			setDom2(y[i], setMin, y[i].getMax()-max_sum, x.size()+i);
 		//		}
 
-		for (int i = fix_x; i < x.size(); i++) {
-			int64_t v = x[i].getMax() - max_sum;
+		for (unsigned int i = fix_x; i < x.size(); i++) {
+			const int64_t v = x[i].getMax() - max_sum;
 			if (x[i].setMinNotR(v)) {
 				Reason expl;
 				if (so.lazy) {
 					if ((R != 0) && r.isFixed()) {
 						ps[0] = r.getValLit();
 					}
-					for (int j = 0; j < x.size(); j++) {
+					for (unsigned int j = 0; j < x.size(); j++) {
 						ps[j + R] = x[j].getMaxLit();
 					}
-					for (int j = 0; j < y.size(); j++) {
+					for (unsigned int j = 0; j < y.size(); j++) {
 						ps[j + R + x.size()] = y[j].getMaxLit();
 					}
 					ps[R + i] = ps[0];
@@ -126,18 +138,18 @@ public:
 			}
 		}
 
-		for (int i = fix_y; i < y.size(); i++) {
-			int64_t v = y[i].getMax() - max_sum;
+		for (unsigned int i = fix_y; i < y.size(); i++) {
+			const int64_t v = y[i].getMax() - max_sum;
 			if (y[i].setMinNotR(v)) {
 				Reason expl;
 				if (so.lazy) {
 					if ((R != 0) && r.isFixed()) {
 						ps[0] = r.getValLit();
 					}
-					for (int j = 0; j < x.size(); j++) {
+					for (unsigned int j = 0; j < x.size(); j++) {
 						ps[j + R] = x[j].getMaxLit();
 					}
-					for (int j = 0; j < y.size(); j++) {
+					for (unsigned int j = 0; j < y.size(); j++) {
 						ps[j + R + x.size()] = y[j].getMaxLit();
 					}
 					ps[R + x.size() + i] = ps[0];
@@ -152,17 +164,17 @@ public:
 		return true;
 	}
 
-	Clause* explain(Lit p, int inf_id) override {
-		if (inf_id == x.size() + y.size()) {
+	Clause* explain(Lit /*p*/, int inf_id) override {
+		if (inf_id == static_cast<int>(x.size() + y.size())) {
 			inf_id = -1;
 		}
 		if ((R != 0) && r.isFixed()) {
 			ps[0] = r.getValLit();
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			ps[i + R] = x[i].getMaxLit();
 		}
-		for (int i = 0; i < y.size(); i++) {
+		for (unsigned int i = 0; i < y.size(); i++) {
 			ps[i + R + x.size()] = y[i].getMaxLit();
 		}
 		ps[R + inf_id] = ps[0];
@@ -177,10 +189,10 @@ public:
 template <int U, int V, int R = 0>
 class LinearNE : public Propagator {
 	int sp;
-	int const sz;
+	const int sz;
 	IntView<U>* x;
 	IntView<V>* y;
-	int const c;
+	const int c;
 	BoolView r;
 
 	// persistent state
@@ -192,13 +204,13 @@ public:
 	LinearNE(vec<int>& a, vec<IntVar*>& _x, int _c, BoolView _r = bv_true)
 			: sz(_x.size()), c(_c), r(std::move(_r)), num_unfixed(sz), sum_fixed(-c) {
 		vec<IntView<0> > w;
-		for (int i = 0; i < a.size(); i++) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			if (a[i] >= 0) {
 				w.push(IntView<0>(_x[i], a[i]));
 			}
 		}
 		sp = w.size();
-		for (int i = 0; i < a.size(); i++) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			if (a[i] < 0) {
 				w.push(IntView<0>(_x[i], -a[i]));
 			}
@@ -216,7 +228,7 @@ public:
 		//		printf("LinearNE: %d %d %d %d %d\n", sp, sz, U, V, R);
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int i, int /*c*/) override {
 		if (i < sz) {
 			num_unfixed = num_unfixed - 1;
 			if (i < sp) {
@@ -305,7 +317,7 @@ public:
 template <int S>
 void int_linear(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c) {
 	vec<int> b;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		b.push(-a[i]);
 	}
 	switch (t) {
@@ -338,12 +350,45 @@ void int_linear(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c) {
 
 //-----
 
+// sum a*x rel c <- r
+
+template <int S>
+void int_linear_imp(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, BoolView r) {
+	vec<int> b;
+	for (unsigned int i = 0; i < a.size(); i++) {
+		b.push(-a[i]);
+	}
+	switch (t) {
+		case IRT_EQ:
+			new LinearGE<S, 1>(a, x, c, r);
+			new LinearGE<S, 1>(b, x, -c, r);
+			break;
+		case IRT_NE:
+			new LinearNE<2 * S, 2 * S + 1, 1>(a, x, c, r);
+			break;
+		case IRT_LE:
+			int_linear_imp<S>(b, x, IRT_GE, -c, r);
+			break;
+		case IRT_LT:
+			int_linear_imp<S>(b, x, IRT_GE, -c + 1, r);
+			break;
+		case IRT_GE:
+			new LinearGE<S, 1>(a, x, c, r);
+			break;
+		case IRT_GT:
+			int_linear_imp<S>(a, x, IRT_GE, c + 1, r);
+			break;
+		default:
+			NEVER;
+	}
+}
+
 // sum a*x rel c <-> r
 
 template <int S>
 void int_linear_reif(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, BoolView r) {
 	vec<int> b;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		b.push(-a[i]);
 	}
 	switch (t) {
@@ -373,14 +418,46 @@ void int_linear_reif(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, BoolView
 	}
 }
 
-// sum a*x rel c <-> r
-
-void int_linear(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, BoolView r) {
+// sum a*x rel c <- r
+void int_linear_imp(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, const BoolView& r) {
 	assert(a.size() == x.size());
 
 	bool scale = false;
 	double limit = abs(c);
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
+		assert(a[i]);
+		if (a[i] != 1 && a[i] != -1) {
+			scale = true;
+		}
+		limit += abs(a[i]) * IntVar::max_limit + INT_MAX;
+	}
+	if (limit >= INT64_MAX) {
+		CHUFFED_ERROR("Linear constraint may overflow, not yet supported\n");
+	}
+
+	if (r.isTrue()) {
+		if (scale) {
+			int_linear<1>(a, x, t, c);
+		} else {
+			int_linear<0>(a, x, t, c);
+		}
+	} else {
+		if (scale) {
+			int_linear_imp<1>(a, x, t, c, r);
+		} else {
+			int_linear_imp<0>(a, x, t, c, r);
+		}
+	}
+}
+
+// sum a*x rel c <-> r
+
+void int_linear(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, const BoolView& r) {
+	assert(a.size() == x.size());
+
+	bool scale = false;
+	double limit = abs(c);
+	for (unsigned int i = 0; i < x.size(); i++) {
 		assert(a[i]);
 		if (a[i] != 1 && a[i] != -1) {
 			scale = true;
@@ -454,26 +531,26 @@ void int_linear(vec<int>& a, vec<IntVar*>& x, IntRelType t, int c, BoolView r) {
 	}
 }
 
-void int_linear(vec<IntVar*>& x, IntRelType t, int c, BoolView r) {
+void int_linear(vec<IntVar*>& x, IntRelType t, int c, const BoolView& r) {
 	vec<int> a(x.size(), 1);
 	int_linear(a, x, t, c, r);
 }
 
-void int_linear(vec<int>& _a, vec<IntVar*>& _x, IntRelType t, IntVar* y, BoolView r) {
+void int_linear(vec<int>& _a, vec<IntVar*>& _x, IntRelType t, IntVar* y, const BoolView& r) {
 	vec<int> a;
-	for (int i = 0; i < _a.size(); i++) {
+	for (unsigned int i = 0; i < _a.size(); i++) {
 		a.push(_a[i]);
 	}
 	a.push(-1);
 	vec<IntVar*> x;
-	for (int i = 0; i < _x.size(); i++) {
+	for (unsigned int i = 0; i < _x.size(); i++) {
 		x.push(_x[i]);
 	}
 	x.push(y);
 	int_linear(a, x, t, 0, r);
 }
 
-void int_linear(vec<IntVar*>& x, IntRelType t, IntVar* y, BoolView r) {
+void int_linear(vec<IntVar*>& x, IntRelType t, IntVar* y, const BoolView& r) {
 	vec<int> a(x.size(), 1);
 	int_linear(a, x, t, y, r);
 }
@@ -485,7 +562,7 @@ void table_GAC(vec<IntVar*>& x, vec<vec<int> >& t);
 void int_linear_dom(vec<int>& a, vec<IntVar*>& x, int c) {
 	assert(a.size() == 3 && x.size() == 3);
 
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		x[i]->specialiseToEL();
 	}
 

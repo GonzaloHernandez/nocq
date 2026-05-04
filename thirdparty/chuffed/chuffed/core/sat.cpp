@@ -1,15 +1,25 @@
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/core/sat.h>
-#include <chuffed/mip/mip.h>
+#include "chuffed/core/sat.h"
+
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <set>
 #include <sstream>
+#include <string>
 
 #define PRINT_ANALYSIS 0
 
@@ -17,11 +27,11 @@ SAT sat;
 
 std::map<int, std::string> litString;
 
-std::map<int, string> learntClauseString;
+std::map<int, std::string> learntClauseString;
 std::ofstream learntStatsStream;
 
 cassert(sizeof(Lit) == 4);
-cassert(sizeof(Clause) == 4);
+cassert(sizeof(Clause) == 8);
 cassert(sizeof(WatchElem) == 8);
 cassert(sizeof(Reason) == 8);
 
@@ -29,7 +39,7 @@ cassert(sizeof(Reason) == 8);
 // inline methods
 
 inline void SAT::insertVarOrder(int x) {
-	if (!order_heap.inHeap(x) && flags[x].decidable) {
+	if (!order_heap.inHeap(x) && flags[x].decidable()) {
 		order_heap.insert(x);
 	}
 }
@@ -41,10 +51,8 @@ inline void SAT::setConfl(Lit p, Lit q) {
 }
 
 inline void SAT::untrailToPos(vec<Lit>& t, int p) {
-	int dl = decisionLevel();
-
 	for (int i = t.size(); i-- > p;) {
-		int x = var(t[i]);
+		const int x = var(t[i]);
 		assigns[x] = toInt(l_Undef);
 #if PHASE_SAVING
 		if (so.phase_saving >= 1 || (so.phase_saving == 1 && dl >= l0)) polarity[x] = sign(t[i]);
@@ -63,27 +71,11 @@ SAT::SAT()
 			trail(1),
 			qhead(1, 0),
 			rtrail(1),
-			confl(nullptr),
-			var_inc(1),
-			cla_inc(1),
+
 			order_heap(VarOrderLt(activity)),
-			bin_clauses(0),
-			tern_clauses(0),
-			long_clauses(0),
-			learnt_clauses(0),
-			propagations(0),
-			back_jumps(0),
-			nrestarts(0),
-			next_simp_db(100000),
-			clauses_literals(0),
-			learnts_literals(0),
-			max_literals(0),
-			tot_literals(0),
-			avg_depth(100),
-			confl_rate(1000),
+
 			ll_time(chuffed_clock::now()),
-			ll_inc(1),
-			learnt_len_el(10),
+
 			learnt_len_occ(MAX_SHARE_LEN, learnt_len_el * 1000 / MAX_SHARE_LEN) {
 	newVar();
 	enqueue(Lit(0, true));
@@ -98,10 +90,10 @@ SAT::SAT()
 }
 
 SAT::~SAT() {
-	for (int i = 0; i < clauses.size(); i++) {
+	for (unsigned int i = 0; i < clauses.size(); i++) {
 		free(clauses[i]);
 	}
-	for (int i = 0; i < learnts.size(); i++) {
+	for (unsigned int i = 0; i < learnts.size(); i++) {
 		free(learnts[i]);
 	}
 }
@@ -112,7 +104,7 @@ void SAT::init() {
 }
 
 int SAT::newVar(int n, ChannelInfo ci) {
-	int s = assigns.size();
+	const int s = assigns.size();
 
 	watches.growBy(n);
 	watches.growBy(n);
@@ -122,7 +114,7 @@ int SAT::newVar(int n, ChannelInfo ci) {
 	seen.growBy(n, 0);
 	activity.growBy(n, 0);
 	polarity.growBy(n, true);
-	flags.growBy(n, 7);
+	flags.growBy(n, LitFlags(true, true, true));
 
 	for (int i = 0; i < n; i++) {
 		c_info.push(ci);
@@ -146,7 +138,7 @@ int SAT::getLazyVar(ChannelInfo ci) {
 		c_info[v] = ci;
 		activity[v] = 0;
 		polarity[v] = true;
-		flags[v] = 7;
+		flags[v] = LitFlags(true, true, true);
 	} else {
 		v = newVar(1, ci);
 		num_used.push(0);
@@ -157,7 +149,7 @@ int SAT::getLazyVar(ChannelInfo ci) {
 
 void SAT::removeLazyVar(int v) {
 	return;
-	ChannelInfo& ci = c_info[v];
+	const ChannelInfo& ci = c_info[v];
 	assert(assigns[v] == toInt(l_Undef));
 	assert(watches[2 * v].size() == 0);
 	assert(watches[2 * v + 1].size() == 0);
@@ -196,8 +188,8 @@ void SAT::addClause(Lit p, Lit q) {
 }
 
 void SAT::addClause(vec<Lit>& ps, bool one_watch) {
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	for (i = j = 0; i < ps.size(); i++) {
 		if (value(ps[i]) == l_True) {
 			return;
@@ -242,7 +234,7 @@ void SAT::addClause(Clause& c, bool one_watch) {
 
 	// Mark lazy lits which are used
 	if (c.learnt) {
-		for (int i = 0; i < c.size(); i++) {
+		for (unsigned int i = 0; i < c.size(); i++) {
 			incVarUse(var(c[i]));
 		}
 	}
@@ -270,7 +262,7 @@ void SAT::addClause(Clause& c, bool one_watch) {
 		learnts.push(&c);
 		if (so.learnt_stats) {
 			std::set<int> levels;
-			for (int i = 0; i < c.size(); i++) {
+			for (unsigned int i = 0; i < c.size(); i++) {
 				levels.insert(out_learnt_level[i]);
 			}
 			std::stringstream s;
@@ -278,7 +270,7 @@ void SAT::addClause(Clause& c, bool one_watch) {
 			s << c.clauseID() << "," << c.size() << "," << levels.size();
 			if (so.learnt_stats_nogood) {
 				s << ",";
-				for (int i = 0; i < c.size(); i++) {
+				for (unsigned int i = 0; i < c.size(); i++) {
 					s << (i == 0 ? "" : " ") << getLitString(toInt(c[i]));
 					//              s << " (" << out_learnt_level[i] << ")";
 				}
@@ -302,7 +294,7 @@ void SAT::removeClause(Clause& c) {
 	}
 
 	if (c.learnt) {
-		for (int i = 0; i < c.size(); i++) {
+		for (unsigned int i = 0; i < c.size(); i++) {
 			decVarUse(var(c[i]));
 		}
 	}
@@ -311,7 +303,7 @@ void SAT::removeClause(Clause& c) {
 		//            learntClauseScore[c.clauseID()] = c.rawActivity();
 		/* if (so.debug) { */
 		if (so.learnt_stats) {
-			int id = c.clauseID();
+			const int id = c.clauseID();
 			learntStatsStream << learntClauseString[id];
 			learntStatsStream << ",";
 			learntStatsStream << c.rawActivity();
@@ -336,7 +328,7 @@ void SAT::topLevelCleanUp() {
 		simplifyDB();
 	}
 
-	for (int i = 0; i < trail[0].size(); i++) {
+	for (unsigned int i = 0; i < trail[0].size(); i++) {
 		if (so.debug) {
 			std::cerr << "setting true at top-level: " << getLitString(toInt(trail[0][i])) << "\n";
 		}
@@ -348,8 +340,8 @@ void SAT::topLevelCleanUp() {
 }
 
 void SAT::simplifyDB() {
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	for (i = j = 0; i < learnts.size(); i++) {
 		if (simplify(*learnts[i])) {
 			removeClause(*learnts[i]);
@@ -368,8 +360,8 @@ bool SAT::simplify(Clause& c) const {
 	if (value(c[1]) == l_True) {
 		return true;
 	}
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	for (i = j = 2; i < c.size(); i++) {
 		if (value(c[i]) == l_True) {
 			return true;
@@ -382,16 +374,16 @@ bool SAT::simplify(Clause& c) const {
 	return false;
 }
 
-string showReason(Reason r) {
+std::string showReason(Reason r) {
 	std::stringstream ss;
-	switch (r.d.type) {
+	switch (r.type()) {
 		case 0:
-			if (r.pt == nullptr) {
+			if (r.pt() == nullptr) {
 				ss << "no reason";
 			} else {
-				Clause& c = *r.pt;
+				Clause& c = *r.pt();
 				ss << "clause";
-				for (int i = 0; i < c.size(); i++) {
+				for (unsigned int i = 0; i < c.size(); i++) {
 					ss << " " << getLitString(toInt(~c[i]));
 				}
 			}
@@ -400,12 +392,14 @@ string showReason(Reason r) {
 			ss << "absorbed binary clause?";
 			break;
 		case 2:
-			ss << "single literal " << getLitString(toInt(~toLit(r.d.d1)));
+			ss << "single literal " << getLitString(toInt(~toLit(r.d1())));
 			break;
 		case 3:
-			ss << "two literals " << getLitString(toInt(~toLit((r.d.d1)))) << " & "
-				 << getLitString(toInt(~toLit((r.d.d2))));
+			ss << "two literals " << getLitString(toInt(~toLit((r.d1())))) << " & "
+				 << getLitString(toInt(~toLit((r.d2()))));
 			break;
+		default:
+			assert(false);
 	}
 	return ss.str();
 }
@@ -421,12 +415,12 @@ void SAT::enqueue(Lit p, Reason r) {
 	 * "\n"; */
 	/* } */
 	assert(value(p) == l_Undef);
-	int v = var(p);
+	const int v = var(p);
 	assigns[v] = toInt(lbool(!sign(p)));
 	trailpos[v] = engine.trailPos();
 	reason[v] = r;
 	trail.last().push(p);
-	ChannelInfo& ci = c_info[v];
+	const ChannelInfo& ci = c_info[v];
 	if (ci.cons_type == 1) {
 		engine.vars[ci.cons_id]->channel(ci.val, static_cast<LitRel>(ci.val_type),
 																		 static_cast<int>(sign(p)));
@@ -441,7 +435,7 @@ void SAT::cEnqueue(Lit p, Reason r) {
 	 * << "\n"; */
 	/* } */
 	assert(value(p) != l_True);
-	int v = var(p);
+	const int v = var(p);
 	if (value(p) == l_False) {
 		if (so.lazy) {
 			if (r == nullptr) {
@@ -468,7 +462,7 @@ void SAT::aEnqueue(Lit p, Reason r, int l) {
 							<< " and l=" << l << "\n";
 	}
 	assert(value(p) == l_Undef);
-	int v = var(p);
+	const int v = var(p);
 	assigns[v] = toInt(lbool(!sign(p)));
 	trailpos[v] = engine.trail_lim[l] - 1;
 	reason[v] = r;
@@ -512,10 +506,10 @@ bool SAT::propagate() {
 	int& qhead = this->qhead.last();
 	vec<Lit>& trail = this->trail.last();
 
-	while (qhead < trail.size()) {
+	while (qhead < static_cast<int>(trail.size())) {
 		num_props++;
 
-		Lit p = trail[qhead++];  // 'p' is enqueued fact to propagate.
+		const Lit p = trail[qhead++];  // 'p' is enqueued fact to propagate.
 		vec<WatchElem>& ws = watches[toInt(p)];
 
 		if (ws.size() == 0) {
@@ -527,12 +521,12 @@ bool SAT::propagate() {
 		WatchElem* end;
 
 		for (i = j = ws, end = i + ws.size(); i != end;) {
-			WatchElem& we = *i;
-			switch (we.d.type) {
+			const WatchElem& we = *i;
+			switch (we.type()) {
 				case 1: {
 					// absorbed binary clause
 					*j++ = *i++;
-					Lit q = toLit(we.d.d2);
+					const Lit q = toLit(we.d2());
 					switch (toInt(value(q))) {
 						case 0:
 							enqueue(q, ~p);
@@ -551,11 +545,11 @@ bool SAT::propagate() {
 				case 2: {
 					// wake up FD propagator
 					*j++ = *i++;
-					engine.propagators[we.d.d2]->wakeup(we.d.d1, 0);
+					engine.propagators[we.d2()]->wakeup(we.d1(), 0);
 					continue;
 				}
 				default:
-					Clause& c = *we.pt;
+					Clause& c = *we.pt();
 					i++;
 
 					// Check if already satisfied
@@ -564,7 +558,7 @@ bool SAT::propagate() {
 						continue;
 					}
 
-					Lit false_lit = ~p;
+					const Lit false_lit = ~p;
 
 					// Make sure the false literal is data[1]:
 					if (c[0] == false_lit) {
@@ -572,7 +566,7 @@ bool SAT::propagate() {
 					}
 
 					// Look for new watch:
-					for (int k = 2; k < c.size(); k++) {
+					for (unsigned int k = 2; k < c.size(); k++) {
 						if (value(c[k]) != l_False) {
 							c[1] = c[k];
 							c[k] = false_lit;
@@ -595,7 +589,7 @@ bool SAT::propagate() {
 				FoundWatch:;
 			}
 		}
-		ws.shrink(i - j);
+		ws.shrink(static_cast<int>(i - j));
 	}
 	propagations += num_props;
 
@@ -606,8 +600,8 @@ struct activity_lt {
 	bool operator()(Clause* x, Clause* y) { return x->activity() < y->activity(); }
 };
 void SAT::reduceDB() {
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 
 	std::sort((Clause**)learnts, (Clause**)learnts + learnts.size(), activity_lt());
 
@@ -630,7 +624,7 @@ void SAT::reduceDB() {
 
 std::string showClause(Clause& c) {
 	std::stringstream ss;
-	for (int i = 0; i < c.size(); i++) {
+	for (unsigned int i = 0; i < c.size(); i++) {
 		ss << " " << getLitString(toInt(c[i]));
 	}
 	return ss.str();
@@ -650,7 +644,7 @@ void SAT::printLearntStats() {
 
 	std::sort((Clause**)learnts, (Clause**)learnts + learnts.size(), raw_activity_gt());
 	std::cerr << "top ten clauses:\n";
-	for (int i = 0; i < 10 && i < learnts.size(); i++) {
+	for (unsigned int i = 0; i < 10 && i < learnts.size(); i++) {
 		std::cerr << i << ": " << learnts[i]->rawActivity() << " " << showClause(*learnts[i]) << "\n";
 	}
 }
@@ -679,8 +673,8 @@ void SAT::printStats() const {
 bool SAT::finished() {
 	assert(so.vsids);
 	while (!order_heap.empty()) {
-		int x = order_heap[0];
-		if ((assigns[x] == 0) && flags[x].decidable) {
+		const int x = order_heap[0];
+		if ((assigns[x] == 0) && flags[x].decidable()) {
 			return false;
 		}
 		order_heap.removeMin();
@@ -695,20 +689,20 @@ DecInfo* SAT::branch() {
 
 	assert(!order_heap.empty());
 
-	int next = order_heap.removeMin();
+	const int next = order_heap.removeMin();
 
 	assert(!assigns[next]);
-	assert(flags[next].decidable);
+	assert(flags[next].decidable());
 
 	return new DecInfo(nullptr, 2 * next + static_cast<int>(polarity[next]));
 }
 
 void Clause::debug() const {
-	for (size_t i = 0; i < size(); i++) {
+	for (unsigned int i = 0; i < size(); i++) {
 		if (i > 0) {
 			std::cerr << " \\/ ";
 		}
-		std::cerr << getLitString(toInt(operator[](i)));
+		std::cerr << getLitString(toInt(operator[](static_cast<int>(i))));
 	}
 	std::cerr << "\n";
 }

@@ -1,16 +1,24 @@
-#include <algorithm>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/globals/mddglobals.h"
+#include "chuffed/mdd/CFG.h"
+#include "chuffed/mdd/CYK.h"
+#include "chuffed/mdd/MDD.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
+
+#include <cassert>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
-// #include <chuffed/circuit/FDNNF.h>
-#include <chuffed/globals/mddglobals.h>
-#include <chuffed/mdd/CFG.h>
-#include <chuffed/mdd/CYK.h>
-#include <chuffed/mdd/MDD.h>
-// #include <chuffed/globals/circglobals.h>
-// #include <chuffed/circuit/nnfprop.h>
-#include <chuffed/mdd/circ_fns.h>
 
 // Using the simplified model, with infinite under-costs, and unit over-costs.
 // This maps to hard coverage constraints, and minimizing the # of worked hours.
@@ -21,51 +29,49 @@
 
 #define DISTINCT_REST
 
-#if 0
-template <class T>
-T circ_gcc(T fff, vec< vec<T> >& xs, IntRelType rel, const vec<int>& cards)
-{
-  assert(cards.size() > 0);
+// template <class T>
+// T circ_gcc(T fff, vec< vec<T> >& xs, IntRelType rel, const vec<int>& cards)
+// {
+//   assert(cards.size() > 0);
 
-  vec< vec<T> > vals(cards.size());
-  for(int ii = 0; ii < xs.size(); ii++)
-  {
-    assert(xs[ii].size() == cards.size());
-    for(int jj = 0; jj < cards.size(); jj++)
-    {
-      vals[jj].push(xs[ii][jj]);
-    }
-  }
+//   vec< vec<T> > vals(cards.size());
+//   for(int ii = 0; ii < xs.size(); ii++)
+//   {
+//     assert(xs[ii].size() == cards.size());
+//     for(int jj = 0; jj < cards.size(); jj++)
+//     {
+//       vals[jj].push(xs[ii][jj]);
+//     }
+//   }
 
-  T ret = card(fff, vals[0], rel, cards[0]);
-  for(int jj = 1; jj < cards.size(); jj++)
-  {
-    assert(vals[jj].size() == xs.size());
-    ret = ret&(card(fff,vals[jj],rel,cards[jj]));
-  }
-  return ret;
-}
+//   T ret = card(fff, vals[0], rel, cards[0]);
+//   for(int jj = 1; jj < cards.size(); jj++)
+//   {
+//     assert(vals[jj].size() == xs.size());
+//     ret = ret&(card(fff,vals[jj],rel,cards[jj]));
+//   }
+//   return ret;
+// }
 
-void mdd_gcc(vec<IntVar*>& vs, IntRelType rel, const vec<int>& cards)
-{
-  MDDTable tab(vs.size());
-  
-  vec< vec<MDD> > vars;
-  for(int ii = 0; ii < vs.size(); ii++)
-  {
-    vars.push();
-    for(int jj = 0; jj < cards.size(); jj++)
-      vars.last().push(tab.vareq(ii,jj));
-  }
-  MDD ret(circ_gcc(tab.fff(), vars, rel, cards));
-  
-  addMDD(vs, ret);
-}
-#endif
+// void mdd_gcc(vec<IntVar*>& vs, IntRelType rel, const vec<int>& cards)
+// {
+//   MDDTable tab(vs.size());
+
+//   vec< vec<MDD> > vars;
+//   for(int ii = 0; ii < vs.size(); ii++)
+//   {
+//     vars.push();
+//     for(int jj = 0; jj < cards.size(); jj++)
+//       vars.last().push(tab.vareq(ii,jj));
+//   }
+//   MDD ret(circ_gcc(tab.fff(), vars, rel, cards));
+
+//   addMDD(vs, ret);
+// }
 
 // Code for additional option handling.
 static char* hasPrefix(char* str, const char* prefix) {
-	int len = strlen(prefix);
+	const int len = strlen(prefix);
 	if (strncmp(str, prefix, len) == 0) {
 		return str + len;
 	}
@@ -80,15 +86,15 @@ enum GapT { G_R = 0, G_B = 0, G_L = 0, maxG = 1 };
 
 class ShiftSched : public Problem {
 public:
-	int const staff;
-	int const shifts;
-	int const acts;
-	int const dom;
+	const int staff;
+	const int shifts;
+	const int acts;
+	const int dom;
 	const vec<vec<int> > demand;
 	vec<vec<IntVar*> > xv;
 	IntVar* cost;
 
-	ShiftSched(int _staff, int _shifts, int _acts, vec<vec<int> >& _demand, int mode)
+	ShiftSched(int _staff, int _shifts, int _acts, vec<vec<int> >& _demand, int /*mode*/)
 			: staff(_staff), shifts(_shifts), acts(_acts), dom(acts + maxG), demand(_demand) {
 		for (int ww = 0; ww < staff; ww++) {
 			xv.push();
@@ -121,37 +127,36 @@ public:
 		}
 		CFG::CFG g(buildSchedG(acts, first, last));
 
-#if 0
-    if(!(mode&USEMDD))
-    {
-      // Construct variables for the circuit
-      FDNNFTable tab;
-      std::vector< std::vector<FDNNF> > seq;
-      for(int ii = 0; ii < shifts; ii++)
-      {
-        seq.push_back( std::vector<FDNNF>() );
-        for(int kk = 0; kk < dom; kk++)
-        {
-          seq[ii].push_back(tab.vareq(ii, kk));
-        }
-      }
-      // Construct a circuit from the grammar.
-      FDNNF gcirc(parseCYK(tab.fff(), seq, g));
+		//     if(!(mode&USEMDD))
+		//     {
+		//       // Construct variables for the circuit
+		//       FDNNFTable tab;
+		//       std::vector< std::vector<FDNNF> > seq;
+		//       for(int ii = 0; ii < shifts; ii++)
+		//       {
+		//         seq.push_back( std::vector<FDNNF>() );
+		//         for(int kk = 0; kk < dom; kk++)
+		//         {
+		//           seq[ii].push_back(tab.vareq(ii, kk));
+		//         }
+		//       }
+		//       // Construct a circuit from the grammar.
+		//       FDNNF gcirc(parseCYK(tab.fff(), seq, g));
 
-      if(mode&DECOMP)
-      {
-        for(int ww = 0; ww < staff; ww++)
-        {
-//          nnf_decomp(xv[ww], gcirc);
-          nnf_decompGAC(xv[ww], gcirc);
-        }
-      } else {
-        // Enforce the schedule for each worker.
-        for(int ww = 0; ww < staff; ww++)
-          addNNF(xv[ww], gcirc);
-      }
-    } else {
-#endif
+		//       if(mode&DECOMP)
+		//       {
+		//         for(int ww = 0; ww < staff; ww++)
+		//         {
+		// //          nnf_decomp(xv[ww], gcirc);
+		//           nnf_decompGAC(xv[ww], gcirc);
+		//         }
+		//       } else {
+		//         // Enforce the schedule for each worker.
+		//         for(int ww = 0; ww < staff; ww++)
+		//           addNNF(xv[ww], gcirc);
+		//       }
+		//     } else {
+
 		// Construct variables for the circuit
 		MDDTable mdd_tab(shifts);
 		std::vector<std::vector<MDD> > seq;
@@ -161,16 +166,14 @@ public:
 				seq[ii].push_back(mdd_tab.vareq(ii, kk));
 			}
 		}
-		MDD gcirc(parseCYK(mdd_tab.fff(), seq, g));
+		MDD const gcirc(parseCYK(mdd_tab.fff(), seq, g));
 
 		// Enforce the schedule for each worker.
-		MDDOpts opts;
+		const MDDOpts opts;
 		for (int ww = 0; ww < staff; ww++) {
 			addMDD(xv[ww], gcirc, opts);
 		}
-#if 0
-    }
-#endif
+		// }
 
 		for (int ww = 1; ww < staff; ww++) {
 			lex(xv[ww - 1], xv[ww], false);
@@ -222,22 +225,20 @@ public:
 		cost = newIntVar(cMin, (last - first + 1) * staff);
 		bool_linear_decomp(rostered, IRT_LE, cost);
 
-#if 0
-    vec<IntVar*> rostered_int;
-    for(int ss = 0; ss < shifts; ss++)
-    {
-      if(ss < first || ss > last)
-        continue;
+		// vec<IntVar*> rostered_int;
+		// for(int ss = 0; ss < shifts; ss++)
+		// {
+		//   if(ss < first || ss > last)
+		//     continue;
 
-      for(int ww = 0; ww < staff; ww++)
-      {
-        IntVar* sv = newIntVar(0,1);
-        bool2int(xv[ww][ss]->getLit(acts-1, LR_LE),sv);
-        rostered_int.push(sv);
-      }
-    }
-    int_linear(rostered_int, IRT_GE, cost);
-#endif
+		//   for(int ww = 0; ww < staff; ww++)
+		//   {
+		//     IntVar* sv = newIntVar(0,1);
+		//     bool2int(xv[ww][ss]->getLit(acts-1, LR_LE),sv);
+		//     rostered_int.push(sv);
+		//   }
+		// }
+		// int_linear(rostered_int, IRT_GE, cost);
 
 		vec<IntVar*> vs;
 		for (int ss = 0; ss < shifts; ss++) {
@@ -254,19 +255,19 @@ public:
 	}
 
 	static CFG::CFG buildSchedG(int n_acts, int first, int last) {
-		unsigned int rest(n_acts + G_R);
-		unsigned int brk(n_acts + G_B);
-		unsigned int lunch(n_acts + G_L);
+		const unsigned int rest(n_acts + G_R);
+		const unsigned int brk(n_acts + G_B);
+		const unsigned int lunch(n_acts + G_L);
 		CFG::CFG g(n_acts + maxG);
 
-		CFG::Sym S(g.newVar());
+		const CFG::Sym S(g.newVar());
 		g.setStart(S);
 
-		CFG::Sym R(g.newVar());
-		CFG::Sym P(g.newVar());
-		CFG::Sym W(g.newVar());
-		CFG::Sym L(g.newVar());
-		CFG::Sym F(g.newVar());
+		const CFG::Sym R(g.newVar());
+		const CFG::Sym P(g.newVar());
+		const CFG::Sym W(g.newVar());
+		const CFG::Sym L(g.newVar());
+		const CFG::Sym F(g.newVar());
 
 		CFG::Cond actLB(g.attach(new CFG::SpanLB(4)));
 		CFG::Cond lunEQ(g.attach(new CFG::Span(4, 4)));
@@ -276,7 +277,7 @@ public:
 
 		std::vector<CFG::Sym> activities;
 		for (int ii = 0; ii < n_acts; ii++) {
-			CFG::Sym act(g.newVar());
+			const CFG::Sym act(g.newVar());
 			activities.push_back(act);
 			g.prod(open(act), CFG::E() << ii << act);
 			g.prod(open(act), CFG::E() << ii);
@@ -300,7 +301,6 @@ public:
 	}
 
 	void print(std::ostream& os) override {
-#if 1
 		for (int act = 0; act < acts; act++) {
 			os << "[";
 			for (int ss = 0; ss < shifts; ss++) {
@@ -308,14 +308,13 @@ public:
 			}
 			os << "]\n";
 		}
-#endif
 		os << "Hours worked: " << (1.0 * cost->getVal() / 4) << "\n";
-		for (int ww = 0; ww < xv.size(); ww++) {
+		for (unsigned int ww = 0; ww < xv.size(); ww++) {
 			os << "[";
 			for (int ii = 0; ii < shifts; ii++) {
 				//        if(ii)
 				//            printf(", ");
-				int val(xv[ww][ii]->getVal());
+				const int val(xv[ww][ii]->getVal());
 				if (val < acts) {
 					os << val;
 				} else {
@@ -334,10 +333,10 @@ public:
 						case G_R:
 							os << "R";
 							break;
+#endif
 						default:
 							assert(0);
 							break;
-#endif
 					}
 				}
 			}

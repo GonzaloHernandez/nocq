@@ -1,8 +1,8 @@
 #ifndef GRAPH_PROPAGATOR_H
 #define GRAPH_PROPAGATOR_H
 
-#include <chuffed/core/propagator.h>
-#include <chuffed/support/union_find.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/support/union_find.h"
 
 #include <map>
 #include <queue>
@@ -10,8 +10,8 @@
 #include <stack>
 #include <vector>
 
-typedef int edge_id;
-typedef int node_id;
+using edge_id = int;
+using node_id = int;
 
 class GraphPropagator : public Propagator {
 public:
@@ -41,13 +41,13 @@ public:
 
 	inline BoolView& getNodeVar(int u) {
 		assert(u >= 0);
-		assert(u < vs.size());
+		assert(u < static_cast<int>(vs.size()));
 		return vs[u];
 	}
 
 	inline BoolView& getEdgeVar(int e) {
 		assert(e >= 0);
-		assert(e < es.size());
+		assert(e < static_cast<int>(es.size()));
 		return es[e];
 	}
 
@@ -57,26 +57,26 @@ public:
 
 	inline int getHead(int e) {
 		assert(e >= 0);
-		assert(e < es.size());
+		assert(e < static_cast<int>(es.size()));
 		return endnodes[e][1];
 	}
 
 	inline int getTail(int e) {
 		assert(e >= 0);
-		assert(e < es.size());
+		assert(e < static_cast<int>(es.size()));
 		return endnodes[e][0];
 	}
 
 	inline int getEndnode(int e, int n) {
 		assert(e >= 0);
-		assert(e < es.size());
+		assert(e < static_cast<int>(es.size()));
 		assert(n >= 0 && n < 2);
 		return endnodes[e][n];
 	}
 
 	inline int getOtherEndnode(int e, int u) {
 		assert(e >= 0);
-		assert(e < es.size());
+		assert(e < static_cast<int>(es.size()));
 		return endnodes[e][0] == u ? endnodes[e][1] : endnodes[e][0];
 	}
 

@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.5...4.0)
+cmake_minimum_required(VERSION 3.5.0)
 
 project(chuffed CXX C)
 # The version number.
 set(chuffed_VERSION_MAJOR 0)
-set(chuffed_VERSION_MINOR 12)
-set(chuffed_VERSION_PATCH 1)
+set(chuffed_VERSION_MINOR 13)
+set(chuffed_VERSION_PATCH 3)
 
 ### Additional Definitions:
 option(STATIC "compile with the -static linker flag" OFF)
@@ -229,6 +229,15 @@ else()
   set(FLEX_FZNLexer_OUTPUTS ${PROJECT_SOURCE_DIR}/chuffed/flatzinc/generated_parser/lexer.yy.cpp)
 endif()
 
+# If CMAKE_UNITY_BUILD is enabled, we still want these files to be built separately
+# to avoid compilation errors.
+set_source_files_properties(
+    ${BISON_FZNParser_OUTPUTS}
+    ${FLEX_FZNLexer_OUTPUTS}
+  PROPERTIES
+    SKIP_UNITY_BUILD_INCLUSION ON
+)
+
 add_library(flatzinc_parser OBJECT
   ${FLEX_FZNLexer_OUTPUTS}
   ${BISON_FZNParser_OUTPUTS}
@@ -382,6 +391,9 @@ install(FILES ${CMAKE_BINARY_DIR}/chuffed.msc DESTINATION ${CMAKE_INSTALL_DATARO
 
 # ------------- CMake export configuration -------------
 include(CMakePackageConfigHelpers)
+
+file(RELATIVE_PATH REL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/cmake/chuffed/ ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR})
+file(RELATIVE_PATH REL_DATAROOTDIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/cmake/chuffed/ ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR})
 
 export(EXPORT chuffed-targets FILE ${CMAKE_CURRENT_BINARY_DIR}/cmake/chuffed-targets.cmake)
 

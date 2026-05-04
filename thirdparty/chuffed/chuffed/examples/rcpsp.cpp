@@ -1,10 +1,17 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/modelling.h"
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ostream>
 
 class RCPSP : public Problem {
 public:
@@ -30,7 +37,7 @@ public:
 	RCPSP(char* filename) {
 		readData(filename);
 
-		int horizon = 250;
+		const int horizon = 250;
 
 		// Create vars
 
@@ -71,8 +78,8 @@ public:
 		}
 
 		for (int i = 0; i < n_tasks; i++) {
-			for (int j = 0; j < succ[i].size(); j++) {
-				int k = succ[i][j];
+			for (unsigned int j = 0; j < succ[i].size(); j++) {
+				const int k = succ[i][j];
 				if (k == n_tasks) {
 					continue;
 				}
@@ -132,7 +139,7 @@ public:
 				rr[j][i] = atoi(s);
 			}
 			s = strtok(nullptr, " \t\n");
-			int num_succ = atoi(s);
+			const int num_succ = atoi(s);
 			for (int j = 0; j < num_succ; j++) {
 				s = strtok(nullptr, " \t\n");
 				succ[i].push(atoi(s) - 2);

@@ -1,8 +1,19 @@
-#include <chuffed/globals/dag.h>
+#include "chuffed/globals/dag.h"
 
-#include <iostream>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/dconnected.h"
+#include "chuffed/globals/graph.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
 
-using namespace std;
+#include <cassert>
+#include <set>
+#include <utility>
+#include <vector>
 
 DAGPropagator::DAGPropagator(int _r, vec<BoolView>& _vs, vec<BoolView>& _es,
 														 vec<vec<edge_id> >& _in, vec<vec<edge_id> >& _out, vec<vec<int> >& _en)
@@ -28,8 +39,8 @@ DAGPropagator::DAGPropagator(int _r, vec<BoolView>& _vs, vec<BoolView>& _es,
 		reachability[i][i] = 1;
 	}
 
-	succs = vector<TrailedSuccList>();
-	preds = vector<TrailedPredList>();
+	succs = std::vector<TrailedSuccList>();
+	preds = std::vector<TrailedPredList>();
 	for (int i = 0; i < nbNodes(); i++) {
 		succs.emplace_back(nbNodes());
 		preds.emplace_back(nbNodes());
@@ -56,7 +67,7 @@ void DAGPropagator::connectTo(int source, int dest) {
 	if (succs[source].get(dest)) {
 		return;
 	}
-	std::pair<node_id, node_id> dd(dest, dest);
+	const std::pair<node_id, node_id> dd(dest, dest);
 	succs[source].add(dd);
 	preds[dest].add(source);
 
@@ -66,23 +77,23 @@ void DAGPropagator::connectTo(int source, int dest) {
 		succs[*it_p].get(source, &d_ptc);  // d_ptc == how to go from p to source
 		assert(d_ptc.second != -1);
 		d_ptc.first = dest;       // d_ptc == go from p to dest the same...
-		succs[*it_p].add(d_ptc);  // ...way you go from p tou source
-		preds[dest].add(*it_p);   // p preceeds dest
+		succs[*it_p].add(d_ptc);  // ...way you go from p to source
+		preds[dest].add(*it_p);   // p precedes dest
 	}
 
 	TrailedSuccList::const_iterator it_s;
 	for (it_s = succs[dest].begin(); it_s != succs[dest].end(); ++it_s) {
-		int s = (*it_s).first;
-		std::pair<int, int> s_to_d(s, dest);
+		const int s = (*it_s).first;
+		const std::pair<int, int> s_to_d(s, dest);
 		succs[source].add(s_to_d);  // go from source to s through dest
-		preds[s].add(source);       // sorce preceeds s
+		preds[s].add(source);       // source precedes s
 
 		for (it_p = preds[source].begin(); it_p != preds[source].end(); ++it_p) {
 			succs[*it_p].get(source, &d_ptc);  // d_ptc == how to go from p to source
 			assert(d_ptc.second != -1);
 			d_ptc.first = s;          // d_ptc == go from p to s the same...
 			succs[*it_p].add(d_ptc);  // ...way you go from p to source
-			preds[s].add(*it_p);      // p preceeds s
+			preds[s].add(*it_p);      // p precedes s
 		}
 	}
 }
@@ -102,8 +113,8 @@ bool DAGPropagator::propagateNewEdge(int e) {
 
 	// Only checking the new ones
 	for (; succ_taile != succs[getTail(e)].end(); succ_taile++) {
-		int n = (*succ_taile).first;
-		for (int i : ou[n]) {
+		const int n = (*succ_taile).first;
+		for (const int i : ou[n]) {
 			prevent_cycle(i);
 		}
 	}
@@ -112,7 +123,7 @@ bool DAGPropagator::propagateNewEdge(int e) {
 	for (int n = 0; n < nbNodes(); n++) {
 			if (reachable(n,getTail(e))) {
 					for (int i = 0; i < in[n].size(); i++) {
-							assert(!prevent_cycle(in[n][i])); //Assert because already cehcked before
+							assert(!prevent_cycle(in[n][i])); //Assert because already checked before
 					}
 			}
 	}
@@ -134,10 +145,10 @@ bool DAGPropagator::propagateNewNode(int n) {
 		return false;
 	}
 
-	for (int i : in[n]) {
+	for (const int i : in[n]) {
 		prevent_cycle(i);
 	}
-	for (int i : ou[n]) {
+	for (const int i : ou[n]) {
 		prevent_cycle(i);
 	}
 
@@ -148,7 +159,7 @@ bool DAGPropagator::propagateNewNode(int n) {
 void DAGPropagator::findPathFromTo(int u, int v, vec<Lit>& path) {
 	assert(u != v);
 	// 1-edge paths:
-	int e = findEdge(u, v);
+	const int e = findEdge(u, v);
 	if (e != -1 && getEdgeVar(e).isFixed() && getEdgeVar(e).isTrue()) {
 		path.push(getEdgeVar(e).getValLit());
 		return;
@@ -162,9 +173,9 @@ void DAGPropagator::findPathFromTo(int u, int v, vec<Lit>& path) {
 	int current = u;
 	while (current != v) {
 		std::pair<int, int> pair;
-		bool ok = succs[current].get(v, &pair);
+		const bool ok = succs[current].get(v, &pair);
 		assert(ok);
-		edge_id e = findEdge(current, pair.second);
+		const edge_id e = findEdge(current, pair.second);
 		assert(e != -1);
 		assert(getEdgeVar(e).isFixed());
 		assert(getEdgeVar(e).isTrue());
@@ -260,14 +271,14 @@ bool DAGPropagator::prevent_cycle(int e) {
 }
 
 bool DAGPropagator::propagate() {
-	processed_e = vector<bool>(nbEdges(), false);
-	processed_n = vector<bool>(nbNodes(), false);
+	processed_e = std::vector<bool>(nbEdges(), false);
+	processed_n = std::vector<bool>(nbNodes(), false);
 
 	if (!DReachabilityPropagator::propagate()) {
 		return false;
 	}
 
-	set<int>::iterator it;
+	std::set<int>::iterator it;
 
 	for (it = new_edge.begin(); it != new_edge.end(); ++it) {
 		if (!processed_e[*it]) {
@@ -292,17 +303,17 @@ bool DAGPropagator::checkFinalSatisfied() {
 	if (!DReachabilityPropagator::checkFinalSatisfied()) {
 		return false;
 	}
-	vector<int> v = vector<int>(nbNodes(), 0);
+	std::vector<int> v = std::vector<int>(nbNodes(), 0);
 	assert(check_correctness(get_root_idx(), v));
 	return check_correctness(get_root_idx(), v);
 }
 
-bool DAGPropagator::check_correctness(int r, vector<int>& v) {
+bool DAGPropagator::check_correctness(int r, std::vector<int>& v) {
 	v[r] = -1;
 	// cout <<"Visiting "<<r<<endl;
-	for (int e : ou[r]) {
+	for (const int e : ou[r]) {
 		if (getEdgeVar(e).isFixed() && getEdgeVar(e).isTrue()) {
-			int hd = getHead(e);
+			const int hd = getHead(e);
 			assert(hd != r);
 			if (v[hd] == 0) {
 				if (!check_correctness(hd, v)) {
@@ -321,6 +332,7 @@ bool DAGPropagator::check_correctness(int r, vector<int>& v) {
 void dag(int r, vec<BoolView>& _vs, vec<BoolView>& _es, vec<vec<edge_id> >& _in,
 				 vec<vec<edge_id> >& _out, vec<vec<int> >& _en) {
 	auto* dag = new DAGPropagator(r, _vs, _es, _in, _out, _en);
+	(void)dag;
 	// if (so.check_prop)
 	//     engine.propagators.push(dag);
 }

@@ -1,8 +1,8 @@
 #ifndef DIJKSTRA_H
 #define DIJKSTRA_H
-#include <chuffed/core/propagator.h>  //For Tint
-#include <chuffed/support/dynamic_kmeans.h>
-#include <chuffed/support/kosaraju_scc.h>
+#include "chuffed/core/propagator.h"  //For Tint
+#include "chuffed/support/dynamic_kmeans.h"
+#include "chuffed/support/kosaraju_scc.h"
 
 #include <bitset>
 #include <cassert>
@@ -15,7 +15,7 @@
 
 class Dijkstra {
 protected:
-	typedef std::vector<std::vector<int>> vvi_t;
+	using vvi_t = std::vector<std::vector<int>>;
 	int source;
 	int nb_nodes;
 	vvi_t en;
@@ -47,10 +47,10 @@ private:
 	std::priority_queue<tuple, std::vector<tuple>, Dijkstra::Priority> q;
 
 public:
-	Dijkstra(int _s, vvi_t _en, vvi_t _in, vvi_t _ou, std::vector<int>& _ws);
-	Dijkstra(int _s, vvi_t _en, vvi_t _in, vvi_t _ou, std::vector<std::vector<int>>& _wst,
+	Dijkstra(int _s, vvi_t _en, const vvi_t& _in, vvi_t _ou, std::vector<int>& _ws);
+	Dijkstra(int _s, vvi_t _en, const vvi_t& _in, vvi_t _ou, std::vector<std::vector<int>>& _wst,
 					 std::vector<int> d = std::vector<int>());
-	virtual ~Dijkstra(){};
+	virtual ~Dijkstra() = default;
 	void run();
 
 	virtual void set_source(int s) { source = s; }
@@ -59,9 +59,9 @@ public:
 	inline int isInShortestPath(int tl, int hd) { return static_cast<int>(pred[hd] == tl); }
 
 	virtual void on_visiting_node(int n) {}
-	virtual bool ignore_edge(int e) { return false; }
+	virtual bool ignore_edge(int /*e*/) { return false; }
 	virtual void on_ignore_edge(int e) {}
-	virtual bool ignore_node(int n) { return false; }
+	virtual bool ignore_node(int /*n*/) { return false; }
 	virtual void enqueue(tuple node) { q.push(node); }
 	void set_verbose(bool v) { verbose = v; }
 	void print_pred() const;
@@ -73,7 +73,7 @@ public:
 		if (static_cast<unsigned int>(!wst.empty()) != 0U) {
 			return time >= 0 && time < wst[e].size() ? wst[e][time] : -1;
 		}
-		std::cerr << "Error " << __FILE__ << __LINE__ << std::endl;
+		std::cerr << "Error " << __FILE__ << __LINE__ << '\n';
 		return -1;
 	}
 	inline virtual int duration(int n) {
@@ -93,7 +93,7 @@ public:
 
 class DijkstraMandatory {
 public:
-	typedef std::vector<std::vector<int>> vvi_t;
+	using vvi_t = std::vector<std::vector<int>>;
 
 protected:
 	int source;
@@ -123,7 +123,7 @@ public:
 		std::vector<bool> path;
 		std::vector<bool> mand;
 	};
-	typedef DijkstraMandatory::tuple tuple;
+	using tuple = DijkstraMandatory::tuple;
 
 	class Priority {
 	public:
@@ -141,7 +141,7 @@ private:
 	public:
 		FilteredKosarajuSCC(DijkstraMandatory* _d, int v, std::vector<std::vector<int>> outgoing,
 												std::vector<std::vector<int>> ingoing, std::vector<std::vector<int>> ends)
-				: KosarajuSCC(v, outgoing, ingoing, ends), d(_d) {}
+				: KosarajuSCC(v, std::move(outgoing), std::move(ingoing), std::move(ends)), d(_d) {}
 		bool ignore_edge(int e) override { return d->ignore_edge_scc(e); }
 		bool ignore_node(int u) override { return d->ignore_node_scc(u); }
 		bool mandatory_node(int u) override { return d->mandatory_node(u); }
@@ -155,19 +155,19 @@ protected:
 
 public:
 	std::vector<std::unordered_map<size_t, tuple>> table;
-	typedef std::unordered_map<size_t, tuple> map_type;
+	using map_type = std::unordered_map<size_t, tuple>;
 	static inline unsigned long hash_fn(std::vector<bool>& b) {
-		std::hash<std::vector<bool>> h;
-		return h(b);
+		const std::hash<std::vector<bool>> h;
+		return static_cast<unsigned long>(h(b));
 	}
-	typedef std::unordered_map<size_t, tuple>::const_iterator table_iterator;
-	typedef std::vector<map_type> table_type;
+	using table_iterator = std::unordered_map<size_t, tuple>::const_iterator;
+	using table_type = std::vector<map_type>;
 
-	DijkstraMandatory(int _s, int _d, vvi_t _en, vvi_t _in, vvi_t _ou, std::vector<int> _ws);
-	DijkstraMandatory(int _s, int _d, vvi_t _en, vvi_t _in, vvi_t _ou,
+	DijkstraMandatory(int _s, int _d, vvi_t _en, const vvi_t& _in, vvi_t _ou, std::vector<int> _ws);
+	DijkstraMandatory(int _s, int _d, vvi_t _en, const vvi_t& _in, vvi_t _ou,
 										std::vector<std::vector<int>> _wst, std::vector<int> _ds = std::vector<int>());
 	virtual void init();
-	virtual ~DijkstraMandatory(){};
+	virtual ~DijkstraMandatory() = default;
 
 #ifdef DIJKSTRAMANDATORY_ALLOW_CYCLE
 	virtual int run(bool* ok = NULL, bool use_set_target = false, int start = -1);
@@ -177,14 +177,14 @@ public:
 	virtual int run(bool* ok = nullptr, bool use_set_target = false);
 #endif
 
-	virtual bool ignore_edge(int e) { return false; }
-	virtual bool ignore_node(int n) { return false; }
-	virtual bool ignore_edge_scc(int e) { return false; }
-	virtual bool ignore_node_scc(int n) { return false; }
-	virtual void enqueue(tuple node) { q.push(node); }
-	virtual bool stop_at_node(int n) { return false; }
-	virtual bool mandatory_node(int n) { return false; }
-	virtual bool mandatory_edge(int e) { return false; }
+	virtual bool ignore_edge(int /*e*/) { return false; }
+	virtual bool ignore_node(int /*n*/) { return false; }
+	virtual bool ignore_edge_scc(int /*e*/) { return false; }
+	virtual bool ignore_node_scc(int /*n*/) { return false; }
+	virtual void enqueue(const tuple& node) { q.emplace(node); }
+	virtual bool stop_at_node(int /*n*/) { return false; }
+	virtual bool mandatory_node(int /*n*/) { return false; }
+	virtual bool mandatory_edge(int /*e*/) { return false; }
 	static std::vector<int> DEFAULT_VECTOR;
 	virtual std::vector<int>& mandatory_nodes() { return DijkstraMandatory::DEFAULT_VECTOR; }
 	inline virtual int weight(int e, int time = -1) {
@@ -194,7 +194,7 @@ public:
 		if (static_cast<unsigned int>(!wst.empty()) != 0U) {
 			return time >= 0 && time < (int)wst[e].size() ? wst[e][time] : -1;
 		}
-		std::cerr << "Error " << __FILE__ << __LINE__ << std::endl;
+		std::cerr << "Error " << __FILE__ << __LINE__ << '\n';
 		return -1;
 	}
 	inline virtual int duration(int n) {
@@ -203,7 +203,7 @@ public:
 
 	inline void set_target(const std::vector<int>& tar) {
 		target = std::vector<bool>(tar.size(), false);
-		for (int i : tar) {
+		for (const int i : tar) {
 			target[i] = true;
 		}
 	}

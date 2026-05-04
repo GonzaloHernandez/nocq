@@ -1,23 +1,26 @@
 //
 // Created by Felix Winter on 08.04.2019.
 //
+#include "chuffed/globals/EdExplFinder.h"
 
-#include <chuffed/globals/EdExplFinder.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
+#include <queue>
+#include <set>
+#include <utility>
+#include <vector>
 
 EdExplFinder::EdExplFinder()
-		: max_char(0),
-			insertion_cost(nullptr),
-			deletion_cost(nullptr),
-			substitution_cost(nullptr),
-			seq2(nullptr),
-			seqSize(-1),
-			lb(-1),
-			dpMatrix(nullptr),
-			seq1ExcludedCharacters(nullptr),
-			seq2ExcludedCharacters(nullptr),
-			min_id_cost(0) {}
+
+		= default;
 
 Clause*
 
@@ -67,7 +70,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		if (l > 0) {
 			// we insert x_i <= l-1, as we have to actually negate the inequality
 #ifndef NDEBUG
-			std::cout << "x_" << i << " >= " << l << std::endl;
+			std::cout << "x_" << i << " >= " << l << '\n';
 #endif
 			litVector.push_back(seq1[i].getLit(l - 1, LR_LE));
 		}
@@ -76,7 +79,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		if (u < max_char && l <= u) {
 			// we insert x_i >= u+1, as we have to actually negate the inequality
 #ifndef NDEBUG
-			std::cout << "x_" << i << " <= " << u << std::endl;
+			std::cout << "x_" << i << " <= " << u << '\n';
 #endif
 			litVector.push_back(seq1[i].getLit(u + 1, LR_GE));
 		}
@@ -85,7 +88,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		for (int c1 = l; c1 <= u; c1++) {
 			if ((*seq1ExcludedCharacters)[excludedCharCoord(i, c1)]) {
 #ifndef NDEBUG
-				std::cout << "x_" << i << " != " << c1 << std::endl;
+				std::cout << "x_" << i << " != " << c1 << '\n';
 #endif
 				// we insert x_i = c1, as we have to actually negate the inequality
 				litVector.push_back(seq1[i].getLit(c1, LR_EQ));
@@ -112,7 +115,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		// create y_i >= l
 		if (l > 0) {
 #ifndef NDEBUG
-			std::cout << "y_" << j << " >= " << l << std::endl;
+			std::cout << "y_" << j << " >= " << l << '\n';
 #endif
 			// we insert y_i <= l-1, as we have to actually negate the inequality
 			litVector.push_back(seq2[j].getLit(l - 1, LR_LE));
@@ -120,7 +123,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		// create y_i <= u
 		if (u < max_char && l <= u) {
 #ifndef NDEBUG
-			std::cout << "y_" << j << " <= " << u << std::endl;
+			std::cout << "y_" << j << " <= " << u << '\n';
 #endif
 			// we insert y_i >= u+1, as we have to actually negate the inequality
 			litVector.push_back(seq2[j].getLit(u + 1, LR_GE));
@@ -130,7 +133,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		for (int c1 = l; c1 <= u; c1++) {
 			if ((*seq2ExcludedCharacters)[excludedCharCoord(j, c1)]) {
 #ifndef NDEBUG
-				std::cout << "y_" << j << " != " << c1 << std::endl;
+				std::cout << "y_" << j << " != " << c1 << '\n';
 #endif
 				// we insert y_i = c1, as we have to actually negate the inequality
 				litVector.push_back(seq2[j].getLit(c1, LR_EQ));
@@ -138,7 +141,7 @@ EdExplFinder::FindEdExplanation(int _max_char, const vec<int>* _insertion_cost,
 		}
 	}
 
-	int totalClauseLength = litVector.size();
+	const int totalClauseLength = static_cast<int>(litVector.size());
 
 	// generate full clause
 	Clause* r = Reason_new(totalClauseLength + 1);
@@ -167,22 +170,22 @@ void EdExplFinder::bfs_shortest_path() {
 	auto* nodeQueue = new std::queue<std::pair<int, int> >();
 	std::set<std::pair<int, int> > node_set;
 	// start with bottom right position
-	std::pair<int, int> start_node = std::pair<int, int>(seqSize, seqSize);
+	const std::pair<int, int> start_node = std::pair<int, int>(seqSize, seqSize);
 	nodeQueue->push(start_node);
 	node_set.insert(start_node);
 
 	// d = distance to diagonal that should be calculated in the matrix
-	int d = lb / min_id_cost;
+	const int d = lb / min_id_cost;
 
 	while (!nodeQueue->empty()) {
-		std::pair<int, int> currentNode = nodeQueue->front();
+		const std::pair<int, int> currentNode = nodeQueue->front();
 		nodeQueue->pop();
 		node_set.erase(currentNode);
 
-		int i = currentNode.first;
-		int j = currentNode.second;
+		const int i = currentNode.first;
+		const int j = currentNode.second;
 
-		int s_ij = (*shortestPathMatrix)[matrixCoord(i, j)];
+		const int s_ij = (*shortestPathMatrix)[matrixCoord(i, j)];
 
 		if (s_ij >= lb) {
 			continue;
@@ -203,17 +206,17 @@ void EdExplFinder::bfs_shortest_path() {
 				}
 			}
 			for (int c = cj_start; c <= max_char; c++) {
-				int ins_cost = c == 0 ? 0 : (*insertion_cost)[c - 1];
-				int d_ij_minus_1 = (*dpMatrix)[matrixCoord(i, j - 1)];
+				const int ins_cost = c == 0 ? 0 : (*insertion_cost)[c - 1];
+				const int d_ij_minus_1 = (*dpMatrix)[matrixCoord(i, j - 1)];
 				if (d_ij_minus_1 + ins_cost + s_ij < lb) {
 					// exclude character for position in explanation if a cheaper path could be established
 					(*seq2ExcludedCharacters)[excludedCharCoord(j - 1, c)] = true;
 				} else {
 					// update costs and push node to queue
-					int s_ij_minus_1 = (*shortestPathMatrix)[matrixCoord(i, j - 1)];
+					const int s_ij_minus_1 = (*shortestPathMatrix)[matrixCoord(i, j - 1)];
 					(*shortestPathMatrix)[matrixCoord(i, j - 1)] = std::min(s_ij_minus_1, s_ij + ins_cost);
 
-					std::pair<int, int> node = std::pair<int, int>(i, j - 1);
+					const std::pair<int, int> node = std::pair<int, int>(i, j - 1);
 					if (node_set.count(node) == 0) {
 						nodeQueue->push(node);
 						node_set.insert(node);
@@ -237,17 +240,17 @@ void EdExplFinder::bfs_shortest_path() {
 				}
 			}
 			for (int c = ci_start; c <= max_char; c++) {
-				int del_cost = c == 0 ? 0 : (*deletion_cost)[c - 1];
-				int d_i_minus_1_j = (*dpMatrix)[matrixCoord(i - 1, j)];
+				const int del_cost = c == 0 ? 0 : (*deletion_cost)[c - 1];
+				const int d_i_minus_1_j = (*dpMatrix)[matrixCoord(i - 1, j)];
 				if (d_i_minus_1_j + del_cost + s_ij < lb) {
 					// exclude character for position in explanation if a cheaper path could be established
 					(*seq1ExcludedCharacters)[excludedCharCoord(i - 1, c)] = true;
 				} else {
 					// update costs and push node to queue
-					int s_i_minus_1_j = (*shortestPathMatrix)[matrixCoord(i - 1, j)];
+					const int s_i_minus_1_j = (*shortestPathMatrix)[matrixCoord(i - 1, j)];
 					(*shortestPathMatrix)[matrixCoord(i - 1, j)] = std::min(s_i_minus_1_j, s_ij + del_cost);
 
-					std::pair<int, int> node = std::pair<int, int>(i - 1, j);
+					const std::pair<int, int> node = std::pair<int, int>(i - 1, j);
 					if (node_set.count(node) == 0) {
 						nodeQueue->push(node);
 						node_set.insert(node);
@@ -262,8 +265,8 @@ void EdExplFinder::bfs_shortest_path() {
 		if (i - 1 >= 0 && j - 1 >= 0) {
 			for (int c1 = 1; c1 <= max_char; c1++) {
 				for (int c2 = 1; c2 <= max_char; c2++) {
-					int d_i_minus_1_j_minus_1 = (*dpMatrix)[matrixCoord(i - 1, j - 1)];
-					int subst_cost = (*substitution_cost)[substCoord(c1, c2)];
+					const int d_i_minus_1_j_minus_1 = (*dpMatrix)[matrixCoord(i - 1, j - 1)];
+					const int subst_cost = (*substitution_cost)[substCoord(c1, c2)];
 
 					if (d_i_minus_1_j_minus_1 + subst_cost + s_ij < lb) {
 						// we can either exclude the character for seq1 or seq2
@@ -275,11 +278,11 @@ void EdExplFinder::bfs_shortest_path() {
 							(*seq1ExcludedCharacters)[excludedCharCoord(i - 1, c1)] = true;
 						}
 					} else {
-						int s_i_minus_1_j_minus_1 = (*shortestPathMatrix)[matrixCoord(i - 1, j - 1)];
+						const int s_i_minus_1_j_minus_1 = (*shortestPathMatrix)[matrixCoord(i - 1, j - 1)];
 						(*shortestPathMatrix)[matrixCoord(i - 1, j - 1)] =
 								std::min(s_i_minus_1_j_minus_1, s_ij + subst_cost);
 
-						std::pair<int, int> node = std::pair<int, int>(i - 1, j - 1);
+						const std::pair<int, int> node = std::pair<int, int>(i - 1, j - 1);
 						if (node_set.count(node) == 0) {
 							nodeQueue->push(node);
 							node_set.insert(node);
@@ -306,20 +309,20 @@ void EdExplFinder::clean_data_structures() {
 }
 
 void EdExplFinder::debug_print(std::vector<int>* shortestPathMatrix) const {
-	std::cout << "***************************************************************" << std::endl;
+	std::cout << "***************************************************************" << '\n';
 
-	std::cout << "shortest path matrix:" << std::endl;
+	std::cout << "shortest path matrix:" << '\n';
 
 	std::cout << "   ";
 	for (int i = 0; i < seqSize + 1; i++) {
 		printf("%2d ", i);
 	}
-	std::cout << std::endl;
+	std::cout << '\n';
 
 	for (int i = 0; i < seqSize + 2; i++) {
 		std::cout << "---";
 	}
-	std::cout << std::endl;
+	std::cout << '\n';
 
 	for (int i = 0; i < seqSize + 1; i++) {
 		for (int j = -1; j < seqSize + 1; j++) {
@@ -329,8 +332,8 @@ void EdExplFinder::debug_print(std::vector<int>* shortestPathMatrix) const {
 				printf("%2d ", (*shortestPathMatrix)[matrixCoord(i, j)]);
 			}
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 	}
 
-	std::cout << "***************************************************************" << std::endl;
+	std::cout << "***************************************************************" << '\n';
 }

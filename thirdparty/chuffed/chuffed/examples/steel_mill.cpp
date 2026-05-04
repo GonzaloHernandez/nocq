@@ -1,10 +1,19 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
+#include <ostream>
 
 int csplib_capacities[] = {12, 14, 17, 18, 19, 20, 23, 24, 25, 26,
 													 27, 28, 29, 30, 32, 35, 39, 42, 43, 44};
@@ -31,7 +40,7 @@ public:
 	vec<int> loss_table;  // Load -> Loss table
 	int max_cap;          // Maximum capacity
 	int max_loss;         // Maximum loss
-	int n_colours;        // Number of colours
+	int n_colours{88};    // Number of colours
 	int n_orders;         // Number of orders
 	int n_slabs;          // Number of slabs
 	vec<int> weight;      // weight of ith order
@@ -50,8 +59,8 @@ public:
 	vec<vec<IntVar*> > b2i_order_slab;   // whether order i is assigned to slab j
 	vec<vec<IntVar*> > b2i_slab_colour;  // whether slab i is assigned colour j
 
-	SteelMill(int n) : n_colours(88), n_orders(n), n_slabs(n) {
-		for (int& csplib_capacitie : csplib_capacities) {
+	SteelMill(int n) : n_orders(n), n_slabs(n) {
+		for (const int& csplib_capacitie : csplib_capacities) {
 			capacities.push(csplib_capacitie);
 		}
 		for (int i = 0; i < n_orders; i++) {
@@ -71,7 +80,7 @@ public:
 				max_loss = loss_table[j];
 			}
 		}
-		for (int i = 0; i < capacities.size() - 1; i++) {
+		for (unsigned int i = 0; i < capacities.size() - 1; i++) {
 			for (int j = capacities[i] + 1; j < capacities[i + 1]; j++) {
 				loss_table[j] = capacities[i + 1] - j;
 				if (loss_table[j] > max_loss) {
@@ -111,7 +120,7 @@ public:
 		// Channel constraints for slab/colour
 		for (int i = 0; i < n_slabs; i++) {
 			for (int j = 0; j < n_colours; j++) {
-				BoolView t = newBoolVar();
+				const BoolView t = newBoolVar();
 				bool2int(t, b2i_slab_colour[i][j]);
 				for (int k = 0; k < n_orders; k++) {
 					if (colour[k] != j + 1) {
@@ -165,9 +174,9 @@ public:
 	void restrict_learnable() override {
 		printf("Setting learnable white list\n");
 		for (int i = 0; i < sat.nVars(); i++) {
-			sat.flags[i] = 0;
+			sat.flags[i] = LitFlags(false, false, false);
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			assert(x[i]->getType() == INT_VAR_EL);
 			((IntVarEL*)x[i])->setVLearnable();
 			((IntVarEL*)x[i])->setVDecidable(true);

@@ -1,134 +1,28 @@
 
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/core/sat.h>
+#include "chuffed/core/options.h"
 
+#include "chuffed/core/engine.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/misc.h"
+
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 Options so;
 
-Options::Options()
-		: nof_solutions(1),
-			time_out(0),
-			rnd_seed(0),
-			verbosity(0),
-			print_sol(true),
-			restart_scale(1000000000),
-			restart_scale_override(true),
-			restart_base(1.5),
-			restart_base_override(true),
-			restart_type(CHUFFED_DEFAULT),
-			restart_type_override(true)
-
-			,
-			toggle_vsids(false),
-			branch_random(false),
-			switch_to_vsids_after(1000000000),
-			sat_polarity(0),
-			sbps(false)
-
-			,
-			prop_fifo(false)
-
-			,
-			disj_edge_find(true),
-			disj_set_bp(true)
-
-			,
-			cumu_global(true)
-
-			,
-			sat_simplify(true),
-			fd_simplify(true)
-
-			,
-			lazy(true),
-			finesse(true),
-			learn(true),
-			vsids(false)
-#if PHASE_SAVING
-			,
-			phase_saving(0)
-#endif
-			,
-			sort_learnt_level(false),
-			one_watch(true)
-
-			,
-			exclude_introduced(false),
-			decide_introduced(true),
-			introduced_heuristic(false),
-			use_var_is_introduced(false),
-			print_nodes(false),
-			print_implications(false),
-			print_variable_list(false),
-			send_skipped(true),
-			send_domains(false)
-
-			,
-			learnt_stats(false),
-			learnt_stats_nogood(false),
-			debug(false),
-			exhaustive_activity(false)
-
-			,
-			bin_clause_opt(true)
-
-			,
-			eager_limit(1000),
-			sat_var_limit(2000000),
-			nof_learnts(100000),
-			learnts_mlimit(500000000)
-
-			,
-			lang_ext_linear(false)
-
-			,
-			mdd(false),
-			mip(false),
-			mip_branch(false)
-
-			,
-			sym_static(false),
-			ldsb(false),
-			ldsbta(false),
-			ldsbad(false)
-
-			,
-			saved_clauses(0),
-			use_uiv(false)
-
-			,
-			circuitalg(3),
-			prevexpl(1),
-			checkexpl(2),
-			checkfailure(4),
-			checkevidence(4),
-			preventevidence(1),
-			sccevidence(1),
-			sccoptions(4),
-			rootSelection(1)
-
-			,
-			alldiff_cheat(true),
-			alldiff_stage(true),
-			assump_int(false)
-#ifdef HAS_PROFILER
-			,
-			cpprofiler_enabled(false),
-			cpprofiler_id(-1),
-			cpprofiler_port(6565)
-#endif
-{
-}
+Options::Options() : time_out(0) {}
 
 template <class T>
-inline bool assignStr(T* /*unused*/, const std::string /*unused*/) {
+inline bool assignStr(T& /*unused*/, const std::string& /*unused*/) {
 	return false;
 }
 template <>
-inline bool assignStr(std::string* pS, const std::string s) {
-	*pS = s;
+inline bool assignStr(std::string& pS, const std::string& s) {
+	pS = s;
 	return true;
 }
 
@@ -187,7 +81,7 @@ public:
 			if (assignStr(pResult, arg)) {
 				return true;
 			}
-			std::istringstream iss(arg);
+			std::istringstream iss(arg);  // NOLINT
 			Value tmp;
 			if (!(iss >> tmp)) {
 				--i;
@@ -254,8 +148,8 @@ public:
 	}
 };  // class CLOParser
 
-void printHelp(int& argc, char**& argv, const std::string& fileExt) {
-	Options def;
+void printHelp(int& /*argc*/, char**& argv, const std::string& fileExt) {
+	const Options def;
 	std::cout << "Usage: " << argv[0] << " [options] ";
 	if (!fileExt.empty()) {
 		std::cout << "<file>." << fileExt;
@@ -302,7 +196,7 @@ void printHelp(int& argc, char**& argv, const std::string& fileExt) {
 
 void printLongHelp(int& argc, char**& argv, const std::string& fileExt) {
 	printHelp(argc, argv, fileExt);
-	Options def;
+	const Options def;
 	std::cout
 			<< "General Options:\n"
 				 "  --verbosity <n>\n"
@@ -560,7 +454,7 @@ void parseOptions(int& argc, char**& argv, std::string* fileArg, const std::stri
 		} else if (cop.get("-t --time-out", &intBuffer)) {
 			// TODO: Remove warning when appropriate
 			std::cerr << "WARNING: the --time-out flag has recently been changed."
-								<< "The time-out is now provided in milliseconds instead of seconds" << std::endl;
+								<< "The time-out is now provided in milliseconds instead of seconds" << '\n';
 			so.time_out = duration(intBuffer);
 		} else if (cop.get("-r --rnd-seed", &intBuffer)) {
 			so.rnd_seed = intBuffer;
@@ -595,7 +489,7 @@ void parseOptions(int& argc, char**& argv, std::string* fileArg, const std::stri
 			// TODO: Remove warning when appropriate
 			std::cerr << "WARNING: the --restart-base flag has recently been changed."
 								<< "The old behaviour of \"restart base\" is now implemented by --restart-scale."
-								<< std::endl;
+								<< '\n';
 			so.restart_base = stod(stringBuffer);
 			if (so.restart_base < 1.0) {
 				CHUFFED_ERROR("Illegal restart base. Restart count will converge to zero.");
@@ -722,7 +616,7 @@ void parseOptions(int& argc, char**& argv, std::string* fileArg, const std::stri
 
 	if (fileArg != nullptr) {
 		if (argc == 2) {
-			std::string filename(argv[1]);
+			const std::string filename(argv[1]);
 			if (!fileExt.empty()) {
 				if (filename.size() <= fileExt.size() + 1 ||
 						filename.substr(filename.size() - fileExt.size() - 1) != "." + fileExt) {
@@ -765,12 +659,12 @@ void parseOptions(int& argc, char**& argv, std::string* fileArg, const std::stri
 			std::cerr << "WARNING: SBPS value selection must be used with an activity-based search to "
 									 "optimize its "
 									 "efficiency."
-								<< std::endl;
+								<< '\n';
 		}
 		if (so.restart_type == NONE || so.restart_scale == 0) {
 			std::cerr << "WARNING: SBPS value selection must be used with restarts to optimize its "
 									 "efficiency."
-								<< std::endl;
+								<< '\n';
 		}
 	}
 }

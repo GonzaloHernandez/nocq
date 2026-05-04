@@ -42,6 +42,7 @@ To ensure all dependencies are correctly configured without modifying your host 
 ```bash
 docker build -t nocq-docker .
 ```
+For more information on containers, visit [Docker.com](https://www.docker.com/).
 
 ## Usage
 
@@ -62,6 +63,15 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 * `--jurd <l> <b>`: Generate a Jurdzinski game with $l$ levels and $b$ blocks.
 * `--rand <n> <p> <d1> <d2>`: Generate a random parity game with $n$ vertices, a maximum priority $p$, and outgoing degrees between $d_1$ and $d_2$.
 * `--mladder <b>`: Generate a Modelchecker Ladder game with $b$ blocks.
+* `--sprang <n> <d>`: Generate a random game with $n$ vertices and density $d$.
+* `--sqnc <s> <t>`: Generate a 2-dimensional grids with wrap-around game with $s$ size and 5 types $t$ of transformations.
+
+The benchmark generators included in this tool are based on established research in parity games and graph theory:
+
+*   **Jurdzinski, Random, and Modelchecker Ladder:** These are implemented based on the **PGSolver** collection.
+    *   *Reference:* Friedmann, O., & Lange, M. (2010). The PGSolver Collection of Parity Game Solvers. *Technical Report*, University of Munich.
+*   **Sprang and Sqnc:** These generators are adapted from the experimental evaluation of shortest-path algorithms.
+    *   *Reference:* Cherkassky, B. V., Goldberg, A. V., & Radzik, T. (1996). Shortest paths algorithms: Theory and experimental evaluation. *Mathematical Programming*, 73(2), 129–174.
 
 ### Solving Engines & Conditions
 
@@ -76,9 +86,8 @@ NOCQ can solve games from files or generate standard benchmarks on the fly:
 
 **Conditions:**
 * `--parity`: Parity condition (default).
-* `--energy`: Energy condition.
-* `--mean-payoff`: Mean-Payoff condition.
-* `--threshold <t>`: Set the threshold value $t$ for Mean-Payoff games.
+* `--energy <*threshold>`: Energy condition with optional <*> threshold by default 0.
+* `--mean-payoff <*threshold>`: Mean-Payoff condition with optional <*> threshold by default 0.0.
 
 ### Output & Verbosity
 

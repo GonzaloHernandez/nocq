@@ -1,17 +1,17 @@
 #ifndef CYK_H_
 #define CYK_H_
-#include <chuffed/mdd/CFG.h>
+#include "chuffed/mdd/CFG.h"
 
 #include <map>
 
 // Conversion of a CFG to some formula type F.
-typedef struct {
+struct cyk_sig {
 	CFG::Sym s;
 	int start;
 	int end;
-} cyk_sig;
+};
 
-cyk_sig mk_sig(CFG::Sym s, int start, int end) {
+inline cyk_sig mk_sig(CFG::Sym s, int start, int end) {
 	cyk_sig sig = {s, start, end};
 	return sig;
 }
@@ -33,7 +33,7 @@ struct cyk_clt {
 // Currently assumes grammar has no nullable nonterminals.
 template <class F>
 class CYKParser {
-	typedef std::map<cyk_sig, int, cyk_clt> CacheT;
+	using CacheT = std::map<cyk_sig, int, cyk_clt>;
 	std::vector<F> fs;
 
 public:
@@ -46,7 +46,7 @@ public:
 	}
 
 	F part(CFG::Sym s, int start, int end) {
-		cyk_sig sig = mk_sig(s, start, end);
+		const cyk_sig sig = mk_sig(s, start, end);
 
 		auto cval = cache.find(sig);
 
@@ -62,21 +62,21 @@ public:
 		}
 
 		F ret(fff);
-		int vid(symID(s));
+		const int vid(symID(s));
 		for (auto pinf : g.prods[vid]) {
 			if ((pinf.cond == nullptr) || pinf.cond->check(start, end)) {
 				ret = ret | prod(pinf.rule, start, end);
 			}
 		}
 
-		int rindex = fs.size();
+		const int rindex = fs.size();
 		fs.push_back(ret);
 		cache[sig] = rindex;
 		return ret;
 	}
 
 	F prod(int r_id, int start, int end) {
-		std::vector<F> partial;
+		const std::vector<F> partial;
 
 		if (g.rules[r_id].size() == 1) {
 			if ((g.rules[r_id][0].cond == nullptr) || g.rules[r_id][0].cond->check(start, end)) {

@@ -1,15 +1,20 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/tree.h>
-#include <chuffed/support/union_find.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/tree.h"
+#include "chuffed/support/union_find.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
-#include <algorithm>  // std::sort
-#include <iostream>
-#include <set>
-
-using namespace std;
-
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#include <algorithm>  // std::min, std::sort
+#include <cassert>
+#include <utility>
+#include <vector>
 
 #define MSTPROP_DEBUG 0
 
@@ -17,13 +22,13 @@ struct sorter {
 	bool operator()(std::pair<int, int> i, std::pair<int, int> j) { return (i.second < j.second); }
 } sorter;
 
-typedef std::pair<int, int> iipair;
-typedef std::pair<int, iipair> iiipair;
+using iipair = std::pair<int, int>;
+using iiipair = std::pair<int, iipair>;
 /**
  * Returns the weight of an MST (pure MST)
  */
 std::pair<int, int> Kruskal_weight(std::vector<int>& weights, int n,
-																	 std::vector<vector<int> >& ends) {
+																	 std::vector<std::vector<int> >& ends) {
 	std::vector<iipair> sorted;
 
 	for (unsigned int i = 0; i < weights.size(); i++) {
@@ -38,8 +43,8 @@ std::pair<int, int> Kruskal_weight(std::vector<int>& weights, int n,
 	int cost = 0;
 	UF<int> uf(n);
 	while (i < sorted.size() && in < n - 1) {
-		int e = sorted[i].first;
-		int w = sorted[i].second;
+		const int e = sorted[i].first;
+		const int w = sorted[i].second;
 		if (!uf.connected(ends[e][0], ends[e][1])) {
 			uf.unite(ends[e][0], ends[e][1]);
 			in++;
@@ -49,13 +54,13 @@ std::pair<int, int> Kruskal_weight(std::vector<int>& weights, int n,
 	}
 
 	// Maximum ST
-	unsigned int i2 = sorted.size() - 1;
+	auto i2 = static_cast<unsigned int>(sorted.size() - 1);
 	int in2 = 0;
 	int cost2 = 0;
 	UF<int> uf2(n);
 	while (i2 >= 0 && in2 < n - 1) {
-		int e = sorted[i2].first;
-		int w = sorted[i2].second;
+		const int e = sorted[i2].first;
+		const int w = sorted[i2].second;
 		if (!uf2.connected(ends[e][0], ends[e][1])) {
 			uf2.unite(ends[e][0], ends[e][1]);
 			in2++;
@@ -65,7 +70,7 @@ std::pair<int, int> Kruskal_weight(std::vector<int>& weights, int n,
 	}
 
 	// cout <<"Solution is: "<<cost<<endl;
-	return make_pair(cost, cost2);
+	return std::make_pair(cost, cost2);
 }
 
 class MSTPropagator : public TreePropagator {
@@ -78,8 +83,8 @@ public:
 
 	struct sortByW {
 		MSTPropagator* p;
-		bool dec;
-		sortByW(MSTPropagator* _p) : p(_p), dec(false) {}
+		bool dec{false};
+		sortByW(MSTPropagator* _p) : p(_p) {}
 		bool operator()(int e1, int e2) const {
 			if (dec) {
 				return p->ws[e1] > p->ws[e2];
@@ -91,7 +96,7 @@ public:
 	MSTPropagator(vec<BoolView>& _vs, vec<BoolView>& _es, vec<vec<edge_id> >& _adj,
 								vec<vec<int> >& _en, IntVar* _w, vec<int>& _ws)
 			: TreePropagator(_vs, _es, _adj, _en), w(_w), sort_by_w(this) {
-		for (int i = 0; i < _ws.size(); i++) {
+		for (unsigned int i = 0; i < _ws.size(); i++) {
 			ws.push_back(_ws[i]);
 		}
 
@@ -104,7 +109,7 @@ public:
 		//     for (int j = 0; j < _en[i].size(); j++)
 		//         endnodes[i].push(_en[i][j]);
 
-		std::pair<int, int> kkl = Kruskal_weight(ws, nbNodes(), endnodes);
+		const std::pair<int, int> kkl = Kruskal_weight(ws, nbNodes(), endnodes);
 		if (kkl.first > w->getMin()) {
 			w->setMin(kkl.first);
 		}
@@ -139,7 +144,7 @@ public:
 			int in = 0;
 			for (int i = 0; i < nbEdges(); i++) {
 				if (getEdgeVar(i).isTrue()) {
-					bool ok = ruf.unite(endnodes[i][0], endnodes[i][1]);
+					const bool ok = ruf.unite(endnodes[i][0], endnodes[i][1]);
 					assert(ok);
 					uf.unite(endnodes[i][0], endnodes[i][1]);
 					in++;
@@ -149,16 +154,16 @@ public:
 
 			unsigned int i = 0;
 			while (i < sorted.size()) {
-				int e = sorted[i].first;
+				const int e = sorted[i].first;
 				if (getEdgeVar(e).isTrue()) {
 					i++;
 					continue;
 				}
 				// cout <<"Looking at "<<e<<endl;
-				int w = sorted[i].second;
-				int u = endnodes[e][0];
-				int v = endnodes[e][1];
-				bool connected = uf.connected(u, v);
+				const int w = sorted[i].second;
+				const int u = endnodes[e][0];
+				const int v = endnodes[e][1];
+				const bool connected = uf.connected(u, v);
 
 				// I wanted to connected them, but I can't bc I'm out
 				if (getEdgeVar(e).isFalse() && !connected) {
@@ -169,7 +174,7 @@ public:
 				}
 				// I wanted to connected them, but I can't bc They are already connected
 				else if (connected) {
-					vector<int> path = ruf.connectionsFromTo(u, v);
+					std::vector<int> path = ruf.connectionsFromTo(u, v);
 					int arg_maxw = findEdge(path[0], path[1]);
 					// int below_cost = 0;
 					// int above_cost = 0;
@@ -177,8 +182,8 @@ public:
 					//  ^ used to see if the path used mandatory edges BECAUSE e is
 					// forbidden and there in no other way of connecting its endnodes
 
-					for (int k = 0; k < path.size() - 1; k++) {
-						int e_path = findEdge(path[k], path[k + 1]);
+					for (unsigned int k = 0; k < path.size() - 1; k++) {
+						const int e_path = findEdge(path[k], path[k + 1]);
 						arg_maxw = ws[e_path] > ws[arg_maxw] ? e_path : arg_maxw;
 						heavier |= ws[e_path] > w;
 						assert(e_path != e);
@@ -194,7 +199,7 @@ public:
 				}
 				// I can connect them!
 				if (in < nbNodes() - 1 && !getEdgeVar(e).isFixed() && !connected) {
-					bool ok = ruf.unite(u, v);
+					const bool ok = ruf.unite(u, v);
 					assert(ok);
 					uf.unite(u, v);
 					in++;
@@ -229,7 +234,7 @@ public:
 				if (so.lazy) {
 					if (!computed_expl) {
 						ps.push();
-						for (int i = 0; i < expl_fail.size(); i++) {
+						for (unsigned int i = 0; i < expl_fail.size(); i++) {
 							ps.push(expl_fail[i]);
 						}
 						explain_mandatory(ps, c, subs);
@@ -246,7 +251,6 @@ public:
 	}
 
 	void explain_mandatory(vec<Lit>& expl_fail, int c, std::vector<int>& substitute) {
-		int add = 0;
 		/*std::vector<int> in_edges;
 			for (int j = 0; j < nbEdges(); j++)
 			if (es[j].isFixed() && es[j].isTrue())
@@ -263,7 +267,7 @@ public:
 		// bool prevention_case = c <= w->getMax();
 
 		int cost = c;
-		for (int e : in_edges_cpy) {
+		for (const int e : in_edges_cpy) {
 			if (substitute[e] == -1 || ws[e] <= ws[substitute[e]]) {
 				continue;
 			}
@@ -271,7 +275,6 @@ public:
 				cost = cost - ws[e] + ws[substitute[e]];
 			} else {
 				expl_fail.push(getEdgeVar(e).getValLit());
-				add++;
 			}
 		}
 	}
@@ -284,14 +287,14 @@ void mst(vec<BoolView>& _vs, vec<BoolView>& _es, vec<vec<edge_id> >& _adj, vec<v
 	mst_p = new MSTPropagator(_vs, _es, _adj, _en, _w, _ws);
 }
 
-bool sortPairKey2(std::pair<int, int> u, pair<int, int> v) { return u.second < v.second; }
+bool sortPairKey2(std::pair<int, int> u, std::pair<int, int> v) { return u.second < v.second; }
 
 class DCMSTSearch : public BranchGroup {
 	IntVar* root;
 	std::vector<int>& ws;
 	std::vector<std::vector<int> > dist;
-	vector<std::pair<int, int> > sums;
-	vector<std::vector<std::pair<int, int> > > costs;
+	std::vector<std::pair<int, int> > sums;
+	std::vector<std::vector<std::pair<int, int> > > costs;
 
 	int int_cur;
 	Tint curr_root_idx;
@@ -350,7 +353,8 @@ class DCMSTSearch : public BranchGroup {
 			// cout<<endl;
 
 			for (int i = 0; i < mst_p->nbNodes(); i++) {
-				vector<std::pair<int, int> > cost;
+				std::vector<std::pair<int, int> > cost;
+				cost.reserve(mst_p->nbNodes());
 				for (int j = 0; j < mst_p->nbNodes(); j++) {
 					cost.emplace_back(j, dist[i][j]);
 				}
@@ -369,15 +373,16 @@ class DCMSTSearch : public BranchGroup {
 				tmp.emplace_back(i, s);
 			}
 			for (int e = 0; e < mst_p->nbEdges(); e++) {
-				int i = mst_p->getEndnode(e, 0);
-				int j = mst_p->getEndnode(e, 1);
+				const int i = mst_p->getEndnode(e, 0);
+				const int j = mst_p->getEndnode(e, 1);
 				// Is v the MIN or the SUM?? Its not clear from the paper that
-				// describes the searchs trategy....
-				int v = MIN(tmp[i].second, tmp[j].second);
+				// describes the search strategy....
+				const int v = std::min(tmp[i].second, tmp[j].second);
 				sums.emplace_back(e, v);
-				vector<std::pair<int, int> > cost;
+				std::vector<std::pair<int, int> > cost;
+				cost.reserve(mst_p->nbNodes());
 				for (int k = 0; k < mst_p->nbNodes(); k++) {
-					cost.emplace_back(k, MIN(dist[i][k], dist[j][k]));
+					cost.emplace_back(k, std::min(dist[i][k], dist[j][k]));
 				}
 				sort(cost.begin(), cost.end(), sortPairKey2);
 				reverse(cost.begin(), cost.end());
@@ -410,7 +415,7 @@ public:
 		if (fin != 0) {
 			return true;
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			if (!x[i]->finished()) {
 				// cout <<"Not finished with "<<i<<endl;
 				return false;
@@ -428,8 +433,8 @@ public:
 		// cout <<"dec level "<< engine.decisionLevel()<<endl;
 		// cout <<"sz vs sz_t "<<sz<<" "<<(int)sz_t<<endl;
 		// cout <<"last dec level" <<last_dec_level<<endl;
-		if (last_dec_level >= engine.decisionLevel()) {             // sz > sz_t) {
-			int remove = -(engine.decisionLevel() - last_dec_level);  // sz - sz_t - 1;
+		if (last_dec_level >= engine.decisionLevel()) {                   // sz > sz_t) {
+			const int remove = -(engine.decisionLevel() - last_dec_level);  // sz - sz_t - 1;
 			// cout <<"Removing "<<remove<<endl;
 			for (int i = 0; i < remove; i++) {
 				decisions.pop_back();
@@ -465,7 +470,7 @@ public:
 			*di = nullptr;
 			return true;
 		}
-		int v = to_look[t.idx].first;
+		const int v = to_look[t.idx].first;
 		// cout <<"v "<<v<<endl;
 		if (t.act == 0) {
 			// cout <<"MIN"<< ((IntVar*)x[v+1])->getMin();
@@ -508,7 +513,7 @@ public:
 					to_look = costs[sum.first];
 					decisions.clear();
 					last_dec_level = engine.decisionLevel() - 1;
-					// cout <<"foudn new root"<<endl;
+					// cout <<"found new root"<<endl;
 					return di;
 				}
 			}
@@ -526,7 +531,7 @@ public:
 				decisions.clear();
 				// Will go to decisions.empty()
 			} else {
-				struct Action failed = decisions.back();
+				const auto failed = decisions.back();
 				// if (failed.act != 0)
 				//     cout <<"failed.act "<<failed.act<<endl;
 				assert(failed.act == 0 || so.lazy);

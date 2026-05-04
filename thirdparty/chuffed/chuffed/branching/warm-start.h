@@ -1,8 +1,8 @@
 #ifndef CHUFFED_WARMSTART_H
 #define CHUFFED_WARMSTART_H
 
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/sat.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/sat.h"
 
 // Warm-start brancher.
 // Once activated, it optimistically branches on the given literals
@@ -14,8 +14,8 @@ public:
 	WarmStartBrancher(vec<Lit>& _decs, bool _revive = false)
 			: decs(_decs), pos(0), revive(_revive), init_conflicts(INT_MAX) {}
 
-	WarmStartBrancher(vec<IntVar*> xs, vec<int>& vs, bool _revive = false)
-			: revive(_revive), pos(0), init_conflicts(INT_MAX) {}
+	WarmStartBrancher(const vec<IntVar*>& /*xs*/, vec<int>& /*vs*/, bool _revive = false)
+			: pos(0), revive(_revive), init_conflicts(INT_MAX) {}
 
 	bool finished() override {
 		// Already deactivated
@@ -23,14 +23,14 @@ public:
 			return true;
 		}
 
-		if (pos < decs.size()) {
+		if (pos < static_cast<int>(decs.size())) {
 			if (sat.value(decs[pos]) == l_Undef) {
 				return false;
 			}
 			if (engine.conflicts < init_conflicts) {
 				trailSave(pos);
 			}
-			for (++pos; pos < decs.size(); ++pos) {
+			for (++pos; pos < static_cast<int>(decs.size()); ++pos) {
 				if (sat.value(decs[pos]) == l_Undef) {
 					return false;
 				}
@@ -39,7 +39,7 @@ public:
 		return true;
 	}
 
-	double getScore(VarBranch vb) override { NEVER; }
+	double getScore(VarBranch /*vb*/) override { NEVER; }
 
 	DecInfo* branch() override {
 		// Check if this is the first activation
@@ -48,10 +48,10 @@ public:
 				trailSave(init_conflicts);
 				trailSave(pos);
 			}
-			init_conflicts = engine.conflicts;
+			init_conflicts = static_cast<int>(engine.conflicts);
 		}
-		if (engine.conflicts == init_conflicts && pos < decs.size()) {
-			for (; pos < decs.size(); ++pos) {
+		if (engine.conflicts == init_conflicts && pos < static_cast<int>(decs.size())) {
+			for (; pos < static_cast<int>(decs.size()); ++pos) {
 				if (sat.value(decs[pos]) == l_Undef) {
 					return new DecInfo(nullptr, toInt(decs[pos]));
 				}

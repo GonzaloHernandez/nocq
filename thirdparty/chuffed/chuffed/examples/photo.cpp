@@ -1,11 +1,15 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/modelling.h"
 
-#include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <ostream>
 
 class Photo : public Problem {
 public:
@@ -72,7 +76,7 @@ public:
 		for (int i = 0; i < n_names; i++) {
 			os << x[i]->getVal() << ", ";
 		}
-		os << std::endl;
+		os << '\n';
 		os << "SAT = " << sat->getVal() << "\n";
 	}
 };

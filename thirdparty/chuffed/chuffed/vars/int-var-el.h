@@ -1,8 +1,8 @@
 #ifndef int_var_el_h
 #define int_var_el_h
 
-#include <chuffed/core/options.h>
-#include <chuffed/core/sat-types.h>
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat-types.h"
 
 class IntVarEL : public IntVar {
 	int lit_min;
@@ -29,7 +29,7 @@ class IntVarEL : public IntVar {
 	void updateFixed();
 
 public:
-	int uiv_no;
+	int uiv_no{-1};
 
 	IntVarEL(const IntVar& other);
 

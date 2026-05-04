@@ -1,15 +1,18 @@
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/core/sat.h>
-#include <chuffed/ldsb/ldsb.h>
-#include <chuffed/mip/mip.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/ldsb/ldsb.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
-#include <cassert>
+#include <chrono>
 #include <cstdio>
 
 void Engine::printStats() {
 	auto total_time = std::chrono::duration_cast<duration>(chuffed_clock::now() - start_time);
-	duration search_time = total_time - init_time;
+	const duration search_time = total_time - init_time;
 
 	// MiniZinc standard statistics
 	printf("%%%%%%mzn-stat: nodes=%lld\n", nodes);
@@ -46,7 +49,7 @@ void Engine::printStats() {
 		int el = 0;
 		int ll = 0;
 		int sl = 0;
-		for (int i = 0; i < vars.size(); i++) {
+		for (unsigned int i = 0; i < vars.size(); i++) {
 			switch (vars[i]->getType()) {
 				case INT_VAR:
 					nl++;
@@ -78,7 +81,7 @@ void Engine::printStats() {
 		if (so.mip) {
 			mip->printStats();
 		}
-		for (int i = 0; i < engine.propagators.size(); i++) {
+		for (unsigned int i = 0; i < engine.propagators.size(); i++) {
 			engine.propagators[i]->printStats();
 		}
 	}
@@ -95,7 +98,7 @@ void Engine::checkMemoryUsage() {
 	fprintf(stderr, "Size of Propagator: %d\n", static_cast<int>(sizeof(Propagator)));
 
 	long long var_mem = 0;
-	for (int i = 0; i < vars.size(); i++) {
+	for (unsigned int i = 0; i < vars.size(); i++) {
 		var_mem += sizeof(IntVarLL);
 		/*
 				var_mem += vars[i]->sz;
@@ -107,7 +110,7 @@ void Engine::checkMemoryUsage() {
 	fprintf(stderr, "%lld bytes used by vars\n", var_mem);
 
 	long long prop_mem = 0;
-	for (int i = 0; i < propagators.size(); i++) {
+	for (unsigned int i = 0; i < propagators.size(); i++) {
 		prop_mem += sizeof(*propagators[i]);
 	}
 	fprintf(stderr, "%lld bytes used by propagators\n", prop_mem);
@@ -119,7 +122,7 @@ void Engine::checkMemoryUsage() {
 		fprintf(stderr, "%lld range sum in vars\n", var_range_sum);
 	*/
 	long long clause_mem = 0;
-	for (int i = 0; i < sat.clauses.size(); i++) {
+	for (unsigned int i = 0; i < sat.clauses.size(); i++) {
 		clause_mem += sizeof(Lit) * sat.clauses[i]->size();
 	}
 	fprintf(stderr, "%lld bytes used by sat clauses\n", clause_mem);

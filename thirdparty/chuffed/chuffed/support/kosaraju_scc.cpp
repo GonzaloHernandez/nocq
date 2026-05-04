@@ -1,12 +1,15 @@
-#include <chuffed/support/kosaraju_scc.h>
+#include "chuffed/support/kosaraju_scc.h"
 
 #include <cstring>
-#include <iostream>
+#include <queue>
+#include <stack>
+#include <string>
+#include <unordered_map>
 #include <utility>
-using namespace std;
+#include <vector>
 
-KosarajuSCC::KosarajuSCC(int v, vector<vector<int> > out, vector<vector<int> > in,
-												 vector<vector<int> > en)
+KosarajuSCC::KosarajuSCC(int v, std::vector<std::vector<int> > out,
+												 std::vector<std::vector<int> > in, std::vector<std::vector<int> > en)
 		: nb_nodes(v),
 			outgoing(std::move(out)),
 			ingoing(std::move(in)),
@@ -21,11 +24,11 @@ void KosarajuSCC::DFS(int v, bool visited[], int curr) {
 	sccs[curr].push_back(v);
 	// Recur for all the vertices adjacent to this vertex
 	for (unsigned int i = 0; i < ingoing[v].size(); ++i) {
-		int e = ingoing[v][i];
+		const int e = ingoing[v][i];
 		if (ignore_edge(e)) {
 			continue;
 		}
-		int u = ends[e][0];
+		const int u = ends[e][0];
 		if (ignore_node(u)) {
 			continue;
 		}
@@ -35,16 +38,16 @@ void KosarajuSCC::DFS(int v, bool visited[], int curr) {
 	}
 }
 
-void KosarajuSCC::fillOrder(int v, bool visited[], stack<int>& s) {
+void KosarajuSCC::fillOrder(int v, bool visited[], std::stack<int>& s) {
 	// Mark the current node as visited and print it
 	visited[v] = true;
 	// Recur for all the vertices adjacent to this vertex
 	for (unsigned int i = 0; i < outgoing[v].size(); ++i) {
-		int e = outgoing[v][i];
+		const int e = outgoing[v][i];
 		if (ignore_edge(e)) {
 			continue;
 		}
-		int u = ends[e][1];
+		const int u = ends[e][1];
 		if (ignore_node(u)) {
 			continue;
 		}
@@ -60,9 +63,9 @@ void KosarajuSCC::fillOrder(int v, bool visited[], stack<int>& s) {
 // The main function that finds and prints all strongly connected
 // components
 void KosarajuSCC::run() {
-	scc = vector<int>(nb_nodes, -1);
+	scc = std::vector<int>(nb_nodes, -1);
 	sccs.clear();
-	stack<int> s;
+	std::stack<int> s;
 
 	// Mark all the vertices as not visited (For first DFS)
 	bool* visited = new bool[nb_nodes];
@@ -81,7 +84,7 @@ void KosarajuSCC::run() {
 	int curr = 0;
 	while (!s.empty()) {
 		// Pop a vertex from stack
-		int v = s.top();
+		const int v = s.top();
 		s.pop();
 
 		// Print Strongly connected component of the popped vertex
@@ -95,7 +98,7 @@ void KosarajuSCC::run() {
 }
 
 void KosarajuSCC::_set_levels(int start, int sink) {
-	int start_scc = scc_of(start);
+	const int start_scc = scc_of(start);
 	std::stack<int> s;
 	s.push(start);
 
@@ -112,7 +115,7 @@ void KosarajuSCC::_set_levels(int start, int sink) {
 	int edges = 0;
 	int mand_sccs = 0;
 	while (!s.empty()) {
-		int u = s.top();
+		const int u = s.top();
 		seen[u] = true;
 		s.pop();
 		if (mandatory_node(u) && !is_mand[scc_of(u)]) {
@@ -121,8 +124,8 @@ void KosarajuSCC::_set_levels(int start, int sink) {
 			mand_sccs++;
 		}
 		for (unsigned int i = 0; i < outgoing[u].size(); ++i) {
-			int e = outgoing[u][i];
-			int v = ends[e][1];
+			const int e = outgoing[u][i];
+			const int v = ends[e][1];
 			if (ignore_edge(e) || ignore_node(v)) {
 				continue;
 			}
@@ -163,13 +166,13 @@ void KosarajuSCC::_set_levels(int start, int sink) {
 	levels[scc_of(sink)] = mand_sccs;
 
 	while (!topo.empty()) {
-		int u = topo.front();
+		const int u = topo.front();
 		topo.pop();
 		int min = nb_sccs() + 10;
 		// std::cout<<"Looking at "<<u<<std::endl;
 		for (unsigned int i = 0; i < scc_graph_out[u].size(); ++i) {
-			int e = scc_graph_out[u][i];
-			int v = scc_graph_ends[e][1];
+			const int e = scc_graph_out[u][i];
+			const int v = scc_graph_ends[e][1];
 			min = (min < levels[v]) ? min : levels[v];
 		}
 		levels[u] = (min < levels[u]) ? min : levels[u];
@@ -190,8 +193,8 @@ void KosarajuSCC::topological_sort(int u, std::vector<std::vector<int> >& out,
 																	 std::vector<bool>& seen) {
 	seen[u] = true;
 	for (unsigned int i = 0; i < out[u].size(); ++i) {
-		int e = out[u][i];
-		int v = ends[e][1];
+		const int e = out[u][i];
+		const int v = ends[e][1];
 		if (!seen[v]) {
 			topological_sort(v, out, ends, sort, seen);
 		}
@@ -200,7 +203,7 @@ void KosarajuSCC::topological_sort(int u, std::vector<std::vector<int> >& out,
 }
 
 void KosarajuSCC::_set_levels(int u, bool vis[], std::unordered_map<int, bool>& mscc, int parent,
-															std::string des) {
+															const std::string& des) {
 	// std::cout<<des;
 	// for (int i = 0; i < nb_sccs(); i++)
 	//      std::cout<<levels[i]<<" ";
@@ -209,14 +212,14 @@ void KosarajuSCC::_set_levels(int u, bool vis[], std::unordered_map<int, bool>& 
 		return;
 	}
 	vis[u] = true;
-	int my_scc = scc_of(u);
+	const int my_scc = scc_of(u);
 	// std::cout<<des<<"Looking at " <<u<<std::endl;
 	for (unsigned int i = 0; i < outgoing[u].size(); ++i) {
-		int e = outgoing[u][i];
+		const int e = outgoing[u][i];
 		if (ignore_edge(e)) {
 			continue;
 		}
-		int v = ends[e][1];
+		const int v = ends[e][1];
 		if (ignore_node(v)) {
 			continue;
 		}
@@ -233,10 +236,10 @@ void KosarajuSCC::_set_levels(int u, bool vis[], std::unordered_map<int, bool>& 
 			if (levels[scc_of(v)] <= levels[my_scc]) {
 				// std::cout<<des<<"levels < "<<u<<" "<<v<<std::endl;
 				bool is_mand = false;
-				std::unordered_map<int, bool>::const_iterator it = mscc.find(my_scc);
+				const std::unordered_map<int, bool>::const_iterator it = mscc.find(my_scc);
 				if (it == mscc.end()) {
-					std::vector<int> scc = get_scc(my_scc);
-					for (int i : scc) {
+					const std::vector<int> scc = get_scc(my_scc);
+					for (const int i : scc) {
 						if (mandatory_node(i)) {
 							is_mand = true;
 							break;
@@ -262,7 +265,7 @@ void KosarajuSCC::set_levels(int start, int sink) {
 	// bool *visited = new bool[nb_nodes];
 	// memset(visited,false , nb_nodes*sizeof(bool));
 
-	std::unordered_map<int, bool> mand_sccs;
+	const std::unordered_map<int, bool> mand_sccs;
 	// levels[scc_of(sink)] = nb_nodes;
 	//_set_levels(start,visited,mand_sccs);
 	_set_levels(start, sink);

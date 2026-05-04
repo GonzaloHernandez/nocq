@@ -1,9 +1,9 @@
 #ifndef DIRECTED_REACHABILITY_H
 #define DIRECTED_REACHABILITY_H
 
-#include <chuffed/globals/graph.h>
-#include <chuffed/support/lengauer_tarjan.h>
-#include <chuffed/support/union_find.h>
+#include "chuffed/globals/graph.h"
+#include "chuffed/support/lengauer_tarjan.h"
+#include "chuffed/support/union_find.h"
 
 #include <map>
 #include <queue>
@@ -14,7 +14,7 @@
 
 class FilteredLT : public LengauerTarjan {
 	GraphPropagator* p;
-	int visited_innodes;
+	int visited_innodes{0};
 
 protected:
 	void DFS(int r) override;
@@ -30,13 +30,13 @@ public:
 
 class DReachabilityPropagator : public GraphPropagator {
 private:
-	FilteredLT* lt;
+	FilteredLT* lt{nullptr};
 
 	int root;
 	std::vector<std::vector<int> > nodes2edge;
 
 	Tint in_nodes_tsize;
-	int in_nodes_size;
+	int in_nodes_size{0};
 
 	virtual bool remove_deg1(int u);
 

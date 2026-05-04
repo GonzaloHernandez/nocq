@@ -1,11 +1,22 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/ldsb/ldsb.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/ldsb/ldsb.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
+#include <ostream>
 
 class ConcertHall : public Problem {
 public:
@@ -56,7 +67,7 @@ public:
 								y.push(q);
 								bool_clause(y);
 				*/
-				BoolView q = newBoolVar();
+				const BoolView q = newBoolVar();
 				qs.push(q);
 				int_rel_reif(x[i], IRT_NE, x[j], q);
 				bool_rel(~t[i], BRT_OR, q);
@@ -107,22 +118,22 @@ public:
 	void restrict_learnable() override {
 		printf("Setting learnable white list\n");
 		for (int i = 0; i < sat.nVars(); i++) {
-			sat.flags[i] = 0;
+			sat.flags[i] = LitFlags(false, false, false);
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			assert(x[i]->getType() == INT_VAR_EL);
 			((IntVarEL*)x[i])->setVLearnable();
 		}
-		for (int i = 0; i < bi.size(); i++) {
+		for (unsigned int i = 0; i < bi.size(); i++) {
 			assert(bi[i]->getType() == INT_VAR_EL);
 			((IntVarEL*)bi[i])->setVLearnable();
 			((IntVarEL*)bi[i])->setBLearnable();
 		}
-		for (int i = 0; i < t.size(); i++) {
+		for (unsigned int i = 0; i < t.size(); i++) {
 			sat.flags[var(t[i].getLit(false))].setLearnable(true);
 			sat.flags[var(t[i].getLit(false))].setUIPable(true);
 		}
-		for (int i = 0; i < qs.size(); i++) {
+		for (unsigned int i = 0; i < qs.size(); i++) {
 			sat.flags[var(qs[i].getLit(false))].setLearnable(true);
 			sat.flags[var(qs[i].getLit(false))].setUIPable(true);
 		}
@@ -147,11 +158,11 @@ public:
 		srand(so.rnd_seed);
 		n = 25;
 		k = 5;
-		int total = 100;
+		const int total = 100;
 		for (int i = 0; i < n; i++) {
-			int len = rand() % (total / 4) + total / 8;
-			int s = rand() % (total - len);
-			int p = rand() % 3000;
+			const int len = rand() % (total / 4) + total / 8;
+			const int s = rand() % (total - len);
+			const int p = rand() % 3000;
 			start.push(s);
 			end.push(s + len);
 			price.push(p);

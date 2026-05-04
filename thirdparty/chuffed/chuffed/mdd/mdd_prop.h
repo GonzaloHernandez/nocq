@@ -1,12 +1,12 @@
 #ifndef INC_PROP_H_
 #define INC_PROP_H_
 
-#include <chuffed/core/propagator.h>
-#include <chuffed/mdd/MDD.h>
-#include <chuffed/mdd/opts.h>
-#include <chuffed/support/misc.h>
-#include <chuffed/support/sparse_set.h>
-#include <chuffed/vars/int-view.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/mdd/MDD.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/sparse_set.h"
+#include "chuffed/vars/int-view.h"
 
 #include <climits>
 #include <utility>
@@ -23,17 +23,17 @@
 #define VAL_DEAD(val) (val_entries[(val)].supp_count == 0)
 #endif
 
-typedef int Value;
+using Value = int;
 
-typedef struct i_edge {
+struct inc_edge {
 	Value val;
 	unsigned int kill_flags;
 	char watch_flags;
 	int begin;
 	int end;
-} inc_edge;
+};
 
-typedef struct {
+struct inc_node {
 	int var;
 
 	int in_start;
@@ -47,9 +47,9 @@ typedef struct {
 
 	unsigned char stat_flag;
 	unsigned int kill_flag;
-} inc_node;
+};
 
-typedef struct {
+struct val_entry {
 	int var;
 	int val;
 	int first_off;
@@ -61,7 +61,7 @@ typedef struct {
 	//    unsigned char stat_flag;
 	signed char stat_flag;
 	int* search_cache;
-} val_entry;
+};
 
 class MDDTemplate {
 public:
@@ -106,7 +106,6 @@ public:
 	void retrieveReason(vec<int>& out, int var, int val, int lim, int threshold = 2);
 
 	void static_inference(vec<int>& inferences);
-	void static_inference(vec<Lit>& inferences);
 
 	inline int numNodes() { return nodes.size(); }
 
@@ -114,7 +113,7 @@ public:
 	void verify();
 
 	// Wake up only parts relevant to this event
-	void wakeup(int i, int c) override {
+	void wakeup(int i, int /*c*/) override {
 		assert(boolvars[i].isFixed());
 		if (boolvars[i].getVal() != 0) {
 			assert(0);
@@ -147,7 +146,7 @@ public:
 
 		if (opts.expl_strat == MDDOpts::E_KEEP) {
 			vec<Lit> ps(expl.size());
-			for (int k = 1; k < expl.size(); k++) {
+			for (unsigned int k = 1; k < expl.size(); k++) {
 				ps[k] = get_val_lit(expl[k]);
 			}
 			ps[0] = p;
@@ -158,7 +157,7 @@ public:
 			return c;
 		}
 		Clause* r = Reason_new(expl.size());
-		for (int k = 1; k < expl.size(); k++) {
+		for (unsigned int k = 1; k < expl.size(); k++) {
 			(*r)[k] = get_val_lit(expl[k]);
 		}
 		return r;
@@ -171,7 +170,6 @@ public:
 	}
 
 private:
-	void clear_val(Value v);
 	void kill_dom(unsigned int /*lim*/, inc_edge* e, vec<int>& kfa, vec<int>& kfb);
 
 	// Parameters
@@ -190,7 +188,7 @@ private:
 	vec<inc_edge> edges;
 
 	double act_decay;
-	double act_inc;
+	double act_inc{1};
 	vec<double> activity;
 	void bumpActivity(int val) { activity[val] += act_inc; }
 	void decayActivity() { act_inc *= act_decay; }

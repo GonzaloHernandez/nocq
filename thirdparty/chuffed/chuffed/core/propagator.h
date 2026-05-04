@@ -19,16 +19,15 @@ Assumptions:
 #ifndef propagator_h
 #define propagator_h
 
-#include <chuffed/core/engine.h>
-#include <chuffed/core/sat-types.h>
-#include <chuffed/core/sat.h>
-#include <chuffed/support/misc.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/misc.h"
 
 #include <algorithm>
 #include <climits>
 #include <new>
 #include <vector>
-// #include "core/prop-group.h"
 
 // Propagation onsistency levels for, e.g., alldifferent:
 //      default, value, bound, domain
@@ -36,20 +35,18 @@ enum ConLevel { CL_DEF, CL_VAL, CL_BND, CL_DOM };
 
 class Propagator {
 public:
-	int const prop_id;
-	int priority;
+	const int prop_id;
+	int priority{0};
 
 	// Persistent state
 	Tchar satisfied;
 
 	// Intermediate state
-	bool in_queue;
+	bool in_queue{false};
 
-	Propagator() : prop_id(engine.propagators.size()), priority(0), satisfied(0), in_queue(false) {
-		engine.propagators.push(this);
-	}
+	Propagator() : prop_id(engine.propagators.size()), satisfied(0) { engine.propagators.push(this); }
 
-	virtual ~Propagator() {}
+	virtual ~Propagator() = default;
 
 	// Push propgator into queue if it isn't already there
 	void pushInQueue() {
@@ -60,7 +57,7 @@ public:
 	}
 
 	// Wake up only parts relevant to this event
-	virtual void wakeup(int i, int c) { pushInQueue(); }
+	virtual void wakeup(int /*i*/, int /*c*/) { pushInQueue(); }
 
 	// Propagate woken up parts
 	virtual bool propagate() = 0;
@@ -69,16 +66,16 @@ public:
 	virtual void clearPropState() { in_queue = false; }
 
 	// Explain propagation
-	virtual Clause* explain(Lit p, int inf_id) { NEVER; }
+	virtual Clause* explain(Lit /*p*/, int /*inf_id*/) { NEVER; }
 
 	// Free a lazily generated literal
-	virtual void freeLazyVar(int v) { NEVER; }
+	virtual void freeLazyVar(int /*v*/) { NEVER; }
 
 	// Check if constraint is satisfied, return cost of check
 	virtual int checkSatisfied() { return 0; }
 
 	// Print meaning of literal
-	virtual void printLit(int v, bool sign) { NEVER; }
+	virtual void printLit(int /*v*/, bool /*sign*/) { NEVER; }
 
 	// Print statistics
 	virtual void printStats() {}
@@ -125,8 +122,8 @@ static inline Clause* Reason_new(T& ps) {
 }
 
 static inline Clause* Reason_new(std::vector<Lit> ps) {
-	Clause* c = Reason_new(ps.size() + 1);
-	for (int i = 0; i < ps.size(); i++) {
+	Clause* c = Reason_new(static_cast<int>(ps.size() + 1));
+	for (unsigned int i = 0; i < ps.size(); i++) {
 		(*c)[i + 1] = ps[i];
 	}
 	return c;
@@ -139,7 +136,7 @@ static inline Clause* Reason_new(std::vector<Lit> ps) {
 
 #define setDom(var, op, val, ...)                  \
 	do {                                             \
-		int64_t m_v = (val);                           \
+		int64_t const m_v = (val);                     \
 		if (var.op##NotR(m_v)) {                       \
 			Reason m_r = NULL;                           \
 			if (so.lazy) new (&m_r) Reason(__VA_ARGS__); \
@@ -149,14 +146,14 @@ static inline Clause* Reason_new(std::vector<Lit> ps) {
 
 #define setDom2(var, op, val, index)                                             \
 	do {                                                                           \
-		int64_t v = (val);                                                           \
+		int64_t const v = (val);                                                     \
 		if ((var).op##NotR(v) && !(var).op(v, Reason(prop_id, index))) return false; \
 	} while (0)
 
-#include <chuffed/globals/globals.h>
-#include <chuffed/primitives/primitives.h>
-#include <chuffed/vars/bool-view.h>
-#include <chuffed/vars/int-var.h>
-#include <chuffed/vars/int-view.h>
+#include "chuffed/globals/globals.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
 
 #endif

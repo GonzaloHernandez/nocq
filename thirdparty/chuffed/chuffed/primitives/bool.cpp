@@ -1,8 +1,15 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+
+#include <utility>
 
 void bool_rel(BoolView x, BoolRelType t, BoolView y, BoolView z) {
 	//	NOT_SUPPORTED;
-	BoolView v[3] = {x, y, z};
+	const BoolView v[3] = {std::move(x), std::move(y), std::move(z)};
 	int u = 0;
 
 	for (int l = 1; l <= 3; l++) {
@@ -40,7 +47,7 @@ void bool_rel(BoolView x, BoolRelType t, BoolView y, BoolView z) {
 					if ((i & (1 << m)) == 0) {
 						continue;
 					}
-					bool p = ((j >> m) & 1) != 0;
+					const bool p = ((j >> m) & 1) != 0;
 					if (l == 1) {
 						if (v[m].setValNotR(p)) {
 							if (!v[m].setVal(p)) {
@@ -64,10 +71,10 @@ void bool_rel(BoolView x, BoolRelType t, BoolView y, BoolView z) {
 // \/ x_i \/ !y_i
 void bool_clause(vec<BoolView>& x, vec<BoolView>& y) {
 	vec<Lit> ps;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		ps.push(x[i]);
 	}
-	for (int i = 0; i < y.size(); i++) {
+	for (unsigned int i = 0; i < y.size(); i++) {
 		ps.push(~y[i]);
 	}
 	sat.addClause(ps);
@@ -85,19 +92,19 @@ void bool_clause(vec<BoolView>& x) {
 // n+1 clauses
 
 void array_bool_or(vec<BoolView>& x, vec<BoolView>& y, BoolView z) {
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		sat.addClause(~x[i], z);
 	}
-	for (int i = 0; i < y.size(); i++) {
+	for (unsigned int i = 0; i < y.size(); i++) {
 		sat.addClause(y[i], z);
 	}
 	// Add clause !c \/ a_i \/ !b_i
 	vec<Lit> ps;
 	ps.push(~z);
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		ps.push(x[i]);
 	}
-	for (int i = 0; i < y.size(); i++) {
+	for (unsigned int i = 0; i < y.size(); i++) {
 		ps.push(~y[i]);
 	}
 	sat.addClause(ps);
@@ -105,7 +112,7 @@ void array_bool_or(vec<BoolView>& x, vec<BoolView>& y, BoolView z) {
 
 void array_bool_or(vec<BoolView>& x, BoolView z) {
 	vec<BoolView> y;
-	array_bool_or(x, y, z);
+	array_bool_or(x, y, std::move(z));
 }
 
 // /\ x_i /\ !y_i <-> z
@@ -113,5 +120,5 @@ void array_bool_and(vec<BoolView>& x, vec<BoolView>& y, BoolView z) { array_bool
 
 void array_bool_and(vec<BoolView>& x, BoolView z) {
 	vec<BoolView> y;
-	array_bool_and(x, y, z);
+	array_bool_and(x, y, std::move(z));
 }

@@ -1,8 +1,12 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/support/misc.h>
-#include <chuffed/vars/vars.h>
+#include "chuffed/branching/branching.h"
+
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/vars.h"
+
+#include <random>
 
 BranchGroup::BranchGroup(VarBranch vb, bool t) : var_branch(vb), terminal(t), fin(0), cur(-1) {}
 
@@ -13,7 +17,7 @@ bool BranchGroup::finished() {
 	if (fin != 0) {
 		return true;
 	}
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		if (!x[i]->finished()) {
 			return false;
 		}
@@ -24,7 +28,7 @@ bool BranchGroup::finished() {
 
 double BranchGroup::getScore(VarBranch vb) {
 	double sum = 0;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		sum += x[i]->getScore(vb);
 	}
 	return sum / x.size();
@@ -41,7 +45,7 @@ DecInfo* BranchGroup::branch() {
 
 	// Special case of input order selection
 	if (var_branch == VAR_INORDER) {
-		int i = 0;
+		unsigned int i = 0;
 		while (i < x.size() && x[i]->finished()) {
 			i++;
 		}
@@ -56,7 +60,7 @@ DecInfo* BranchGroup::branch() {
 	// Special case of random order selection
 	if (var_branch == VAR_RANDOM) {
 		moves.clear();
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			if (!x[i]->finished()) {
 				moves.push(i);
 			}
@@ -65,7 +69,7 @@ DecInfo* BranchGroup::branch() {
 			return nullptr;
 		}
 		std::uniform_int_distribution<int> rnd_move(0, moves.size() - 1);
-		int best_i = moves[rnd_move(engine.rnd)];
+		const int best_i = moves[rnd_move(engine.rnd)];
 		if (!terminal) {
 			cur = best_i;
 		}
@@ -75,11 +79,11 @@ DecInfo* BranchGroup::branch() {
 	// All other selection criteria
 	double best = -1e100;
 	moves.clear();
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		if (x[i]->finished()) {
 			continue;
 		}
-		double s = x[i]->getScore(var_branch);
+		const double s = x[i]->getScore(var_branch);
 		if (s >= best) {
 			if (s > best) {
 				best = s;
@@ -131,7 +135,7 @@ BranchGroup* createBranch(vec<Branching*> x, VarBranch var_branch, ValBranch val
 			default:
 				CHUFFED_ERROR("The value selection branching is not yet supported\n");
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			((Var*)x[i])->setPreferredVal(p);
 		}
 	}
@@ -144,7 +148,7 @@ bool PriorityBranchGroup::finished() {
 	if (fin != 0) {
 		return true;
 	}
-	for (int i = 0; i < annotations.size(); i++) {
+	for (unsigned int i = 0; i < annotations.size(); i++) {
 		if (!annotations[i]->finished()) {
 			return false;
 		}
@@ -155,7 +159,7 @@ bool PriorityBranchGroup::finished() {
 
 double PriorityBranchGroup::getScore(VarBranch vb) {
 	double sum = 0;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		sum += x[i]->getScore(vb);
 	}
 	return sum / x.size();
@@ -172,7 +176,7 @@ DecInfo* PriorityBranchGroup::branch() {
 
 	// Special case of input order selection
 	if (var_branch == VAR_INORDER) {
-		int i = 0;
+		unsigned int i = 0;
 		while (i < annotations.size() && annotations[i]->finished()) {
 			i++;
 		}
@@ -187,7 +191,7 @@ DecInfo* PriorityBranchGroup::branch() {
 	// Special case of random order selection
 	if (var_branch == VAR_RANDOM) {
 		moves.clear();
-		for (int i = 0; i < annotations.size(); i++) {
+		for (unsigned int i = 0; i < annotations.size(); i++) {
 			if (!annotations[i]->finished()) {
 				moves.push(i);
 			}
@@ -196,7 +200,7 @@ DecInfo* PriorityBranchGroup::branch() {
 			return nullptr;
 		}
 		std::uniform_int_distribution<int> rnd_move(0, moves.size() - 1);
-		int best_i = moves[rnd_move(engine.rnd)];
+		const int best_i = moves[rnd_move(engine.rnd)];
 		if (!terminal) {
 			cur = best_i;
 		}
@@ -206,11 +210,11 @@ DecInfo* PriorityBranchGroup::branch() {
 	// All other selection strategies
 	double best = -1e100;
 	moves.clear();
-	for (int i = 0; i < annotations.size(); i++) {
+	for (unsigned int i = 0; i < annotations.size(); i++) {
 		if (annotations[i]->finished()) {
 			continue;
 		}
-		double s = x[i]->getScore(var_branch);
+		const double s = x[i]->getScore(var_branch);
 		if (s >= best) {
 			if (s > best) {
 				best = s;

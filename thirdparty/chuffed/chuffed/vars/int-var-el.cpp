@@ -1,20 +1,27 @@
-#include <chuffed/core/sat.h>
-#include <chuffed/vars/int-var.h>
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
 #include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <string>
+#include <utility>
 
 extern std::map<IntVar*, std::string> intVarString;
 
 IntVarEL::IntVarEL(const IntVar& other)
-		: IntVar(other),
-			lit_min(INT_MIN),
-			lit_max(INT_MIN),
-			base_vlit(INT_MIN),
-			base_blit(INT_MIN),
-			uiv_no(-1) {
+		: IntVar(other), lit_min(INT_MIN), lit_max(INT_MIN), base_vlit(INT_MIN), base_blit(INT_MIN) {
 	initVals();
 	initVLits();
 	initBLits();
@@ -30,7 +37,7 @@ IntVarEL::IntVarEL(const IntVar& other)
 	if (so.debug) {
 		std::cerr << "created integer variable " << intVarString[(IntVar*)(&other)] << "\n";
 		if (intVarString[(IntVar*)(&other)].empty()) {
-			abort();
+			std::abort();
 		}
 	}
 
@@ -40,7 +47,7 @@ IntVarEL::IntVarEL(const IntVar& other)
 		ss << intVarString[(IntVar*)(&other)];
 		std::stringstream ssv;
 		ssv << v;
-		std::string val = ssv.str();
+		const std::string val = ssv.str();
 		label = ss.str();
 		label.append("!=");
 		label.append(val);
@@ -60,7 +67,7 @@ IntVarEL::IntVarEL(const IntVar& other)
 	}
 	// The extra <= min-1 and >= max+1 bounds literals (both
 	// obviously false).
-	std::string label;
+	const std::string label;
 	std::stringstream ss;
 	ss << intVarString[(IntVar*)(&other)] << "<=" << (lit_min - 1);
 	litString.insert(std::pair<int, std::string>(base_blit + 2 * (lit_min - 1) + 1, ss.str()));
@@ -198,13 +205,13 @@ Lit IntVarEL::getLit(int64_t v, LitRel t) {
 	}
 	switch (t) {
 		case LR_NE:
-			return getNELit(v);
+			return getNELit(static_cast<int>(v));
 		case LR_EQ:
-			return getEQLit(v);
+			return getEQLit(static_cast<int>(v));
 		case LR_GE:
-			return getGELit(v);
+			return getGELit(static_cast<int>(v));
 		case LR_LE:
-			return getLELit(v);
+			return getLELit(static_cast<int>(v));
 		default:
 			NEVER;
 	}
@@ -214,7 +221,7 @@ Lit IntVarEL::getLit(int64_t v, LitRel t) {
 inline void IntVarEL::channelMin(int v) {
 	// Set [x >= v-1] to [x >= min+1] using [x >= i] \/ ![x >= v]
 	// Set [x != v-1] to [x != min] using [x != i] \/ ![x >= v]
-	Reason r(~getGELit(v));
+	const Reason r(~getGELit(v));
 	for (int i = v - 1; i > min; i--) {
 		sat.cEnqueue(getGELit(i), r);
 		if (vals[i] != 0) {
@@ -229,7 +236,7 @@ inline void IntVarEL::channelMin(int v) {
 inline void IntVarEL::channelMax(int v) {
 	// Set [x <= v+1] to [x <= max-1] to using [x <= i] \/ ![x <= v]
 	// Set [x != v+1] to [x != max] to using ![x = i] \/ ![x <= v]
-	Reason r(~getLELit(v));
+	const Reason r(~getLELit(v));
 	for (int i = v + 1; i < max; i++) {
 		sat.cEnqueue(getLELit(i), r);
 		if (vals[i] != 0) {
@@ -242,7 +249,7 @@ inline void IntVarEL::channelMax(int v) {
 
 // Use when you've just set [x = v]
 inline void IntVarEL::channelFix(int v) {
-	Reason r(getNELit(v));
+	const Reason r(getNELit(v));
 	if (min < v) {
 		// Set [x >= v] using [x >= v] \/ ![x = v]
 		sat.cEnqueue(getGELit(v), r);
@@ -280,7 +287,7 @@ inline void IntVarEL::updateMin() {
 	int v = min;
 	while (vals[v] == 0) {
 		// Set [x >= v+1] using [x >= v+1] \/ [x <= v-1] \/ [x = v]
-		Reason r(getLELit(v - 1), getEQLit(v));
+		const Reason r(getLELit(v - 1), getEQLit(v));
 		sat.cEnqueue(getGELit(v + 1), r);
 		v++;
 	}
@@ -294,7 +301,7 @@ inline void IntVarEL::updateMax() {
 	int v = max;
 	while (vals[v] == 0) {
 		// Set [x <= v-1] using [x <= v-1] \/ [x >= v+1] \/ [x = v]
-		Reason r(getGELit(v + 1), getEQLit(v));
+		const Reason r(getGELit(v + 1), getEQLit(v));
 		sat.cEnqueue(getLELit(v - 1), r);
 		v--;
 	}
@@ -307,9 +314,9 @@ inline void IntVarEL::updateMax() {
 
 inline void IntVarEL::updateFixed() {
 	if (isFixed()) {
-		int v = min;
+		const int v = min;
 		// Set [x = v] using [x = v] \/ [x <= v-1] \/ [x >= v+1]
-		Reason r(getLELit(v - 1), getGELit(v + 1));
+		const Reason r(getLELit(v - 1), getGELit(v + 1));
 		sat.cEnqueue(getEQLit(v), r);
 		changes |= EVENT_F;
 	}
@@ -324,7 +331,7 @@ bool IntVarEL::setMin(int64_t v, Reason r, bool channel) {
 		assert(sat.confl);
 		return false;
 	}
-	channelMin(v);
+	channelMin(static_cast<int>(v));
 #if INT_DOMAIN_LIST
 	int i;
 	int j = vals_count;
@@ -332,7 +339,7 @@ bool IntVarEL::setMin(int64_t v, Reason r, bool channel) {
 	updateMin(v, i);
 	vals_count = j;
 #else
-	min = v;
+	min = static_cast<int>(v);
 	changes |= EVENT_C | EVENT_L;
 	updateMin();
 #endif
@@ -350,7 +357,7 @@ bool IntVarEL::setMax(int64_t v, Reason r, bool channel) {
 		assert(sat.confl);
 		return false;
 	}
-	channelMax(v);
+	channelMax(static_cast<int>(v));
 #if INT_DOMAIN_LIST
 	int i;
 	int j = vals_count;
@@ -358,7 +365,7 @@ bool IntVarEL::setMax(int64_t v, Reason r, bool channel) {
 	updateMax(v, i);
 	vals_count = j;
 #else
-	max = v;
+	max = static_cast<int>(v);
 	changes |= EVENT_C | EVENT_U;
 	updateMax();
 #endif
@@ -377,13 +384,13 @@ bool IntVarEL::setVal(int64_t v, Reason r, bool channel) {
 		return false;
 	}
 	changes |= EVENT_C | EVENT_F;
-	channelFix(v);
+	channelFix(static_cast<int>(v));
 	if (min < v) {
-		min = v;
+		min = static_cast<int>(v);
 		changes |= EVENT_L;
 	}
 	if (max > v) {
-		max = v;
+		max = static_cast<int>(v);
 		changes |= EVENT_U;
 	}
 #if INT_DOMAIN_LIST
@@ -435,12 +442,12 @@ Lit IntVarEL::createSetLit(vec<Lit>& head) {
 	std::sort((Lit*)head, (Lit*)head + head.size());
 
 	// process bounds lits first
-	for (int i = 0; i < head.size(); i++) {
-		ChannelInfo& ci = sat.c_info[var(head[i])];
+	for (unsigned int i = 0; i < head.size(); i++) {
+		const ChannelInfo& ci = sat.c_info[var(head[i])];
 		if (ci.val_type == 0) {
 			continue;
 		}
-		int v = ci.val;
+		const int v = ci.val;
 		if (sign(head[i])) {
 			if (v < upper_bound) {
 				upper_bound = v;
@@ -453,12 +460,12 @@ Lit IntVarEL::createSetLit(vec<Lit>& head) {
 	}
 
 	// process val lits
-	for (int i = 0; i < head.size(); i++) {
-		ChannelInfo& ci = sat.c_info[var(head[i])];
+	for (unsigned int i = 0; i < head.size(); i++) {
+		const ChannelInfo& ci = sat.c_info[var(head[i])];
 		if (ci.val_type == 1) {
 			continue;
 		}
-		int v = ci.val;
+		const int v = ci.val;
 		if (sign(head[i])) {
 			if (v < lower_bound || v > upper_bound) {
 				continue;
@@ -519,7 +526,7 @@ Lit IntVarEL::createSetLit(vec<Lit>& head) {
 	}
 	int j = 0;
 	for (int i = lower_bound; i <= upper_bound; i++) {
-		if (j < holes.size() && i == holes[j]) {
+		if (j < static_cast<int>(holes.size()) && i == holes[j]) {
 			j++;
 			continue;
 		}

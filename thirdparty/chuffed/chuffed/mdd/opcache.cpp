@@ -1,6 +1,7 @@
-#include <chuffed/mdd/opcache.h>
+#include "chuffed/mdd/opcache.h"
 
 #include <climits>
+#include <cstdint>
 #include <cstdlib>
 
 #include <thirdparty/MurmurHash3/MurmurHash3.h>
@@ -9,7 +10,7 @@
 
 OpCache::OpCache(unsigned int sz)
 		: tablesz(sz),
-			members(0),
+
 			indices((unsigned int*)malloc(sizeof(unsigned int) * sz)),
 			entries((cache_entry*)malloc(sizeof(cache_entry) * sz)) {
 	//    collisions = 0;
@@ -21,11 +22,11 @@ OpCache::~OpCache() {
 	//    std::cout << members << ", " << collisions << std::endl;
 }
 
-typedef struct {
+struct cache_sig {
 	unsigned int op;
 	unsigned int a;
 	unsigned int b;
-} cache_sig;
+};
 
 inline unsigned int OpCache::hash(char op, unsigned int a, unsigned int b) const {
 #ifndef USE_MURMURHASH
@@ -46,8 +47,8 @@ inline unsigned int OpCache::hash(char op, unsigned int a, unsigned int b) const
 
 // Returns UINT_MAX on failure.
 unsigned int OpCache::check(char op, unsigned int a, unsigned int b) {
-	unsigned int hval = hash(op, a, b);
-	unsigned int index = indices[hval];
+	const unsigned int hval = hash(op, a, b);
+	const unsigned int index = indices[hval];
 
 	if (index < members && entries[index].hash == hval) {
 		// Something is in the table.
@@ -59,7 +60,7 @@ unsigned int OpCache::check(char op, unsigned int a, unsigned int b) {
 }
 
 void OpCache::insert(char op, unsigned int a, unsigned int b, unsigned int res) {
-	unsigned int hval = hash(op, a, b);
+	const unsigned int hval = hash(op, a, b);
 	unsigned int index = indices[hval];
 
 	if (index >= members || entries[index].hash != hval) {

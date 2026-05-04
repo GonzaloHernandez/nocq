@@ -73,8 +73,9 @@ public:
     virtual ExecStatus propagate(Space& home, const ModEventDelta&) {
         vec<int32_t> pathV;
         vec<int32_t> pathE;
+        vec<int64_t> pathW;
 
-        if (filter(home, pathV,pathE,g.init,-1,true) == ES_FAILED)
+        if (filter(home, pathV,pathE,pathW,g.init,-1,true) == ES_FAILED)
             return ES_FAILED;
 
         return ES_OK;

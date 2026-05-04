@@ -1,11 +1,18 @@
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/flatzinc/flatzinc.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/flatzinc/flatzinc.h"
+#include "chuffed/support/vec.h"
 
 #include <csignal>
 #include <cstdio>
-#include <cstring>
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+#include <ostream>
 #include <sstream>
+#include <string>
 
 std::stringstream output_buffer;
 
@@ -27,7 +34,7 @@ static BOOL SIGINT_handler(DWORD t) throw() {
 }
 #else
 /// Handler for catching Ctrl-C
-void SIGINT_handler(int signum) {
+void SIGINT_handler(int /*signum*/) {
 	fprintf(stderr, "*** INTERRUPTED ***\n");
 	// Flush last solution
 	if ((engine.opt_var != nullptr) && so.nof_solutions != 0) {
@@ -43,13 +50,13 @@ void SIGINT_handler(int signum) {
 
 const char* irel_str[] = {" = ", " != ", " <= ", " > "};
 
-std::string get_bv_string(BoolView b, bool tryIntDom) {
+std::string get_bv_string(const BoolView& b, bool tryIntDom) {
 	std::string s;
 
 	if (tryIntDom) {
 		// Alternate version: prioritise intvars.
-		Lit l(b.getLit(true));
-		ChannelInfo ci(sat.c_info[var(l)]);
+		const Lit l(b.getLit(true));
+		const ChannelInfo ci(sat.c_info[var(l)]);
 		s = intVarString[engine.vars[ci.cons_id]];
 		if (ci.cons_type == 1 && !s.empty()) {
 			// Int literal
@@ -63,7 +70,7 @@ std::string get_bv_string(BoolView b, bool tryIntDom) {
 		if (s.empty()) {
 			BoolView o(b);
 			o.setSign(!o.getSign());
-			std::string ostring = boolVarString[o];
+			const std::string ostring = boolVarString[o];
 			if (!ostring.empty()) {
 				s = "~ " + ostring;
 			} else {
@@ -77,12 +84,12 @@ std::string get_bv_string(BoolView b, bool tryIntDom) {
 	if (bvstring.empty()) {
 		BoolView o(b);
 		o.setSign(!o.getSign());
-		std::string ostring = boolVarString[o];
+		const std::string ostring = boolVarString[o];
 		if (ostring.empty()) {
 			// Maybe it's attached to a (named) intvar.
-			Lit l(b.getLit(true));
-			ChannelInfo ci(sat.c_info[var(l)]);
-			std::string ivstring = intVarString[engine.vars[ci.cons_id]];
+			const Lit l(b.getLit(true));
+			const ChannelInfo ci(sat.c_info[var(l)]);
+			const std::string ivstring = intVarString[engine.vars[ci.cons_id]];
 			if (ci.cons_type == 1 && !ivstring.empty()) {
 				// If it is, return the denotation of b.
 				std::stringstream ss;
@@ -152,20 +159,20 @@ int main(int argc, char** argv) {
 			std::cout << "% [";
 			if (ng.size() > 0) {
 				std::cout << get_bv_string(ng[0], so.assump_int);
-				for (int ii = 1; ii < ng.size(); ii++) {
+				for (unsigned int ii = 1; ii < ng.size(); ii++) {
 					std::cout << ", " << get_bv_string(ng[ii], so.assump_int);
 				}
 			}
-			std::cout << "]" << std::endl;
+			std::cout << "]" << '\n';
 		}
 	} catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
+		std::cerr << e.what() << '\n';
 		std::exit(EXIT_FAILURE);
 	} catch (const FlatZinc::Error& e) {
-		std::cerr << e.toString() << std::endl;
+		std::cerr << e.toString() << '\n';
 		std::exit(EXIT_FAILURE);
 	} catch (...) {
-		std::cerr << "  UNKNOWN EXCEPTION." << std::endl;
+		std::cerr << "  UNKNOWN EXCEPTION." << '\n';
 		std::exit(EXIT_FAILURE);
 	}
 	return 0;

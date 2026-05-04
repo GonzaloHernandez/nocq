@@ -1,6 +1,19 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/EdExplFinder.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/EdExplFinder.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstdio>
 #include <iostream>
 
 class EditDistance : public Propagator {
@@ -23,11 +36,11 @@ public:
 	vec<int> deletion_cost;
 	vec<int> substitution_cost;
 
-	int const seqSize;
+	const int seqSize;
 	IntView<>* const seq1;
 	IntView<>* const seq2;
 
-	IntView<> const ed;
+	const IntView<> ed;
 
 	const ExplLevel explLevel = E_FULL;
 
@@ -75,17 +88,17 @@ public:
 		for (int i = 0; i < max_char; i++) {
 			std::cout << insertion_cost[i] << " ";
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 		std::cout << "deletion_cost: ";
 		for (int i = 0; i < max_char; i++) {
 			std::cout << deletion_cost[i] << " ";
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 		std::cout << "substitution_cost: ";
 		for (int i = 0; i < max_char * max_char; i++) {
 			std::cout << substitution_cost[i] << " ";
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 #endif
 
 		// we set this propagator to low priority
@@ -133,16 +146,16 @@ public:
 		//
 
 #ifndef NDEBUG
-		std::cout << "lastBound = " << lastBound << std::endl;
-		std::cout << "cellChanges = " << cellChanges << std::endl;
+		std::cout << "lastBound = " << lastBound << '\n';
+		std::cout << "cellChanges = " << cellChanges << '\n';
 		std::cout << "cellHasChanged = [";
 		for (int i = 0; i < seqSize * 2; i++) {
 			std::cout << cellHasChanged[i] << " ";
 		}
-		std::cout << "]" << std::endl;
+		std::cout << "]" << '\n';
 #endif
 
-		int ub = std::min(2 * seqSize * max_id_cost, lastBound + cellChanges * 2 * max_id_cost);
+		const int ub = std::min(2 * seqSize * max_id_cost, lastBound + cellChanges * 2 * max_id_cost);
 
 		updateDpMatrix(ub);
 		cellChanges = 0;
@@ -159,13 +172,13 @@ public:
 		//
 
 		// calc edit distance
-		int editDistanceLB = getEditDistanceLB();
+		const int editDistanceLB = getEditDistanceLB();
 
 		lastBound = editDistanceLB;
 
 		if (ed.getMin() < editDistanceLB) {
 #ifndef NDEBUG
-			std::cout << "ED " << editDistanceLB << std::endl;
+			std::cout << "ED " << editDistanceLB << '\n';
 #endif
 
 			if (explLevel == E_NAIVE) {
@@ -212,7 +225,7 @@ private:
 	int getMinimumDeletionCosts(IntView<>* const iVar) {
 		int min_deletion_costs = INT_MAX;
 		// find minimum deletion costs
-		for (int it : *iVar) {
+		for (const int it : *iVar) {
 			if (it > 0) {
 				min_deletion_costs = std::min(min_deletion_costs, deletion_cost[it - 1]);
 			} else {
@@ -227,7 +240,7 @@ private:
 	int getMinimumInsertionCosts(IntView<>* const jVar) {
 		int min_insertion_costs = INT_MAX;
 		// find minimum insertion costs
-		for (int it : *jVar) {
+		for (const int it : *jVar) {
 			if (it > 0) {
 				min_insertion_costs = std::min(min_insertion_costs, insertion_cost[it - 1]);
 			} else {
@@ -243,8 +256,8 @@ private:
 		int min_substitution_costs = INT_MAX;
 
 		// find minimum substitution costs
-		for (int i_val : *iVar) {
-			for (int j_val : *jVar) {
+		for (const int i_val : *iVar) {
+			for (const int j_val : *jVar) {
 				if (i_val == 0 && j_val == 0) {
 					return 0;
 				}
@@ -273,20 +286,20 @@ private:
 		if (i == 0 && j == 0) {
 			// top left position is always 0
 		} else if (i == 0) {
-			int min_insertion_costs = getMinimumInsertionCosts(jVar);
+			const int min_insertion_costs = getMinimumInsertionCosts(jVar);
 			dpMatrix[matrixCoord(i, j)] = dpMatrix[matrixCoord(0, j - 1)] + min_insertion_costs;
 		} else if (j == 0) {
-			int min_deletion_costs = getMinimumDeletionCosts(iVar);
+			const int min_deletion_costs = getMinimumDeletionCosts(iVar);
 			dpMatrix[matrixCoord(i, j)] = dpMatrix[matrixCoord(i - 1, 0)] + min_deletion_costs;
 		} else {
 			int minChange = seqSize * 2 * max_id_cost;
 
 			if (j - 1 >= i - d) {
-				int min_insertion_costs = getMinimumInsertionCosts(jVar);
+				const int min_insertion_costs = getMinimumInsertionCosts(jVar);
 				minChange = std::min(minChange, dpMatrix[matrixCoord(i, j - 1)] + min_insertion_costs);
 			}
 			if (j < i + d) {
-				int min_deletion_costs = getMinimumDeletionCosts(iVar);
+				const int min_deletion_costs = getMinimumDeletionCosts(iVar);
 				minChange = std::min(minChange, dpMatrix[matrixCoord(i - 1, j)] + min_deletion_costs);
 			}
 
@@ -294,8 +307,8 @@ private:
 				// both values fixed and equal
 				minChange = std::min(minChange, dpMatrix[matrixCoord(i - 1, j - 1)]);
 			} else {
-				int minDiagonalCost = getMinimumSubstitutionCost(iVar, jVar);
-				int diagonalCost = dpMatrix[matrixCoord(i - 1, j - 1)] + minDiagonalCost;
+				const int minDiagonalCost = getMinimumSubstitutionCost(iVar, jVar);
+				const int diagonalCost = dpMatrix[matrixCoord(i - 1, j - 1)] + minDiagonalCost;
 				minChange = std::min(minChange, diagonalCost);
 			}
 			dpMatrix[matrixCoord(i, j)] = minChange;
@@ -324,15 +337,15 @@ private:
 		}
 
 		// d = distance to diagonal that should be calculated in the matrix
-		int d = upperBound / min_id_cost + std::max(possible_0_inserts, possible_0_deletes);
+		const int d = upperBound / min_id_cost + std::max(possible_0_inserts, possible_0_deletes);
 
 #ifndef NDEBUG
-		std::cout << "d = " << d << std::endl;
+		std::cout << "d = " << d << '\n';
 #endif
 
 		for (int i = 0; i < seqSize + 1; i++) {
-			int startCol = std::max(0, i - d);
-			int endCol = std::min(seqSize, i + d);
+			const int startCol = std::max(0, i - d);
+			const int endCol = std::min(seqSize, i + d);
 			for (int j = startCol; j < endCol + 1; j++) {
 				updateDpPosition(i, j, d);
 			}
@@ -348,7 +361,7 @@ private:
 	Clause* getNaiveExplanation() const {
 		// count number of possible values in total
 
-		int clauseSize = seqSize * 2 + 1;
+		const int clauseSize = seqSize * 2 + 1;
 
 		Clause* r = Reason_new(clauseSize);
 
@@ -370,11 +383,11 @@ private:
 	}
 
 	void printCurrentDpMatrix() {
-		std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-		std::cout << " Sequence1: " << std::endl;
+		std::cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << '\n';
+		std::cout << " Sequence1: " << '\n';
 		for (int i = 0; i < seqSize; i++) {
 			std::cout << "{";
-			for (int it : seq1[i]) {
+			for (const int it : seq1[i]) {
 				std::cout << it << ",";
 			}
 			if (seq1[i].isFixed()) {
@@ -382,12 +395,12 @@ private:
 			}
 			std::cout << "};";
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 
-		std::cout << " Sequence2: " << std::endl;
+		std::cout << " Sequence2: " << '\n';
 		for (int i = 0; i < seqSize; i++) {
 			std::cout << "{";
-			for (int it : seq2[i]) {
+			for (const int it : seq2[i]) {
 				std::cout << it << ",";
 			}
 			if (seq2[i].isFixed()) {
@@ -395,21 +408,21 @@ private:
 			}
 			std::cout << "};";
 		}
-		std::cout << std::endl;
-		std::cout << std::endl;
+		std::cout << '\n';
+		std::cout << '\n';
 
-		std::cout << " Current dp matrix: " << std::endl;
+		std::cout << " Current dp matrix: " << '\n';
 
 		std::cout << "   ";
 		for (int i = 0; i < seqSize + 1; i++) {
 			printf("%2d ", i);
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 
 		for (int i = 0; i < seqSize + 2; i++) {
 			std::cout << "---";
 		}
-		std::cout << std::endl;
+		std::cout << '\n';
 
 		for (int i = 0; i < seqSize + 1; i++) {
 			for (int j = -1; j < seqSize + 1; j++) {
@@ -419,7 +432,7 @@ private:
 					printf("%2d ", dpMatrix[matrixCoord(i, j)]);
 				}
 			}
-			std::cout << std::endl;
+			std::cout << '\n';
 		}
 	}
 };
@@ -428,25 +441,25 @@ void edit_distance(int max_char, vec<int>& insertion_cost, vec<int>& deletion_co
 									 vec<int>& substitution_cost, vec<IntVar*>& seq1, vec<IntVar*>& seq2,
 									 IntVar* ed) {
 	vec<IntView<> > s1;
-	for (int i = 0; i < seq1.size(); i++) {
+	for (unsigned int i = 0; i < seq1.size(); i++) {
 		seq1[i]->specialiseToEL();
 		s1.push(IntView<>(seq1[i]));
 	}
 	vec<IntView<> > s2;
-	for (int i = 0; i < seq2.size(); i++) {
+	for (unsigned int i = 0; i < seq2.size(); i++) {
 		seq2[i]->specialiseToEL();
 		s2.push(IntView<>(seq2[i]));
 	}
 
 	// insert clauses to ensure 0 values appear only at the end of each sequence
-	for (int i = 0; i < seq1.size() - 1; i++) {
+	for (unsigned int i = 0; i < seq1.size() - 1; i++) {
 		// x_i >= 1 v x_i+1 <= 0
 		vec<Lit> cl;
 		cl.push(seq1[i]->getLit(1, LR_GE));
 		cl.push(seq1[i + 1]->getLit(0, LR_LE));
 		sat.addClause(cl);
 	}
-	for (int i = 0; i < seq2.size() - 1; i++) {
+	for (unsigned int i = 0; i < seq2.size() - 1; i++) {
 		// x_i >= 1 v x_i+1 <= 0
 		vec<Lit> cl;
 		cl.push(seq2[i]->getLit(1, LR_GE));

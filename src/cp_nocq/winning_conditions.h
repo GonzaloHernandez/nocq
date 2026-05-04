@@ -63,7 +63,7 @@ public:
             }
         }
         return m%2==playerSAT;
-    };
+    }
 };
 
 //===========================================================================
@@ -88,7 +88,7 @@ public:
             return sum >= threshold;
         }
         return sum < threshold;
-    };
+    }
 };
 
 //===========================================================================
@@ -114,7 +114,7 @@ public:
             return avg >= threshold;
         }
         return avg < threshold;
-    };
+    }
 };
 
 #endif // WINNING_CONDITIONS_H

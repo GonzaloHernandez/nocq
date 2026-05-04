@@ -1,3 +1,6 @@
+#ifndef LENGAUER_TARJAN_H
+#define LENGAUER_TARJAN_H
+
 #include <vector>
 
 class LengauerTarjan {
@@ -15,7 +18,7 @@ class LengauerTarjan {
 
 private:
 	int root;
-	typedef std::vector<std::vector<int> > vvi_t;
+	using vvi_t = std::vector<std::vector<int>>;
 	vvi_t en;
 	vvi_t in;
 	vvi_t ou;
@@ -49,3 +52,5 @@ public:
 	virtual bool ignore_node(int u);
 	virtual bool ignore_edge(int e);
 };
+
+#endif

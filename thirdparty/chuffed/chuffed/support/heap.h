@@ -20,7 +20,9 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef heap_h
 #define heap_h
 
-#include <chuffed/support/vec.h>
+#include "chuffed/support/vec.h"
+
+#include <cassert>
 
 //=================================================================================================
 // A heap implementation with support for decrease/increase key.
@@ -37,7 +39,7 @@ class Heap {
 	static inline int parent(int i) { return (i - 1) >> 1; }
 
 	inline void percolateUp(int i) {
-		int x = heap[i];
+		const int x = heap[i];
 		while (i != 0 && lt(x, heap[parent(i)])) {
 			heap[i] = heap[parent(i)];
 			indices[heap[i]] = i;
@@ -48,9 +50,11 @@ class Heap {
 	}
 
 	inline void percolateDown(int i) {
-		int x = heap[i];
-		while (left(i) < heap.size()) {
-			int child = right(i) < heap.size() && lt(heap[right(i)], heap[left(i)]) ? right(i) : left(i);
+		const int x = heap[i];
+		while (left(i) < static_cast<int>(heap.size())) {
+			const int child =
+					right(i) < static_cast<int>(heap.size()) && lt(heap[right(i)], heap[left(i)]) ? right(i)
+																																												: left(i);
 			if (!lt(heap[child], x)) {
 				break;
 			}
@@ -72,9 +76,9 @@ public:
 
 	int size() const { return heap.size(); }
 	bool empty() const { return heap.size() == 0; }
-	bool inHeap(int n) const { return n < indices.size() && indices[n] >= 0; }
+	bool inHeap(int n) const { return n < static_cast<int>(indices.size()) && indices[n] >= 0; }
 	int operator[](int index) const {
-		assert(index < heap.size());
+		assert(index < static_cast<int>(heap.size()));
 		return heap[index];
 	}
 
@@ -99,7 +103,7 @@ public:
 	}
 
 	int removeMin() {
-		int x = heap[0];
+		const int x = heap[0];
 		heap[0] = heap.last();
 		indices[heap[0]] = 0;
 		indices[x] = -1;
@@ -133,7 +137,7 @@ public:
 	}
 
 	// Delete elements from the heap using a given filter function (-object).
-	// *** this could probaly be replaced with a more general "buildHeap(vec<int>&)" method ***
+	// *** this could probably be replaced with a more general "buildHeap(vec<int>&)" method ***
 	template <class F>
 	void filter(const F& filt) {
 		int i;

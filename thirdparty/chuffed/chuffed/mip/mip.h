@@ -1,13 +1,11 @@
 #ifndef mip_h
 #define mip_h
 
-#include <chuffed/core/propagator.h>
-#include <chuffed/support/misc.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/support/misc.h"
 
 #include <map>
 #include <set>
-
-using namespace std;
 
 class VarGroup;
 
@@ -18,7 +16,7 @@ struct LinearIneq {
 	long double ub;
 	bool lb_notR;
 	bool ub_notR;
-	LinearIneq() {}
+	LinearIneq() = default;
 };
 
 struct BoundChange {
@@ -37,8 +35,8 @@ class MIP : public Propagator {
 	};
 
 public:
-	set<IntVar*> var_set;
-	map<IntVar*, int> var_map;
+	std::set<IntVar*> var_set;
+	std::map<IntVar*, int> var_map;
 	vec<IntVar*> vars;
 	vec<LinearIneq> ineqs;
 
@@ -49,10 +47,10 @@ public:
 	vec<BoundChange> bctrail;
 	vec<int> bctrail_lim;
 
-	int level_lb;
-	int level_ub;
+	int level_lb{-1};
+	int level_ub{-1};
 
-	int status;
+	int status{0};
 
 	duration simplex_time;
 

@@ -1,5 +1,17 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <algorithm>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <map>
 #include <utility>
 
@@ -10,18 +22,16 @@
 #define ADD_CLAUSES 0
 #define FLIP_NEG 1
 
-using namespace std;
-
 class ConjRule {
 public:
 	int head;
 	int sz;
 	Lit body_lit;
 	int w;
-	int body[0];
+	int body[1];
 
 	ConjRule(int h, vec<int>& b, Lit bl) : head(h), sz(b.size()), body_lit(bl) {
-		for (int i = 0; i < b.size(); i++) {
+		for (unsigned int i = 0; i < b.size(); i++) {
 			body[i] = b[i];
 		}
 	}
@@ -30,7 +40,7 @@ public:
 };
 
 ConjRule* ConjRule_new(int h, vec<int>& b, Lit bl) {
-	void* mem = malloc(sizeof(ConjRule) + b.size() * sizeof(int));
+	void* mem = malloc(sizeof(ConjRule) + (b.size() == 0 ? 0 : b.size() - 1) * sizeof(int));
 	return new (mem) ConjRule(h, b, bl);
 }
 
@@ -47,13 +57,13 @@ public:
 	vec<ConjRule*> rules;
 	vec<int> scc_ids;
 
-	multimap<int, int> raw_head_to_body;
+	std::multimap<int, int> raw_head_to_body;
 
-	map<int, int> lit_to_index;
-	map<int, ConjRule*> body_lit_to_rule;
+	std::map<int, int> lit_to_index;
+	std::map<int, ConjRule*> body_lit_to_rule;
 
-	vec<vec<ConjRule*> > head_occ_rules;  // occurences in rule head
-	vec<vec<ConjRule*> > body_occ_rules;  // occurences in rule body
+	vec<vec<ConjRule*> > head_occ_rules;  // occurrences in rule head
+	vec<vec<ConjRule*> > body_occ_rules;  // occurrences in rule body
 	vec<vec<ConjRule*> > watches;         // rules where it is being watched
 
 	// SCC calc stuff
@@ -92,15 +102,15 @@ public:
 	}
 
 	int getId(Lit l) {
-		pair<map<int, int>::iterator, bool> p =
-				lit_to_index.insert(pair<int, int>(toInt(l), lits.size()));
+		const std::pair<std::map<int, int>::iterator, bool> p =
+				lit_to_index.insert(std::pair<int, int>(toInt(l), lits.size()));
 		if (p.second) {
 			lits.push(l);
 		}
 		return p.first->second;
 	}
 
-	void addRule(BoolView hl, vec<BoolView>& posb, vec<BoolView>& negb) {
+	void addRule(const BoolView& hl, vec<BoolView>& posb, vec<BoolView>& negb) {
 		raw_heads.push(hl);
 		raw_posb.push();
 		posb.copyTo(raw_posb.last());
@@ -110,14 +120,14 @@ public:
 	}
 
 	void preprocess() {
-		for (int i = 0; i < raw_heads.size(); i++) {
-			raw_head_to_body.insert(pair<int, int>(toInt((Lit)raw_heads[i]), i));
+		for (unsigned int i = 0; i < raw_heads.size(); i++) {
+			raw_head_to_body.insert(std::pair<int, int>(toInt((Lit)raw_heads[i]), i));
 		}
 
-		for (int i = 0; i < raw_heads.size(); i++) {
+		for (unsigned int i = 0; i < raw_heads.size(); i++) {
 			if (raw_posb[i].size() == 1 && raw_negb[i].size() == 0) {
 				if (raw_head_to_body.count(toInt((Lit)raw_posb[i][0])) == 1) {
-					int r = raw_head_to_body.find(toInt((Lit)raw_posb[i][0]))->second;
+					const int r = raw_head_to_body.find(toInt((Lit)raw_posb[i][0]))->second;
 					raw_bl[i] = raw_posb[i][0];
 					raw_posb[r].copyTo(raw_posb[i]);
 					raw_negb[r].copyTo(raw_negb[i]);
@@ -126,7 +136,7 @@ public:
 			}
 		}
 
-		for (int i = 0; i < raw_heads.size(); i++) {
+		for (unsigned int i = 0; i < raw_heads.size(); i++) {
 			if (raw_heads[i] == bv_false) {
 				continue;
 			}
@@ -173,8 +183,8 @@ public:
 
 	static void getStaticEdges(WellFounded* wf, int v, vec<int>& edges) {
 		edges.clear();
-		for (int i = 0; i < wf->head_occ_rules[v].size(); i++) {
-			ConjRule& r = *wf->head_occ_rules[v][i];
+		for (unsigned int i = 0; i < wf->head_occ_rules[v].size(); i++) {
+			const ConjRule& r = *wf->head_occ_rules[v][i];
 			for (int j = 0; j < r.sz; j++) {
 				edges.push(r.body[j]);
 			}
@@ -183,8 +193,8 @@ public:
 
 	static void getDynamicEdges(WellFounded* wf, int v, vec<int>& edges) {
 		edges.clear();
-		for (int i = 0; i < wf->head_occ_rules[v].size(); i++) {
-			ConjRule& r = *wf->head_occ_rules[v][i];
+		for (unsigned int i = 0; i < wf->head_occ_rules[v].size(); i++) {
+			const ConjRule& r = *wf->head_occ_rules[v][i];
 			if (r.isFalse()) {
 				continue;
 			}
@@ -205,8 +215,8 @@ public:
 		vec<int> edges;
 		getEdges(this, v, edges);
 
-		for (int i = 0; i < edges.size(); i++) {
-			int w = edges[i];
+		for (unsigned int i = 0; i < edges.size(); i++) {
+			const int w = edges[i];
 			if (indices[w] == -1) {
 				strongconnect(w, getEdges);
 				if (lowlink[w] < lowlink[v]) {
@@ -226,7 +236,7 @@ public:
 			}
 			sccs.push();
 			while (true) {
-				int w = S.last();
+				const int w = S.last();
 				S.pop();
 				in_S[w] = false;
 				sccs.last().push(w);
@@ -247,7 +257,7 @@ public:
 		if (PREPROCESS) {
 			preprocess();
 		} else {
-			for (int i = 0; i < raw_heads.size(); i++) {
+			for (unsigned int i = 0; i < raw_heads.size(); i++) {
 				getId(raw_heads[i]);
 			}
 		}
@@ -267,7 +277,7 @@ public:
 		ufset_bool.growTo(lits.size(), false);
 
 		// form rules
-		for (int i = 0; i < raw_heads.size(); i++) {
+		for (unsigned int i = 0; i < raw_heads.size(); i++) {
 			if (raw_heads[i] == bv_false) {
 				continue;
 			}
@@ -276,10 +286,10 @@ public:
 			}
 			if (FLIP_NEG) {
 				vec<BoolView> b;
-				for (int j = 0; j < raw_posb[i].size(); j++) {
+				for (unsigned int j = 0; j < raw_posb[i].size(); j++) {
 					b.push(raw_posb[i][j]);
 				}
-				for (int j = 0; j < raw_negb[i].size(); j++) {
+				for (unsigned int j = 0; j < raw_negb[i].size(); j++) {
 					b.push(raw_negb[i][j]);
 				}
 				array_bool_and(b, raw_bl[i]);
@@ -291,7 +301,7 @@ public:
 			}
 
 			vec<int> b;
-			for (int j = 0; j < raw_posb[i].size(); j++) {
+			for (unsigned int j = 0; j < raw_posb[i].size(); j++) {
 				auto it = lit_to_index.find(toInt((Lit)raw_posb[i][j]));
 				if (it == lit_to_index.end()) {
 					continue;
@@ -302,7 +312,7 @@ public:
 			rules.push(r);
 		}
 
-		for (int i = 0; i < rules.size(); i++) {
+		for (unsigned int i = 0; i < rules.size(); i++) {
 			ConjRule& r = *rules[i];
 			for (int j = 0; j < r.sz; j++) {
 				body_occ_rules[r.body[j]].push(&r);
@@ -312,9 +322,9 @@ public:
 
 		// post array_bool_or's
 
-		for (int i = 0; i < lits.size(); i++) {
+		for (unsigned int i = 0; i < lits.size(); i++) {
 			vec<BoolView> b;
-			for (int j = 0; j < head_occ_rules[i].size(); j++) {
+			for (unsigned int j = 0; j < head_occ_rules[i].size(); j++) {
 				b.push(BoolView(head_occ_rules[i][j]->body_lit));
 				if (!COMPLETE) {
 					bool_rel(~BoolView(head_occ_rules[i][j]->body_lit), BRT_OR, BoolView(lits[i]));
@@ -329,13 +339,13 @@ public:
 		if (CALC_SCC) {
 			index = 0;
 			assert(S.size() == 0);
-			for (int i = 0; i < indices.size(); i++) {
+			for (unsigned int i = 0; i < indices.size(); i++) {
 				indices[i] = -1;
 				lowlink[i] = -1;
 			}
 			sccs.clear();
 
-			for (int i = 0; i < lits.size(); i++) {
+			for (unsigned int i = 0; i < lits.size(); i++) {
 				if (indices[i] == -1) {
 					//					printf("SCC root: %d\n", i);
 					strongconnect(i, &getStaticEdges);
@@ -344,15 +354,15 @@ public:
 			}
 			assert(S.size() == 0);
 
-			for (int i = 0; i < sccs.size(); i++) {
-				for (int j = 0; j < sccs[i].size(); j++) {
+			for (unsigned int i = 0; i < sccs.size(); i++) {
+				for (unsigned int j = 0; j < sccs[i].size(); j++) {
 					scc_ids[sccs[i][j]] = i;
 				}
 			}
 
 		} else {
 			sccs.push();
-			for (int i = 0; i < lits.size(); i++) {
+			for (unsigned int i = 0; i < lits.size(); i++) {
 				scc_ids[i] = 0;
 			}
 		}
@@ -361,12 +371,12 @@ public:
 		ushead.growTo(sccs.size(), 0);
 		pufhead.growTo(sccs.size(), 0);
 
-		for (int i = 0; i < lits.size(); i++) {
+		for (unsigned int i = 0; i < lits.size(); i++) {
 			if (BoolView(lits[i]).isFalse()) {
 				continue;
 			}
 			assert(scc_ids[i] >= 0);
-			assert(scc_ids[i] < no_support.size());
+			assert(scc_ids[i] < static_cast<int>(no_support.size()));
 			//			fprintf(stderr, "%d ", scc_ids[i]);
 			no_support[scc_ids[i]].push(i);
 			no_support_bool[i] = true;
@@ -379,8 +389,8 @@ public:
 		//		}
 
 		if (DEBUG) {
-			for (int i = 0; i < rules.size(); i++) {
-				ConjRule& r = *rules[i];
+			for (unsigned int i = 0; i < rules.size(); i++) {
+				const ConjRule& r = *rules[i];
 				printf("Rule %d: ", i);
 				printf("%d <- ", r.head);
 				for (int j = 0; j < r.sz; j++) {
@@ -395,7 +405,7 @@ public:
 		}
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int i, int /*c*/) override {
 		if (DEBUG) {
 			printf("wake up from rule %d\n", i);
 		}
@@ -404,7 +414,7 @@ public:
 	}
 
 	void killSupport(ConjRule* r) {
-		int h = r->head;
+		const int h = r->head;
 		if (support[h] != r) {
 			return;
 		}
@@ -424,14 +434,14 @@ public:
 			printf("propagating\n");
 		}
 
-		for (int i = 0; i < dead_rules.size(); i++) {
+		for (unsigned int i = 0; i < dead_rules.size(); i++) {
 			killSupport(rules[dead_rules[i]]);
 		}
 
-		for (int i = 0; i < no_support.size(); i++) {
-			while (ushead[i] < no_support[i].size()) {
-				int x = no_support[i][ushead[i]++];
-				for (int j = 0; j < body_occ_rules[x].size(); j++) {
+		for (unsigned int i = 0; i < no_support.size(); i++) {
+			while (ushead[i] < static_cast<int>(no_support[i].size())) {
+				const int x = no_support[i][ushead[i]++];
+				for (unsigned int j = 0; j < body_occ_rules[x].size(); j++) {
 					killSupport(body_occ_rules[x][j]);
 				}
 			}
@@ -445,8 +455,8 @@ public:
 			printf("No support: ");
 		}
 		if (DEBUG) {
-			for (int i = 0; i < no_support.size(); i++) {
-				for (int j = 0; j < no_support[i].size(); j++) {
+			for (unsigned int i = 0; i < no_support.size(); i++) {
+				for (unsigned int j = 0; j < no_support[i].size(); j++) {
 					printf("%d, ", no_support[i][j]);
 				}
 			}
@@ -457,9 +467,9 @@ public:
 
 		int start = -1;
 		// pick one to start building unfounded set
-		for (int i = 0; i < no_support.size(); i++) {
-			for (; pufhead[i] < no_support[i].size(); pufhead[i]++) {
-				int x = no_support[i][pufhead[i]];
+		for (unsigned int i = 0; i < no_support.size(); i++) {
+			for (; pufhead[i] < static_cast<int>(no_support[i].size()); pufhead[i]++) {
+				const int x = no_support[i][pufhead[i]];
 				if (no_support_bool[x] && !BoolView(lits[x]).isFalse()) {
 					start = x;
 					break;
@@ -475,7 +485,7 @@ public:
 			if (DEBUG) {
 				printf("all done\n");
 			}
-			for (int i = 0; i < no_support.size(); i++) {
+			for (unsigned int i = 0; i < no_support.size(); i++) {
 				no_support[i].clear();
 				ushead[i] = 0;
 				pufhead[i] = 0;
@@ -496,18 +506,18 @@ public:
 		nfset.clear();
 		int nfshead = 0;
 
-		for (int uf = 0; uf < ufset.size(); uf++) {
-			int h = ufset[uf];
+		for (unsigned int uf = 0; uf < ufset.size(); uf++) {
+			const int h = ufset[uf];
 			if (!no_support_bool[h]) {
 				fprintf(stderr, "not no_support %d!\n", h);
-				for (int k = 0; k < ufset.size(); k++) {
+				for (unsigned int k = 0; k < ufset.size(); k++) {
 					fprintf(stderr, "%d ", ufset[k]);
 				}
 				fprintf(stderr, "- %d %d\n", uf, h);
 			}
 			assert(no_support_bool[h]);
 			// add rules with h as head
-			for (int i = 0; i < head_occ_rules[h].size(); i++) {
+			for (unsigned int i = 0; i < head_occ_rules[h].size(); i++) {
 				if (DEBUG) {
 					printf("checking %dth rule for %d\n", i, h);
 				}
@@ -526,9 +536,9 @@ public:
 
 			// propagate nfset
 
-			while (nfshead < nfset.size()) {
-				int x = nfset[nfshead++];
-				for (int i = 0; i < watches[x].size(); i++) {
+			while (nfshead < static_cast<int>(nfset.size())) {
+				const int x = nfset[nfshead++];
+				for (unsigned int i = 0; i < watches[x].size(); i++) {
 					ConjRule* r = watches[x][i];
 					// if head already founded by another rule, ignore
 					if (!no_support_bool[r->head]) {
@@ -553,14 +563,14 @@ public:
 
 		index = 0;
 		assert(S.size() == 0);
-		for (int i = 0; i < indices.size(); i++) {
+		for (unsigned int i = 0; i < indices.size(); i++) {
 			indices[i] = -1;
 			lowlink[i] = -1;
 		}
 		sccs.clear();
 
-		for (int i = 0; i < ufset.size(); i++) {
-			int h = ufset[i];
+		for (unsigned int i = 0; i < ufset.size(); i++) {
+			const int h = ufset[i];
 			if (!no_support_bool[h]) {
 				continue;
 			}
@@ -579,14 +589,14 @@ public:
 
 		vec<Lit> ps(1);
 
-		for (int i = 0; i < ufset.size(); i++) {
+		for (unsigned int i = 0; i < ufset.size(); i++) {
 			ufset_bool[ufset[i]] = false;
 			watches[ufset[i]].clear();
-			int h = ufset[i];
+			const int h = ufset[i];
 			if (!no_support_bool[h]) {
 				continue;
 			}
-			for (int i = 0; i < head_occ_rules[h].size(); i++) {
+			for (unsigned int i = 0; i < head_occ_rules[h].size(); i++) {
 				ConjRule* r = head_occ_rules[h][i];
 				if (r->isFalse()) {
 					ps.push(r->body_lit);
@@ -595,11 +605,11 @@ public:
 		}
 
 		Clause* expl = Reason_new(ps.size());
-		for (int i = 1; i < ps.size(); i++) {
+		for (unsigned int i = 1; i < ps.size(); i++) {
 			(*expl)[i] = ps[i];
 		}
-		for (int i = 0; i < ufset.size(); i++) {
-			int h = ufset[i];
+		for (unsigned int i = 0; i < ufset.size(); i++) {
+			const int h = ufset[i];
 			if (!no_support_bool[h]) {
 				continue;
 			}
@@ -643,7 +653,7 @@ public:
 			support[r.head] = &r;
 			return true;
 		}
-		int x = r.body[r.w];
+		const int x = r.body[r.w];
 		watches[x].push(&r);
 		if (!ufset_bool[x]) {
 			if (DEBUG) {
@@ -659,8 +669,8 @@ public:
 		in_queue = false;
 		dead_rules.clear();
 		if (sat.confl != nullptr) {
-			for (int i = 0; i < no_support.size(); i++) {
-				for (; pufhead[i] < no_support[i].size(); pufhead[i]++) {
+			for (unsigned int i = 0; i < no_support.size(); i++) {
+				for (; pufhead[i] < static_cast<int>(no_support[i].size()); pufhead[i]++) {
 					no_support_bool[no_support[i][pufhead[i]]] = false;
 				}
 				no_support[i].clear();
@@ -673,13 +683,13 @@ public:
 
 vec<WellFounded> wf_props;
 
-void add_inductive_rule(BoolView hl, vec<BoolView>& posb, vec<BoolView>& negb, int wf_id) {
+void add_inductive_rule(const BoolView& hl, vec<BoolView>& posb, vec<BoolView>& negb, int wf_id) {
 	wf_props.growTo(wf_id);
 	wf_props[wf_id - 1].addRule(hl, posb, negb);
 }
 
 void wf_init() {
-	for (int i = 0; i < wf_props.size(); i++) {
+	for (unsigned int i = 0; i < wf_props.size(); i++) {
 		wf_props[i].init();
 	}
 	//	exit(0);

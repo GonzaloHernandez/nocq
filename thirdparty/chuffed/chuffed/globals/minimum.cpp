@@ -1,4 +1,15 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
+
+#include <climits>
+#include <cstdint>
 
 // y = min(x_i)
 // Bounds propagator, not fully consistent
@@ -6,9 +17,9 @@
 template <int U>
 class Minimum : public Propagator, public Checker {
 public:
-	int const sz;
+	const int sz;
 	IntView<U>* const x;
-	IntView<U> const y;
+	const IntView<U> y;
 
 	// Persistent state
 	Tint min_max_var;
@@ -16,7 +27,7 @@ public:
 	Tint64_t min_fixed;
 
 	// Intermediate state
-	bool lower_change;
+	bool lower_change{false};
 
 	Minimum(vec<IntView<U> > _x, IntView<U> _y)
 			: sz(_x.size()),
@@ -24,8 +35,7 @@ public:
 				y(_y),
 				min_max_var(-1),
 				min_max(INT_MAX),
-				min_fixed(INT_MAX),
-				lower_change(false) {
+				min_fixed(INT_MAX) {
 		priority = 1;
 		for (int i = 0; i < sz; i++) {
 			x[i].attach(this, i, EVENT_LU);
@@ -36,13 +46,13 @@ public:
 	void wakeup(int i, int c) override {
 		if (i < sz) {
 			if ((c & EVENT_F) != 0) {
-				int64_t m = x[i].getVal();
+				const int64_t m = x[i].getVal();
 				if (m < min_fixed) {
 					min_fixed = m;
 				}
 			}
 
-			int64_t m = x[i].getMax();
+			const int64_t m = x[i].getMax();
 			if (m < min_max) {
 				min_max_var = i;
 				min_max = m;
@@ -64,7 +74,7 @@ public:
 			// make a greater than or equal to min(min(b_i))
 			int64_t m = INT64_MAX;
 			for (int i = 0; i < sz; i++) {
-				int64_t t = x[i].getMin();
+				const int64_t t = x[i].getMin();
 				if (t < m) {
 					m = t;
 				}
@@ -119,7 +129,7 @@ public:
 		int min = INT_MAX;
 		for (int i = 0; i < sz; i++) {
 			if (x[i].getShadowVal() < min) {
-				min = x[i].getShadowVal();
+				min = static_cast<int>(x[i].getShadowVal());
 			}
 		}
 		return (y.getShadowVal() == min);
@@ -138,7 +148,7 @@ public:
 
 void minimum(vec<IntVar*>& x, IntVar* y) {
 	vec<IntView<> > w;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		w.push(IntView<>(x[i]));
 	}
 	new Minimum<0>(w, IntView<>(y));
@@ -146,7 +156,7 @@ void minimum(vec<IntVar*>& x, IntVar* y) {
 
 void maximum(vec<IntVar*>& x, IntVar* y) {
 	vec<IntView<> > w;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		w.push(IntView<>(x[i]));
 	}
 	new Minimum<1>(w, IntView<>(y));

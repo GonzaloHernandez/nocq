@@ -245,8 +245,9 @@ bool parseMyOptions(int argc, char *argv[]) {
             i++; // Move to the next argument
             if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
                 options.thresholdEnergy = 0;
+                i--;
             } else {
-                options.thresholdEnergy = parseInteger(argv[i], -10000000000, 10000000000);
+                options.thresholdEnergy = parseInteger(argv[i], LLONG_MIN, LLONG_MAX);
             }
             options.energyCond = true;
         }
@@ -254,8 +255,9 @@ bool parseMyOptions(int argc, char *argv[]) {
             i++; // Move to the next argument
             if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
                 options.thresholdMPG = 0.0;
+                i--;
             } else {
-                options.thresholdMPG = parseDouble(argv[i], -1000000, 1000000);
+                options.thresholdMPG = parseDouble(argv[i], -1e15, 1e15);
             }
             options.meanpayoffCond = true;
         }
@@ -304,10 +306,6 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.flip              = true;}
         else if (strcmp(argv[i],"--parity")==0)
                                 { options.parityCond       = true; }
-        else if (strcmp(argv[i],"--energy")==0)
-                                { options.energyCond       = true; }
-        else if (strcmp(argv[i],"--mean-payoff")==0)
-                                { options.meanpayoffCond   = true; }
 
         else if (strcmp(argv[i],"--help")==0) {
             std::cout << "Usage: " << argv[0] << " [options] <args>\n"
@@ -318,6 +316,7 @@ bool parseMyOptions(int argc, char *argv[]) {
             << "  --rand <ns> <ps> <d1> <d2> : Random game\n"
             << "  --mladder <bl>             : ModelcheckerLadder game\n"
             << "  --sprand <vs> <density>    : Random SPRAND game\n"
+            << "  --sqnc <size> <type>       : Structured synthetic game\n"
             << "  --weights <w1> <w2>        : Weights range\n"
             << "  --init <vertex>            : Initial vertex\n"
             << "  --print-only-time          : Print only solving time\n"

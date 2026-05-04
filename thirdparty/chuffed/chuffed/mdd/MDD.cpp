@@ -1,9 +1,14 @@
-#include <chuffed/mdd/MDD.h>
+#include "chuffed/mdd/MDD.h"
+
+#include "chuffed/mdd/opcache.h"
+#include "chuffed/support/vec.h"
 
 #include <cassert>
 #include <climits>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <vector>
 
 #define OPCACHE_SZ 100000
 #define CACHE_SZ 180000
@@ -25,11 +30,11 @@ inline void MDDTable::deallocNode(MDDNode node)
 
 MDDTable::MDDTable(int _nvars)
 		: nvars(_nvars),
-			opcache(OpCache(OPCACHE_SZ)),
+			opcache(OpCache(OPCACHE_SZ))
 #ifdef SPLIT_CACHE
-			cache(new NodeCache[nvars]),
+					cache(new NodeCache[nvars])
 #endif
-			intermed_maxsz(2) {
+{
 	// Initialize \ttt and \fff.
 	nodes.push_back(nullptr);  // false node
 	nodes.push_back(nullptr);  // true node
@@ -89,7 +94,7 @@ MDDNodeInt MDDTable::insert(unsigned int var, unsigned int low, unsigned int sta
 
 	if (jj == 0 && !expand) {
 		// Constant node.
-		unsigned int ret = stack[start].dest;
+		const unsigned int ret = stack[start].dest;
 		stack.resize(start);
 		return ret;
 	}
@@ -109,19 +114,19 @@ MDDNodeInt MDDTable::insert(unsigned int var, unsigned int low, unsigned int sta
 
 	std::memcpy(act, intermed, sizeof(MDDNodeEl) + (((int)intermed->sz) - 1) * (sizeof(MDDEdge)));
 
-	varcache[act] = nodes.size();
+	varcache[act] = static_cast<int>(nodes.size());
 	nodes.push_back(act);
 	status.push_back(0);
 
 	stack.resize(start);  // Remove the current node from the stack.
-	return nodes.size() - 1;
+	return static_cast<int>(nodes.size() - 1);
 }
 
 template <class T>
 MDDNodeInt MDDTable::tuple(vec<T>& tpl) {
 	MDDNodeInt res = MDDTRUE;
 
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 	for (int i = tpl.size() - 1; i >= 0; i--) {
 		stack.push_back(mkedge(tpl[i], res));
 		stack.push_back(mkedge(tpl[i] + 1, MDDFALSE));
@@ -136,22 +141,22 @@ template MDDNodeInt MDDTable::tuple(vec<int>& tpl);
 MDDNodeInt MDDTable::mdd_vareq(int var, int val) {
 	assert(var < nvars);
 
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 
 	stack.push_back(mkedge(val, MDDTRUE));
 	stack.push_back(mkedge(val + 1, MDDFALSE));
 
-	MDDNodeInt res = insert(var, MDDFALSE, start);
+	const MDDNodeInt res = insert(var, MDDFALSE, start);
 	assert(stack.size() == start);
 
 	return res;
 }
 
 MDDNodeInt MDDTable::mdd_varlt(int var, int val) {
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 
 	stack.push_back(mkedge(val, MDDFALSE));
-	MDDNodeInt res = insert(var, MDDTRUE, start);
+	const MDDNodeInt res = insert(var, MDDTRUE, start);
 
 	assert(stack.size() == start);
 
@@ -159,10 +164,10 @@ MDDNodeInt MDDTable::mdd_varlt(int var, int val) {
 }
 
 MDDNodeInt MDDTable::mdd_vargt(int var, int val) {
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 	stack.push_back(mkedge(val + 1, MDDTRUE));
 
-	MDDNodeInt res = insert(var, MDDFALSE, start);
+	const MDDNodeInt res = insert(var, MDDFALSE, start);
 	assert(stack.size() == start);
 
 	return res;
@@ -182,7 +187,7 @@ MDDNodeInt MDDTable::mdd_case(int var, std::vector<edgepair>& cases) {
 }
 
 // FIXME: Completely bogus.
-MDDNodeInt MDDTable::bound(MDDNodeInt root, vec<intpair>& range) {
+MDDNodeInt MDDTable::bound(MDDNodeInt root, vec<intpair>& /*range*/) {
 	return root;
 	/*
 	 if( root == MDDFALSE || root == MDDTRUE )
@@ -239,10 +244,10 @@ MDDNodeInt MDDTable::expand(int var, MDDNodeInt r) {
 		return res;
 	}
 
-	int cvar = (r == MDDTRUE) ? nvars : nodes[r]->var;
+	const int cvar = (r == MDDTRUE) ? nvars : nodes[r]->var;
 	assert(cvar >= var && var <= nvars);
 
-	int start = stack.size();
+	const int start = static_cast<int>(stack.size());
 	int low;
 
 	if (cvar == var) {
@@ -283,7 +288,7 @@ MDDNodeInt MDDTable::mdd_and(MDDNodeInt a, MDDNodeInt b) {
 		return res;
 	}
 
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 	unsigned int var;
 	unsigned int low;
 	if (nodes[a]->var < nodes[b]->var) {
@@ -371,7 +376,7 @@ MDDNodeInt MDDTable::mdd_or(MDDNodeInt a, MDDNodeInt b) {
 		return res;
 	}
 
-	unsigned int start = stack.size();
+	const unsigned int start = static_cast<int>(stack.size());
 	unsigned int var;
 	unsigned int low;
 	if (nodes[a]->var < nodes[b]->var) {
@@ -447,7 +452,7 @@ MDDNodeInt MDDTable::mdd_exist(MDDNodeInt root, unsigned int var) {
 		return root;
 	}
 
-	unsigned int r_var = nodes[root]->var;
+	const unsigned int r_var = nodes[root]->var;
 	if (r_var > var) {
 		return root;
 	}
@@ -467,8 +472,8 @@ MDDNodeInt MDDTable::mdd_exist(MDDNodeInt root, unsigned int var) {
 	}
 
 	// r_var < var
-	unsigned int start = stack.size();
-	unsigned int low = mdd_exist(nodes[root]->low, var);
+	const unsigned int start = static_cast<int>(stack.size());
+	const unsigned int low = mdd_exist(nodes[root]->low, var);
 	for (unsigned int ii = 0; ii < nodes[root]->sz; ii++) {
 		stack.push_back(
 				mkedge(nodes[root]->edges[ii].val, mdd_exist(nodes[root]->edges[ii].dest, var)));
@@ -486,15 +491,15 @@ MDDNodeInt MDDTable::mdd_not(MDDNodeInt root) {
 		return MDDTRUE;  // Will need to handle long edges.
 	}
 
-	unsigned int var = nodes[root]->var;
-	unsigned int start = stack.size();
+	const unsigned int var = nodes[root]->var;
+	const unsigned int start = static_cast<int>(stack.size());
 
-	unsigned int low = mdd_not(nodes[root]->low);
+	const unsigned int low = mdd_not(nodes[root]->low);
 
 	for (unsigned int ii = 0; ii < nodes[root]->sz; ii++) {
 		stack.push_back(mkedge(nodes[root]->edges[ii].val, mdd_not(nodes[root]->edges[ii].dest)));
 	}
-	MDDNodeInt res = insert(var, low, start);
+	const MDDNodeInt res = insert(var, low, start);
 	return res;
 }
 
@@ -531,8 +536,8 @@ bool MDDTable::mdd_leq(MDDNodeInt a, MDDNodeInt b) {
 			res = 0U;
 			goto _mdd_leq_done;
 		}
-		int aval = nodes[a]->edges[ii].val;
-		int bval = nodes[b]->edges[jj].val;
+		const int aval = nodes[a]->edges[ii].val;
+		const int bval = nodes[b]->edges[jj].val;
 
 		if (aval <= bval) {
 			aprev = nodes[a]->edges[ii].dest;
@@ -584,13 +589,10 @@ void MDDTable::clear_status(MDDNodeInt r) {
 }
 
 void MDDTable::print_nodes() {
-#if 1
 	for (unsigned int i = 2; i < nodes.size(); i++) {
 		print_node(i);
 	}
-#else
-	std::cout << nodes.size() << std::endl;
-#endif
+	// std::cout << nodes.size() << std::endl;
 }
 
 void MDDTable::print_node(MDDNodeInt r) {
@@ -599,7 +601,7 @@ void MDDTable::print_node(MDDNodeInt r) {
 	for (unsigned int jj = 0; jj < nodes[r]->sz; jj++) {
 		std::cout << " (" << nodes[r]->edges[jj].val << "," << nodes[r]->edges[jj].dest << ")";
 	}
-	std::cout << std::endl;
+	std::cout << '\n';
 }
 
 void MDDTable::print_mdd(MDDNodeInt r) {
@@ -611,7 +613,7 @@ void MDDTable::print_mdd(MDDNodeInt r) {
 	unsigned int head = 0;
 
 	while (head < queued.size()) {
-		MDDNodeInt n = queued[head];
+		const MDDNodeInt n = queued[head];
 
 		print_node(n);
 		for (unsigned int jj = 0; jj < nodes[n]->sz; jj++) {
@@ -622,199 +624,176 @@ void MDDTable::print_mdd(MDDNodeInt r) {
 		}
 		head++;
 	}
-	for (unsigned int i : queued) {
+	for (const unsigned int i : queued) {
 		status[i] = 0;
 	}
 	status[0] = 0;
 	status[1] = 0;
 }
 
-void MDDTable::print_mdd_tikz(MDDNodeInt r) {
+void MDDTable::print_mdd_tikz(MDDNodeInt /*r*/) {
 	assert(0);
-#if 0
-   std::cout << "\\documentclass{article}\n";
+	// std::cout << "\\documentclass{article}\n";
 
-   std::cout << "\\usepackage{tikz}\n";
-   std::cout << "\\usetikzlibrary{arrows,shapes}\n";
-   std::cout << "\\begin{document}\n";
-   std::cout << "\\begin{tikzpicture}\n";
-   std::cout << "\\tikzstyle{vertex}=[draw,circle,fill=black!25,minimum size=20pt,inner sep=0pt]\n";
-   std::cout << "\\tikzstyle{smallvert}=[circle,fill=black!25,minimum size=5pt,inner sep=0pt]\n";
-   std::cout << "\\tikzstyle{edge} = [draw,thick,->]\n";
-   std::cout << "\\tikzstyle{kdedge} = [draw,thick,=>,color=red]\n";
-   std::cout << "\\tikzstyle{kaedge} = [draw,thick,=>,color=blue]\n";
-   std::cout << "\\tikzstyle{kbedge} = [draw,thick,=>,color=pinegreen!25]\n";
-   
-   std::vector<MDDNodeInt> queued;
-   queued.push_back(r);
-   status[0] = 1;
-   status[1] = 1;
-   status[r] = 1;
-   unsigned int head = 0;
-   std::cout << "\\foreach \\pos/\\name/\\stat in {";
-    
-   bool first = true;
-   
-   int off = 0;
-   unsigned int var = 0; 
-   while( head < queued.size() )
-   {
-      MDDNodeInt n = queued[head];
-      
-      if(first)
-      {
-         first = false;
-         std::cout << "{(0,0)/1/T}";
-      }
-      std::cout << ",";
+	// std::cout << "\\usepackage{tikz}\n";
+	// std::cout << "\\usetikzlibrary{arrows,shapes}\n";
+	// std::cout << "\\begin{document}\n";
+	// std::cout << "\\begin{tikzpicture}\n";
+	// std::cout << "\\tikzstyle{vertex}=[draw,circle,fill=black!25,minimum size=20pt,inner
+	// sep=0pt]\n"; std::cout << "\\tikzstyle{smallvert}=[circle,fill=black!25,minimum size=5pt,inner
+	// sep=0pt]\n"; std::cout << "\\tikzstyle{edge} = [draw,thick,->]\n"; std::cout <<
+	// "\\tikzstyle{kdedge} = [draw,thick,=>,color=red]\n"; std::cout << "\\tikzstyle{kaedge} =
+	// [draw,thick,=>,color=blue]\n"; std::cout << "\\tikzstyle{kbedge} =
+	// [draw,thick,=>,color=pinegreen!25]\n";
 
-      if( var != nodes[n][1] )
-      {
-         var = nodes[n][1];
-         off = 0;
-      }
+	// std::vector<MDDNodeInt> queued;
+	// queued.push_back(r);
+	// status[0] = 1;
+	// status[1] = 1;
+	// status[r] = 1;
+	// unsigned int head = 0;
+	// std::cout << "\\foreach \\pos/\\name/\\stat in {";
 
-      std::cout << "{(" << off << "," << 1.5*(nvars - nodes[n][1]) << ")/" << n << "/" << nodes[n][1] << "}";
-      off += 2;
+	// bool first = true;
 
-      for( unsigned int j = 2; j < nodes[n][0]; j += 2 )
-      {
-         if( status[nodes[n][j+1]] == 0 )
-         {
-            status[nodes[n][j+1]] = 1;
-            queued.push_back(nodes[n][j+1]);
-         }
-      }
-      head++;
-   }
-   std::cout << "}\n\t\t\\node[vertex] (\\name) at \\pos {$x_{\\stat}$};\n";
+	// int off = 0;
+	// unsigned int var = 0;
+	// while (head < queued.size()) {
+	// 	MDDNodeInt n = queued[head];
 
-   std::cout << "\\foreach \\source/\\dest/\\label in {";
-   
-   first = true;
-   for( unsigned int i = 0; i < queued.size(); i++ )
-   {
-      MDDNodeInt n = queued[i];
+	// 	if (first) {
+	// 		first = false;
+	// 		std::cout << "{(0,0)/1/T}";
+	// 	}
+	// 	std::cout << ",";
 
+	// 	if (var != nodes[n][1]) {
+	// 		var = nodes[n][1];
+	// 		off = 0;
+	// 	}
 
-      for( unsigned int j = 2; j < nodes[n][0]; j += 2 )
-      {
-         if(first)
-         {
-            first = false;
-         } else {
-            std::cout << ",";
-         }
+	// 	std::cout << "{(" << off << "," << 1.5 * (nvars - nodes[n][1]) << ")/" << n << "/"
+	// 						<< nodes[n][1] << "}";
+	// 	off += 2;
 
-         std::cout << "{" << n << "/" << nodes[n][j+1] << "/" << nodes[n][j] << "}" ;
-      }
-   }
-   std::cout << "}\n\t\t\\path[edge] (\\source) -- node {$\\label$} (\\dest);\n";
+	// 	for (unsigned int j = 2; j < nodes[n][0]; j += 2) {
+	// 		if (status[nodes[n][j + 1]] == 0) {
+	// 			status[nodes[n][j + 1]] = 1;
+	// 			queued.push_back(nodes[n][j + 1]);
+	// 		}
+	// 	}
+	// 	head++;
+	// }
+	// std::cout << "}\n\t\t\\node[vertex] (\\name) at \\pos {$x_{\\stat}$};\n";
 
-   std::cout << "\\end{tikzpicture}\n";
-   std::cout << "\\end{document}\n";
-#endif
+	// std::cout << "\\foreach \\source/\\dest/\\label in {";
+
+	// first = true;
+	// for (unsigned int i = 0; i < queued.size(); i++) {
+	// 	MDDNodeInt n = queued[i];
+
+	// 	for (unsigned int j = 2; j < nodes[n][0]; j += 2) {
+	// 		if (first) {
+	// 			first = false;
+	// 		} else {
+	// 			std::cout << ",";
+	// 		}
+
+	// 		std::cout << "{" << n << "/" << nodes[n][j + 1] << "/" << nodes[n][j] << "}";
+	// 	}
+	// }
+	// std::cout << "}\n\t\t\\path[edge] (\\source) -- node {$\\label$} (\\dest);\n";
+
+	// std::cout << "\\end{tikzpicture}\n";
+	// std::cout << "\\end{document}\n";
 }
 
 void MDDTable::print_dot(MDDNodeInt r) {
-#if 0
-  if(r < 2)
-    return;
+	// if (r < 2) return;
 
-  std::cout << "digraph ingraph { graph [ranksep=\"1.0 equally\"] " << std::endl;
-  
-  std::vector<int> queued;
-  queued.push_back(r);
+	// std::cout << "digraph ingraph { graph [ranksep=\"1.0 equally\"] " << std::endl;
 
-  status[r] = 1;
-  int nextid = 2;
-  unsigned int head = 0;
-  
-  for(head = 0; head < queued.size(); head++ )
-  {
-    int n_id = queued[head];
-    MDDNodeEl* node(nodes[n_id]);
-    printf("  { node [shape=record label=\"{<prefix>%d: x%d | {",n_id,node->var);
+	// std::vector<int> queued;
+	// queued.push_back(r);
 
-    bool first = true;
-    for( unsigned int ii = 0; ii < nodes[n_id]->sz; ii++ )
-    {
-      if( first )
-        first = false;
-      else
-        printf("|");
-      
-      printf("<p%d>",ii);
-      if(node->edges[ii].dest < 2)
-      {
-        if( node->edges[ii].dest == MDDTRUE )
-        {
-          printf("T");
-        } else {
-          assert(node->edges[ii].dest == MDDFALSE);
-          printf("F");
-        }
-      } else {
-        if(!status[node->edges[ii].dest])
-        {
-          status[node->edges[ii].dest] = nextid++;
-          queued.push_back(node->edges[ii].dest);
-        }
-        printf("%d",node->edges[ii].dest);
-      }
-    }
-    printf("} }\"] %d };\n", n_id);
-  }
-  
-  for(head = 0; head < queued.size(); head++ )
-  {
-    int n_id = queued[head];
-    MDDNodeEl* node(nodes[n_id]);
+	// status[r] = 1;
+	// int nextid = 2;
+	// unsigned int head = 0;
 
-    if(!(node->low < 2))
-    {
-      printf("\t%d:pL -> %d;\n",n_id,node->low);
-    }
+	// for (head = 0; head < queued.size(); head++) {
+	// 	int n_id = queued[head];
+	// 	MDDNodeEl* node(nodes[n_id]);
+	// 	printf("  { node [shape=record label=\"{<prefix>%d: x%d | {", n_id, node->var);
 
-    for( unsigned int ii = 0; ii < node->sz; ii++ )
-    {
-      if( !(node->edges[ii].dest < 2) )
-      {
-        printf("\t%d:p%d -> %d;\n",n_id,ii,node->edges[ii].dest);
-      }
-    }
-  }
-  std::cout << "};" << std::endl;
-  for( unsigned int ii = 0; ii < queued.size(); ii++ )
-    status[queued[ii]] = 0;
-#endif
+	// 	bool first = true;
+	// 	for (unsigned int ii = 0; ii < nodes[n_id]->sz; ii++) {
+	// 		if (first)
+	// 			first = false;
+	// 		else
+	// 			printf("|");
+
+	// 		printf("<p%d>", ii);
+	// 		if (node->edges[ii].dest < 2) {
+	// 			if (node->edges[ii].dest == MDDTRUE) {
+	// 				printf("T");
+	// 			} else {
+	// 				assert(node->edges[ii].dest == MDDFALSE);
+	// 				printf("F");
+	// 			}
+	// 		} else {
+	// 			if (!status[node->edges[ii].dest]) {
+	// 				status[node->edges[ii].dest] = nextid++;
+	// 				queued.push_back(node->edges[ii].dest);
+	// 			}
+	// 			printf("%d", node->edges[ii].dest);
+	// 		}
+	// 	}
+	// 	printf("} }\"] %d };\n", n_id);
+	// }
+
+	// for (head = 0; head < queued.size(); head++) {
+	// 	int n_id = queued[head];
+	// 	MDDNodeEl* node(nodes[n_id]);
+
+	// 	if (!(node->low < 2)) {
+	// 		printf("\t%d:pL -> %d;\n", n_id, node->low);
+	// 	}
+
+	// 	for (unsigned int ii = 0; ii < node->sz; ii++) {
+	// 		if (!(node->edges[ii].dest < 2)) {
+	// 			printf("\t%d:p%d -> %d;\n", n_id, ii, node->edges[ii].dest);
+	// 		}
+	// 	}
+	// }
+	// std::cout << "};" << std::endl;
+	// for (unsigned int ii = 0; ii < queued.size(); ii++) status[queued[ii]] = 0;
 }
 
 MDD operator|(const MDD& a, const MDD& b) {
 	assert(a.table == b.table);
-	return MDD(a.table, a.table->mdd_or(a.val, b.val));
+	return {a.table, a.table->mdd_or(a.val, b.val)};
 }
 
 MDD operator&(const MDD& a, const MDD& b) {
 	assert(a.table == b.table);
-	return MDD(a.table, a.table->mdd_and(a.val, b.val));
+	return {a.table, a.table->mdd_and(a.val, b.val)};
 }
 
 MDD operator^(const MDD& a, const MDD& b) {
 	assert(a.table == b.table);
 	assert(0);  // NOT IMPLEMENTED
 
-	return MDD(a.table, MDDFALSE);
+	return {a.table, MDDFALSE};
 }
 
 MDD mdd_iff(const MDD& a, const MDD& b) {
 	assert(a.table == b.table);
 	assert(0);  // NOT IMPLEMENTED
 
-	return MDD(a.table, MDDFALSE);
+	return {a.table, MDDFALSE};
 }
 
-MDD operator~(const MDD& r) { return MDD(r.table, r.table->mdd_not(r.val)); }
+MDD operator~(const MDD& r) { return {r.table, r.table->mdd_not(r.val)}; }
 
 bool operator<=(const MDD& a, const MDD& b) {
 	assert(a.table == b.table);

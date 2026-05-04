@@ -1,21 +1,33 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
-#include <algorithm>
-#include <climits>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <unordered_set>
 
 // Propagator for the value_precede constraint.
 class value_precede : public Propagator {
 	// The only propagation which occurs is:
 	struct tag_t {
-		tag_t() : si(0), ti(0), flag(0) {}
+		tag_t() : flag(0), si(0), ti(0) {}
 		tag_t(int _si, int _ti, bool _flag) : flag(_flag), si(_si), ti(_ti) {}
 
 		unsigned flag : 1;
 		unsigned si : 15;
 		unsigned ti : 16;
 	};
-	static tag_t s_tag(int si, int ti) { return tag_t(si, ti, false); }
-	static tag_t t_tag(int ti) { return tag_t(0, ti, true); }
+	static tag_t s_tag(int si, int ti) { return {si, ti, false}; }
+	static tag_t t_tag(int ti) { return {0, ti, true}; }
 
 	Clause* ex_s(int si, int ti) {
 		Clause* r(Reason_new(ti + 1));
@@ -44,7 +56,7 @@ class value_precede : public Propagator {
 public:
 	value_precede(int _s, int _t, vec<IntVar*>& vs) : s(_s), t(_t), satisfied(0) {
 		// Find the first possible occurrence of s.
-		int ii = 0;
+		unsigned int ii = 0;
 		// Can't do remVal before initialization.
 		for (; ii < vs.size(); ii++) {
 			if (vs[ii]->indomain(t)) {
@@ -80,7 +92,7 @@ public:
 			return;
 		}
 
-		for (int ii = 0; ii < xs.size(); ii++) {
+		for (unsigned int ii = 0; ii < xs.size(); ii++) {
 			IntVar* x(xs[ii]);
 			x->specialiseToEL();
 			if (x->indomain(s)) {
@@ -94,7 +106,7 @@ public:
 		first_t = xs.size() - static_cast<int>(t_seen);
 
 		int si = 1;
-		for (; si < xs.size(); ++si) {
+		for (; si < static_cast<int>(xs.size()); ++si) {
 			if (xs[si]->indomain(s)) {
 				break;
 			}
@@ -108,8 +120,8 @@ public:
 		}
 	}
 
-	Clause* explain(Lit p, int inf_id) override {
-		tag_t t(conv<tag_t, int>(inf_id));
+	Clause* explain(Lit /*p*/, int inf_id) override {
+		const tag_t t(conv<tag_t, int>(inf_id));
 		return t.flag ? ex_t(t.ti) : ex_s(t.si, t.ti);
 	}
 
@@ -118,7 +130,7 @@ public:
 			return true;
 		}
 
-		int sz = xs.size();
+		const int sz = xs.size();
 		int si = first_s;
 		// Update the first occurrence
 		for (; si < first_t; ++si) {
@@ -173,11 +185,11 @@ public:
 		return true;
 	}
 
-	void wakeup(int ii, int c) override {
+	void wakeup(int ii, int /*c*/) override {
 		if (satisfied != 0) {
 			return;
 		}
-		int vi = ii >> 1;
+		const int vi = ii >> 1;
 		if ((ii & 1) != 0) {
 			if (vi < first_t && xs[vi]->getVal() == t) {
 				first_t = vi;
@@ -245,8 +257,8 @@ class seq_precede_chain : public Propagator {
 	static int lb_tag(int x, int k) { return conv<int, tag_t>(tag_t(false, x, k)); }
 	static int ub_tag(int x, int k) { return conv<int, tag_t>(tag_t(true, x, k)); }
 
-	Clause* explain(Lit p, int inf_id) override {
-		tag_t t(conv<tag_t, int>(inf_id));
+	Clause* explain(Lit /*p*/, int inf_id) override {
+		const tag_t t(conv<tag_t, int>(inf_id));
 		if (t.flag) {
 			// Upper bound
 			return ex_ub(t.x, t.k);
@@ -268,7 +280,7 @@ public:
 	}
 
 	seq_precede_chain(vec<IntVar*>& _xs) : xs(_xs), vmax(0), limit(xs.size(), xs.size()) {
-		int sz = xs.size();
+		const int sz = xs.size();
 		priority = 3;
 		int M = 0;
 		int low_f = 0;
@@ -278,8 +290,8 @@ public:
 				M = xs[ii]->getMax();
 			}
 			if (xs[ii]->getMin() > low_f) {
-				// Iniitalize limits.
-				int m = xs[ii]->getMin();
+				// Initialize limits.
+				const int m = xs[ii]->getMin();
 				for (; m > low_f; ++low_f) {
 					limit.push(ii);
 				}
@@ -295,7 +307,7 @@ public:
 
 	bool propagate() override {
 		// Forward pass; tighten upper bounds.
-		int sz = xs.size();
+		const int sz = xs.size();
 		int ii = 0;
 		int fval = 1;
 		for (; ii < sz; ++ii) {
@@ -388,11 +400,12 @@ class seq_precede_inc : public Propagator {
 			if (xs[ii]->indomain(l)) {
 				++l;
 			} else {
-				r.push(~xs[ii]->getLit(l, LR_EQ));
+				r.push(xs[ii]->getLit(l, LR_EQ));
 			}
 		}
-		r.push(~(xs[ii]->getLit(l, LR_LE)));
-		return Reason_new(r);
+		r.push(xs[ii]->getLit(l, LR_LE));
+		Clause* c = Reason_new(r);
+		return c;
 	}
 
 	struct tag_t {
@@ -406,8 +419,8 @@ class seq_precede_inc : public Propagator {
 	static int lb_tag(int x, int k) { return conv<int, tag_t>(tag_t(false, x, k)); }
 	static int ub_tag(int x, int k) { return conv<int, tag_t>(tag_t(true, x, k)); }
 
-	Clause* explain(Lit p, int inf_id) override {
-		tag_t t(conv<tag_t, int>(inf_id));
+	Clause* explain(Lit /*p*/, int inf_id) override {
+		const tag_t t(conv<tag_t, int>(inf_id));
 		if (t.flag) {
 			// Upper bound
 			return ex_ub(t.x, t.k);
@@ -419,13 +432,13 @@ public:
 	inline bool is_first(int ii) { return first[first_val[ii]] == ii; }
 	inline bool is_limit(int ii) { return limit[limit_val[ii]] == ii; }
 
-	void wakeup(int ii, int c) override {
+	void wakeup(int ii, int /*c*/) override {
 		// How do we know when to wake up?
 		if (is_first(ii) && xs[ii]->getMax() < first_val[ii]) {
 			first_change.push(first_val[ii]);
 			pushInQueue();
 		}
-		int m = xs[ii]->getMin();
+		const int m = xs[ii]->getMin();
 		// Can probably actually relax this to m > 1.
 		if (m > 0 && ii < limit[m]) {
 			if (max_def < m) {
@@ -452,7 +465,7 @@ public:
 		fprintf(stderr, "LB: [");
 		if (xs.size() > 0) {
 			fprintf(stderr, "%d", xs[0]->getMin());
-			for (int ii = 1; ii < xs.size(); ii++) {
+			for (unsigned int ii = 1; ii < xs.size(); ii++) {
 				fprintf(stderr, ", %d", xs[ii]->getMin());
 			}
 		}
@@ -460,7 +473,7 @@ public:
 		fprintf(stderr, "UB: [");
 		if (xs.size() > 0) {
 			fprintf(stderr, "%d", xs[0]->getMax());
-			for (int ii = 1; ii < xs.size(); ii++) {
+			for (unsigned int ii = 1; ii < xs.size(); ii++) {
 				fprintf(stderr, ", %d", xs[ii]->getMax());
 			}
 		}
@@ -469,7 +482,7 @@ public:
 		fprintf(stderr, "FS: [");
 		if (first.size() > 0) {
 			fprintf(stderr, "%d", first[0].v);
-			for (int ii = 1; ii < first.size(); ii++) {
+			for (unsigned int ii = 1; ii < first.size(); ii++) {
 				fprintf(stderr, ", %d", first[ii].v);
 			}
 		}
@@ -478,7 +491,7 @@ public:
 		fprintf(stderr, "LM: [");
 		if (limit.size() > 0) {
 			fprintf(stderr, "%d", limit[0].v);
-			for (int ii = 1; ii < limit.size(); ii++) {
+			for (unsigned int ii = 1; ii < limit.size(); ii++) {
 				fprintf(stderr, ", %d", limit[ii].v);
 			}
 		}
@@ -487,7 +500,7 @@ public:
 		fprintf(stderr, "FV: [");
 		if (first_val.size() > 0) {
 			fprintf(stderr, "%d", first_val[0].v);
-			for (int ii = 1; ii < first_val.size(); ii++) {
+			for (unsigned int ii = 1; ii < first_val.size(); ii++) {
 				fprintf(stderr, ", %d", first_val[ii].v);
 			}
 		}
@@ -496,7 +509,7 @@ public:
 		fprintf(stderr, "LV: [");
 		if (limit_val.size() > 0) {
 			fprintf(stderr, "%d", limit_val[0].v);
-			for (int ii = 1; ii < limit_val.size(); ii++) {
+			for (unsigned int ii = 1; ii < limit_val.size(); ii++) {
 				fprintf(stderr, ", %d", limit_val[ii].v);
 			}
 		}
@@ -504,9 +517,9 @@ public:
 	}
 
 	void check_firsts() {
-		for (int ii = 1; ii < first.size(); ii++) {
+		for (unsigned int ii = 1; ii < first.size(); ii++) {
 			for (int jj = 0; jj < first[ii]; ++jj) {
-				assert(xs[jj]->getMax() < ii);
+				assert(xs[jj]->getMax() < static_cast<int>(ii));
 			}
 		}
 	}
@@ -516,14 +529,14 @@ public:
 		// fprintf(stderr, "BEFORE value-precede-chain:\n");
 		// log_state();
 		// fprintf(stderr, "Queues: [%d, %d].\n", first_change.size(), limit_change.size());
-		for (int fi = 0; fi < first_change.size(); fi++) {
+		for (unsigned int fi = 0; fi < first_change.size(); fi++) {
 			if (!repair_upper(first_change[fi])) {
 				return false;
 			}
 		}
 		first_change.clear();
 
-		for (int li = 0; li < limit_change.size(); li++) {
+		for (unsigned int li = 0; li < limit_change.size(); li++) {
 			if (!repair_limit(limit_change[li])) {
 				return false;
 			}
@@ -535,13 +548,13 @@ public:
 
 	seq_precede_inc(vec<IntVar*>& _xs)
 			: xs(_xs),
-				max_def(0),
-				max_val(xs.size()),
 				first(xs.size() + 1, 0),
 				limit(xs.size() + 1, xs.size()),
 				first_val(xs.size(), 0),
-				limit_val(xs.size(), xs.size()) {
-		int sz = xs.size();
+				limit_val(xs.size(), xs.size()),
+				max_val(xs.size()),
+				max_def(0) {
+		const int sz = xs.size();
 		priority = 3;
 
 		// Set unused zero value out of range
@@ -551,8 +564,10 @@ public:
 		int M = 1;
 		// Initialize firsts.
 		for (int ii = 0; ii < sz; ii++) {
-			if (xs[ii]->setMaxNotR(M) && !xs[ii]->setMax(M)) {
-				TL_FAIL();
+			if (xs[ii]->setMaxNotR(M)) {
+				if (!xs[ii]->setMax(M)) {
+					TL_FAIL();
+				}
 			}
 			if (xs[ii]->indomain(M)) {
 				first[M] = ii;
@@ -569,7 +584,7 @@ public:
 		int m = 0;
 		int k = 0;
 		for (int ii = sz - 1; ii >= 0; --ii) {
-			int mx = xs[ii]->getMin();
+			const int mx = xs[ii]->getMin();
 			if (mx > k) {
 				k = mx;
 				if (mx > m) {
@@ -611,7 +626,7 @@ public:
 				// Check if we need to continue with k+1
 				++k;
 				// ++ii;
-				if (k == max_val || ii < first[k]) {
+				if (k == max_val || static_cast<int>(ii) < first[k]) {
 					return true;
 				}
 				lim = limit[k + 1];
@@ -623,7 +638,7 @@ public:
 			// Failure: no occurrence of
 			if (so.lazy) {
 				vec<Lit> ex;
-				for (int xi = 0; xi < ii; ++xi) {
+				for (unsigned int xi = 0; xi < ii; ++xi) {
 					assert(xs[xi]->getMax() < k);
 					ex.push(xs[xi]->getLit(k, LR_GE));
 				}
@@ -691,8 +706,20 @@ public:
 };
 
 void value_precede_seq(vec<IntVar*>& xs) {
-	// new seq_precede_chain(xs);
-	new seq_precede_inc(xs);
+	vec<IntVar*> nxs;
+	std::unordered_set<IntVar*> set;
+	for (unsigned int i = 0; i < xs.size(); ++i) {
+		if (set.find(xs[i]) != set.end()  // Same variable appears earlier in the same chain
+				|| xs[i]->getMax() < 1) {     // Variable cannot take a value that influences the chain
+			continue;
+		}
+		nxs.push(xs[i]);
+		set.insert(xs[i]);
+	}
+	if (nxs.size() > 0) {
+		// new seq_precede_chain(xs);
+		new seq_precede_inc(nxs);
+	}
 }
 
 void value_precede_int(int s, int t, vec<IntVar*>& xs) { new value_precede(s, t, xs); }

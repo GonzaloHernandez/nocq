@@ -2,7 +2,7 @@
 #define SPARSE_SET_H_
 // U indicates whether to use FAST_FSET.
 
-#include <chuffed/core/engine.h>
+#include "chuffed/core/engine.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -39,7 +39,7 @@ public:
 		if ((U & 1) != 0) {
 			return (sparse[value] < members);
 		}
-		unsigned int a = sparse[value];
+		const unsigned int a = sparse[value];
 
 		if (a < members && dense[a] == value) {
 			return true;
@@ -51,8 +51,8 @@ public:
 
 	virtual bool insert(unsigned int value) {
 		if ((U & 1) != 0) {
-			unsigned int old_dense = sparse[value];
-			unsigned int lost_val = dense[members];
+			const unsigned int old_dense = sparse[value];
+			const unsigned int lost_val = dense[members];
 
 			sparse[value] = members;
 			dense[members] = value;
@@ -112,7 +112,7 @@ class TrailedSet : public SparseSet<0> {
 public:
 	TrailedSet(int sz) : SparseSet<0>(sz) {}
 
-	bool insert(int value) {
+	bool insert(unsigned int value) override {
 		// Assumes not FFSET.
 		assert(!elem(value));
 

@@ -1,4 +1,19 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
+
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <utility>
 
 //-----
 // Absolute propagator
@@ -17,8 +32,8 @@ public:
 	}
 
 	bool propagate() override {
-		int64_t l = x.getMin();
-		int64_t u = x.getMax();
+		const int64_t l = x.getMin();
+		const int64_t u = x.getMax();
 
 		if (l >= 0) {
 			setDom(y, setMin, l, x.getMinLit());
@@ -28,7 +43,7 @@ public:
 			setDom(y, setMax, -l, x.getMaxLit(), x.getMinLit());
 		} else {
 			// Finesse stronger bound
-			int64_t t = (-l > u ? -l : u);
+			const int64_t t = (-l > u ? -l : u);
 			setDom(y, setMax, t, x.getMaxLit(), x.getMinLit());
 			//			setDom(y, setMax, t, x.getFMaxLit(t), x.getFMinLit(-t));
 			//			setDom(y, setMax, t, x.getLit(t+1, LR_GE), x.getLit(-t-1, LR_LE));
@@ -157,14 +172,14 @@ public:
 	// Propagation on z
 	bool propagate_z() {
 		// Propagation on the lower bound
-		double z_min_new = pow(x.getMin(), y.getMin());
+		const double z_min_new = pow(x.getMin(), y.getMin());
 		if (z_min_new > (double)IntVar::min_limit) {
-			setDom(z, setMin, z_min_new, x.getMinLit(), y.getMinLit());
+			setDom(z, setMin, static_cast<int64_t>(z_min_new), x.getMinLit(), y.getMinLit());
 		}
 		// Propagation on the upper bound
-		double z_max_new = pow(x.getMax(), y.getMax());
+		const double z_max_new = pow(x.getMax(), y.getMax());
 		if (z_max_new < (double)IntVar::max_limit) {
-			setDom(z, setMax, z_max_new, x.getMaxLit(), y.getMaxLit());
+			setDom(z, setMax, static_cast<int64_t>(z_max_new), x.getMaxLit(), y.getMaxLit());
 		}
 		return true;
 	}
@@ -174,7 +189,7 @@ public:
 		// Propagation on the lower bound
 		double pow_res;
 		pow_res = pow(z.getMin(), 1 / (double)y.getMax());
-		int64_t x_min_new = ceil(pow_res);
+		int64_t x_min_new = static_cast<int64_t>(ceil(pow_res));
 		if (x_min_new > x.getMin()) {
 			// Check for numerical errors and correct them
 			if (z.getMin() <= my_pow(x_min_new - 1, y.getMax())) {
@@ -184,7 +199,7 @@ public:
 		}
 		// Propagation on the upper bound
 		pow_res = pow(z.getMax(), 1 / (double)y.getMin());
-		int64_t x_max_new = floor(pow_res);
+		int64_t x_max_new = static_cast<int64_t>(floor(pow_res));
 		if (x_max_new < x.getMax()) {
 			// Check for numerical errors and correct them
 			if (z.getMax() >= my_pow(x_max_new + 1, y.getMin())) {
@@ -201,7 +216,7 @@ public:
 		// Propagation on the lower bound
 		if (z.getMin() > 0 && x.getMax() > 1) {
 			log_res = log2(z.getMin()) / log2(x.getMax());
-			int64_t y_min_new = ceil(log_res);
+			int64_t y_min_new = static_cast<int64_t>(ceil(log_res));
 			if (y_min_new > y.getMin()) {
 				// Check for numerical errors and correct them
 				if (z.getMin() <= my_pow(x.getMax(), y_min_new - 1)) {
@@ -213,7 +228,7 @@ public:
 		// Propagation on the upper bound
 		if (x.getMin() > 1) {
 			log_res = log2(z.getMax()) / log2(x.getMin());
-			int64_t y_max_new = floor(log_res);
+			int64_t y_max_new = static_cast<int64_t>(floor(log_res));
 			if (y_max_new < y.getMax()) {
 				// Check for numerical errors and correct them
 				if (z.getMax() <= my_pow(x.getMin(), y_max_new + 1)) {
@@ -288,10 +303,10 @@ public:
 	bool propagate_z(const int64_t x_min, const int64_t x_max, const int64_t y_min,
 									 const int64_t y_max) {
 		// Computing all possible extreme points of x * y
-		int64_t prod_min_min = x_min * y_min;
-		int64_t prod_min_max = x_min * y_max;
-		int64_t prod_max_min = x_max * y_min;
-		int64_t prod_max_max = x_max * y_max;
+		const int64_t prod_min_min = x_min * y_min;
+		const int64_t prod_min_max = x_min * y_max;
+		const int64_t prod_max_min = x_max * y_min;
+		const int64_t prod_max_max = x_max * y_max;
 
 		// New lower bound on z
 		int64_t z_min_new = std::min(prod_min_min, prod_min_max);
@@ -511,12 +526,12 @@ public:
 	}
 
 	bool propagate() override {
-		int64_t x_min = x.getMin();
-		int64_t x_max = x.getMax();
-		int64_t y_min = y.getMin();
-		int64_t y_max = y.getMax();
-		int64_t z_min = z.getMin();
-		int64_t z_max = z.getMax();
+		const int64_t x_min = x.getMin();
+		const int64_t x_max = x.getMax();
+		const int64_t y_min = y.getMin();
+		const int64_t y_max = y.getMax();
+		const int64_t z_min = z.getMin();
+		const int64_t z_max = z.getMax();
 
 		// z >= x.min * y.min
 		setDom(z, setMin, x_min * y_min, x.getMinLit(), y.getMinLit());
@@ -567,9 +582,9 @@ void int_times(IntVar* x, IntVar* y, IntVar* z) {
 	if ((get_sign(x) == 0) || (get_sign(y) == 0) || (get_sign(z) == 0)) {
 		new TimesAll<0, 0, 0>(IntView<>(x), IntView<>(y), IntView<>(z));
 	} else {
-		bool x_flip = (get_sign(x) == -1);
-		bool y_flip = (get_sign(y) == -1);
-		bool z_flip = (get_sign(z) == -1);
+		const bool x_flip = (get_sign(x) == -1);
+		const bool y_flip = (get_sign(y) == -1);
+		const bool z_flip = (get_sign(z) == -1);
 
 		if (!x_flip && !y_flip && !z_flip) {
 			new Times<0, 0, 0>(IntView<>(x), IntView<>(y), IntView<>(z));
@@ -610,12 +625,12 @@ public:
 	}
 
 	bool propagate() override {
-		int64_t x_min = x.getMin();
-		int64_t x_max = x.getMax();
-		int64_t y_min = y.getMin();
-		int64_t y_max = y.getMax();
-		int64_t z_min = z.getMin();
-		int64_t z_max = z.getMax();
+		const int64_t x_min = x.getMin();
+		const int64_t x_max = x.getMax();
+		const int64_t y_min = y.getMin();
+		const int64_t y_max = y.getMax();
+		const int64_t z_min = z.getMin();
+		const int64_t z_max = z.getMax();
 
 		// z >= ceil(x.min / y.max)
 		setDom(z, setMin, (x_min + y_max - 1) / y_max, x.getMinLit(), y.getMaxLit());
@@ -652,9 +667,9 @@ void int_div(IntVar* x, IntVar* y, IntVar* z) {
 	if ((get_sign(x) == 0) || (get_sign(y) == 0) || (get_sign(z) == 0)) {
 		CHUFFED_ERROR("Cannot handle non-sign-fixed vars\n");
 	}
-	bool x_flip = (get_sign(x) == -1);
-	bool y_flip = (get_sign(y) == -1);
-	bool z_flip = (get_sign(z) == -1);
+	const bool x_flip = (get_sign(x) == -1);
+	const bool y_flip = (get_sign(y) == -1);
+	const bool z_flip = (get_sign(z) == -1);
 
 	if (!x_flip && !y_flip && !z_flip) {
 		// ceil(x+1 / y) = z+1
@@ -673,7 +688,7 @@ void int_div(IntVar* x, IntVar* y, IntVar* z) {
 	}
 }
 
-void int_mod(IntVar* x, IntVar* y, IntVar* z) { CHUFFED_ERROR("Not yet supported\n"); }
+void int_mod(IntVar* /*x*/, IntVar* /*y*/, IntVar* /*z*/) { CHUFFED_ERROR("Not yet supported\n"); }
 
 // z = min(x, y)
 
@@ -695,7 +710,7 @@ public:
 		setDom(z, setMax, x.getMax(), x.getMaxLit());
 		setDom(z, setMax, y.getMax(), y.getMaxLit());
 
-		int64_t m = (x.getMin() < y.getMin() ? x.getMin() : y.getMin());
+		const int64_t m = (x.getMin() < y.getMin() ? x.getMin() : y.getMin());
 		setDom(z, setMin, m, x.getFMinLit(m), y.getFMinLit(m));
 
 		setDom(x, setMin, z.getMin(), z.getMinLit());
@@ -767,5 +782,5 @@ void bool2int(BoolView x, IntVar* y) {
 	int_rel(y, IRT_GE, 0);
 	int_rel(y, IRT_LE, 1);
 	y->specialiseToEL();
-	bool_rel(x, BRT_EQ, BoolView(y->getLit(1, LR_GE)));
+	bool_rel(std::move(x), BRT_EQ, BoolView(y->getLit(1, LR_GE)));
 }

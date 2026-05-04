@@ -1,14 +1,26 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/mip/mip.h>
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <cassert>
+#include <cstdint>
 #include <utility>
 
 // x >= y <- r
 
 template <int U, int V, int R = 0>
 class BinGE : public Propagator {
-	IntView<U> const x;
-	IntView<V> const y;
+	const IntView<U> x;
+	const IntView<V> y;
 	BoolView r;
 
 public:
@@ -20,7 +32,7 @@ public:
 		}
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int /*i*/, int /*c*/) override {
 		if ((R == 0) || !r.isFalse()) {
 			pushInQueue();
 		}
@@ -31,8 +43,8 @@ public:
 			return true;
 		}
 
-		int64_t x_max = x.getMax();
-		int64_t y_min = y.getMin();
+		const int64_t x_max = x.getMax();
+		const int64_t y_min = y.getMin();
 
 		// Can finesse!!
 		if ((R != 0) && x_max < y_min) {
@@ -97,7 +109,7 @@ public:
 		//		printf("BinNE: %d %d %d\n", U, V, R);
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int /*i*/, int /*c*/) override {
 		if ((R == 0) || !r.isFalse()) {
 			pushInQueue();
 		}
@@ -170,9 +182,9 @@ public:
 
 // NOLINTEND
 
-void newBinGE(IntView<> x, IntView<> y, BoolView r = bv_true) {
-	int u = x.getType();
-	int v = y.getType();
+void newBinGE(IntView<> x, IntView<> y, const BoolView& r = bv_true) {
+	const int u = x.getType();
+	const int v = y.getType();
 	Propagator* p = nullptr;
 
 	BinProp(BinGE, 0, 0);
@@ -185,9 +197,9 @@ void newBinGE(IntView<> x, IntView<> y, BoolView r = bv_true) {
 	assert(p);
 }
 
-void newBinNE(IntView<> x, IntView<> y, BoolView r = bv_true) {
-	int u = x.getType();
-	int v = y.getType();
+void newBinNE(IntView<> x, IntView<> y, const BoolView& r = bv_true) {
+	const int u = x.getType();
+	const int v = y.getType();
 	Propagator* p = nullptr;
 
 	BinProp(BinNE, 0, 0);
@@ -356,7 +368,7 @@ void int_rel(IntVar* x, IntRelType t, int c) {
 
 // x rel y + c <-> r
 
-void int_rel_reif(IntVar* x, IntRelType t, IntVar* y, BoolView r, int c) {
+void int_rel_reif(IntVar* x, IntRelType t, IntVar* y, const BoolView& r, int c) {
 	switch (t) {
 		case IRT_EQ:
 			newBinGE(IntView<>(x), IntView<>(y, 1, c), r);
@@ -391,9 +403,11 @@ void int_rel_reif(IntVar* x, IntRelType t, IntVar* y, BoolView r, int c) {
 
 // x rel y + c <- r
 
-void int_rel_half_reif(IntVar* x, IntRelType t, int c, BoolView r) { ihrcs.push(IRR(x, t, c, r)); }
+void int_rel_half_reif(IntVar* x, IntRelType t, int c, BoolView r) {
+	ihrcs.push(IRR(x, t, c, std::move(r)));
+}
 
-void int_rel_half_reif(IntVar* x, IntRelType t, IntVar* y, BoolView r, int c) {
+void int_rel_half_reif(IntVar* x, IntRelType t, IntVar* y, const BoolView& r, int c) {
 	switch (t) {
 		case IRT_EQ:
 			newBinGE(IntView<>(x), IntView<>(y, 1, c), r);
@@ -422,7 +436,9 @@ void int_rel_half_reif(IntVar* x, IntRelType t, IntVar* y, BoolView r, int c) {
 //-----
 // x rel c <-> r
 
-void int_rel_reif(IntVar* x, IntRelType t, int c, BoolView r) { ircs.push(IRR(x, t, c, r)); }
+void int_rel_reif(IntVar* x, IntRelType t, int c, BoolView r) {
+	ircs.push(IRR(x, t, c, std::move(r)));
+}
 
 void int_rel_reif_real(IntVar* x, IntRelType t, int c, BoolView r) {
 	if (r.isTrue() && t == IRT_NE && x->getType() == INT_VAR_EL) {
@@ -435,8 +451,8 @@ void int_rel_reif_real(IntVar* x, IntRelType t, int c, BoolView r) {
 		int_rel_reif(x, t, v, r);
 		return;
 	}
-	BoolView b1(x->getLit(c, LR_GE));
-	BoolView b2(x->getLit(c, LR_LE));
+	const BoolView b1(x->getLit(c, LR_GE));
+	const BoolView b2(x->getLit(c, LR_LE));
 	switch (t) {
 		case IRT_EQ:
 			bool_rel(b1, BRT_AND, b2, r);
@@ -512,11 +528,11 @@ void int_rel_half_reif_real(IntVar* x, IntRelType t, int c, BoolView r) {
 }
 
 void process_ircs() {
-	for (int i = 0; i < ircs.size(); i++) {
+	for (unsigned int i = 0; i < ircs.size(); i++) {
 		int_rel_reif_real(ircs[i].x, ircs[i].t, ircs[i].c, ircs[i].r);
 	}
 	ircs.clear(true);
-	for (int j = 0; j < ihrcs.size(); ++j) {
+	for (unsigned int j = 0; j < ihrcs.size(); ++j) {
 		int_rel_half_reif_real(ihrcs[j].x, ihrcs[j].t, ihrcs[j].c, ihrcs[j].r);
 	}
 	ihrcs.clear(true);

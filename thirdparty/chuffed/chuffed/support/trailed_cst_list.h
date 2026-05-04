@@ -1,7 +1,7 @@
 #ifndef TRAILED_CST_LIST_H
 #define TRAILED_CST_LIST_H
 
-#include <chuffed/branching/branching.h>
+#include "chuffed/branching/branching.h"
 
 #include <cassert>
 #include <iostream>
@@ -22,7 +22,7 @@ public:
 		size = 0;
 	}
 
-	~TrailedConstantAccessList() {}
+	~TrailedConstantAccessList() = default;
 
 	virtual int key(T k) = 0;
 
@@ -43,7 +43,7 @@ public:
 	}
 
 	void add(T val) {
-		int k = key(val);
+		const int k = key(val);
 		assert(k >= 0 && k < max_size);
 		assert(size < max_size);
 		if (!get(k)) {
@@ -70,11 +70,11 @@ public:
 			i--;
 			return *this;
 		}
-		Iterator& operator++(int dummy) {
+		Iterator& operator++(int /*dummy*/) {
 			++i;
 			return *this;
 		}
-		Iterator& operator--(int dummy) {
+		Iterator& operator--(int /*dummy*/) {
 			--i;
 			return *this;
 		}
@@ -84,7 +84,7 @@ public:
 	};
 
 	// typedef Iterator<T> iterator;
-	typedef Iterator<const T> const_iterator;
+	using const_iterator = Iterator<const T>;
 	const_iterator begin() { return Iterator<const T>(this, 0); }
 	const_iterator end() { return Iterator<const T>(this, size); }
 };

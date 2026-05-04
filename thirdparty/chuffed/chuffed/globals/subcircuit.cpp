@@ -1,5 +1,20 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <random>
 
 // A variable with value its own index is considered out of the circuit.
 // Any other value indicates the
@@ -7,20 +22,20 @@
 template <int U = 0>
 class SubCircuit : public Propagator {
 public:
-	int const size;
+	const int size;
 
 	IntView<U>* const x;
-	bool const check;    // use 'check' algorithm
-	bool const prevent;  // use 'prevent' algorithm
-	bool const scc;      // use strongly connected components algorithm
-	bool const pruneRoot;
-	bool const pruneSkip;
-	bool const fixReq;
-	bool const pruneWithin;
+	const bool check;    // use 'check' algorithm
+	const bool prevent;  // use 'prevent' algorithm
+	const bool scc;      // use strongly connected components algorithm
+	const bool pruneRoot;
+	const bool pruneSkip{true};
+	const bool fixReq{true};
+	const bool pruneWithin;
 	vec<int> chain_start;
 	bool* inCircuit;
 	bool* isStartChain;
-	int defaultRoot;  // index of var used as root of scc tree by default
+	int defaultRoot{0};  // index of var used as root of scc tree by default
 
 	// Persistent state
 
@@ -53,10 +68,8 @@ public:
 				prevent(so.circuitalg >= 2 && so.circuitalg <= 3),
 				scc(so.circuitalg >= 3),
 				pruneRoot(so.sccoptions >= 3),
-				pruneSkip(true),
-				fixReq(true),
-				pruneWithin(so.sccoptions == 2 || so.sccoptions == 4),
-				defaultRoot(0) {
+
+				pruneWithin(so.sccoptions == 2 || so.sccoptions == 4) {
 		priority = 5;
 
 		new_fixed.reserve(size);
@@ -134,7 +147,7 @@ public:
 			return true;
 		}
 
-		for (int chainNumber = 0; chainNumber < chain_start.size(); chainNumber++) {
+		for (unsigned int chainNumber = 0; chainNumber < chain_start.size(); chainNumber++) {
 			// get possible vars to use as evidence that we can't close this cycle
 			// (for now vars which can't take their index as a value, later we
 			// will remove the ones in this chain)
@@ -156,7 +169,7 @@ public:
 			}
 
 			// find the end of the chain, and remove evidence vars which are in this chain
-			int startVar = chain_start[chainNumber];
+			const int startVar = chain_start[chainNumber];
 			int chainLength = 1;
 			int endVar = startVar;
 			if (so.preventevidence != 5) {
@@ -164,7 +177,7 @@ public:
 			}
 			while (x[endVar].isFixed()) {
 				chainLength++;
-				endVar = x[endVar].getVal();
+				endVar = static_cast<int>(x[endVar].getVal());
 				if (so.preventevidence != 5) {
 					evidenceOptions.remove(endVar);
 				}
@@ -173,7 +186,7 @@ public:
 			if (x[endVar].remValNotR(startVar) && evidenceOptions.size() > 0) {
 				Clause* r = nullptr;
 				if (so.lazy) {
-					int evidenceVar = chooseEvidenceVar(evidenceOptions, so.preventevidence);
+					const int evidenceVar = chooseEvidenceVar(evidenceOptions, so.preventevidence);
 
 					if (so.preventevidence != 5) {
 						evidenceOptions.remove(startVar);
@@ -183,7 +196,7 @@ public:
 						int v = startVar;
 						for (int index = 1; index < chainLength; index++) {
 							(*r)[index] = x[v].getValLit();
-							v = x[v].getVal();
+							v = static_cast<int>(x[v].getVal());
 						}
 
 						(*r)[chainLength] = ~x[evidenceVar].getLit(evidenceVar, LR_NE);
@@ -200,11 +213,11 @@ public:
 						for (int index = 1; index < chainLength; index++) {
 							inStartChain.push(v);
 							outside.remove(v);
-							v = x[v].getVal();
+							v = static_cast<int>(x[v].getVal());
 						}
-						assert(inStartChain.size() + outside.size() + 1 == size);
+						assert(inStartChain.size() + outside.size() + 1 == static_cast<unsigned int>(size));
 						// reason is nothing in start of chain can reach outside chain
-						int explSize = inStartChain.size() * outside.size() + 2;
+						const int explSize = inStartChain.size() * outside.size() + 2;
 						r = Reason_new(explSize);
 
 						explainAcantreachB(r, 1, inStartChain, outside);
@@ -225,18 +238,18 @@ public:
 		// filter out those that don't have to be in the circuit
 		vec<int> varsIn;
 		varsIn.clear();
-		for (int i = 0; i < potentialVarIndices.size(); i++) {
-			int varindex = potentialVarIndices[i];
+		for (unsigned int i = 0; i < potentialVarIndices.size(); i++) {
+			const int varindex = potentialVarIndices[i];
 			if (!x[varindex].indomain(varindex)) {
 				varsIn.push(varindex);
 			}
 		}
 		// now choose one using our selection method
 		if (varsIn.size() > 0) {
-			int chosen = chooseEvidenceVar(varsIn, so.sccevidence);
+			const int chosen = chooseEvidenceVar(varsIn, so.sccevidence);
 			assert(!x[chosen].indomain(chosen));
 			bool found = false;
-			for (int i = 0; i < potentialVarIndices.size(); i++) {
+			for (unsigned int i = 0; i < potentialVarIndices.size(); i++) {
 				if (potentialVarIndices[i] == chosen) {
 					found = true;
 				}
@@ -256,9 +269,9 @@ public:
 	void explainAcantreachB(Clause* reason, int reasonIndex, vec<int> A, vec<int> B, int a1 = -1,
 													int b1 = -1) {
 		// fprintf(stderr, "explaining");
-		for (int a = 0; a < A.size(); a++) {
+		for (unsigned int a = 0; a < A.size(); a++) {
 			assert(A[a] < size && A[a] >= 0);
-			for (int b = 0; b < B.size(); b++) {
+			for (unsigned int b = 0; b < B.size(); b++) {
 				assert(B[b] < size && B[b] >= 0);
 				if (A[a] != a1 || B[b] != b1) {
 					assert(!x[A[a]].indomain(B[b]));
@@ -316,8 +329,8 @@ public:
 					}
 
 					// Now check one node is definitely in
-					Lit evidenceIn = getEvidenceLit(inside);
-					Lit evidenceOut = getEvidenceLit(outside);
+					const Lit evidenceIn = getEvidenceLit(inside);
+					const Lit evidenceOut = getEvidenceLit(outside);
 					if (evidenceOut != lit_True) {
 						Clause* r = nullptr;
 						if (so.lazy) {
@@ -334,7 +347,7 @@ public:
 							(*r)[1] = evidenceIn;
 							explainAcantreachB(r, 2, inside, outside);
 						}
-						for (int i = 0; i < outside.size(); i++) {
+						for (unsigned int i = 0; i < outside.size(); i++) {
 							if (x[outside[i]].indomain(thisNode)) {
 								addPropagation(false, outside[i], thisNode, r);
 							}
@@ -355,7 +368,7 @@ public:
 
 				// If w is from a subtree before the previous one prune this edge (if that option is set)
 				if (pruneSkip && index[child] < startPrevSubtree) {
-					Lit evidence = getEvidenceLit(prev);
+					const Lit evidence = getEvidenceLit(prev);
 					if (evidence != lit_True) {
 						// XXX [AS] Commented following line, because propagator related statistics
 						// should be collected within the propagator class.
@@ -368,10 +381,10 @@ public:
 							// later subtrees.
 							vec<int> prevAndLater;
 							prevAndLater.reserve(prev.size() + later.size());
-							for (int i = 0; i < prev.size(); i++) {
+							for (unsigned int i = 0; i < prev.size(); i++) {
 								prevAndLater.push(prev[i]);
 							}
-							for (int i = 0; i < later.size(); i++) {
+							for (unsigned int i = 0; i < later.size(); i++) {
 								prevAndLater.push(later[i]);
 							}
 							r = Reason_new(earlier.size() * prevAndLater.size() + prev.size() * later.size() + 2);
@@ -408,7 +421,7 @@ public:
 				}
 			}
 
-			Lit evidenceInside = getEvidenceLit(inside);  // at this point inside excludes this node
+			const Lit evidenceInside = getEvidenceLit(inside);  // at this point inside excludes this node
 
 			inside.push(thisNode);  // now include this node
 
@@ -421,8 +434,8 @@ public:
 
 					explainAcantreachB(r, 2, inside, outside);
 				}
-				for (int i = 0; i < outside.size(); i++) {
-					int varOutside = outside[i];
+				for (unsigned int i = 0; i < outside.size(); i++) {
+					const int varOutside = outside[i];
 					if (x[varOutside].setValNotR(varOutside)) {
 						// XXX [AS] Commented following line, because propagator related statistics
 						// should be collected within the propagator class.
@@ -476,8 +489,6 @@ public:
 					root = options[rnd_option(engine.rnd)];
 				}
 				break;
-			case 7:  // first (even if fixed) - this is the default
-				break;
 			case 8:  // random (even if fixed)
 			{
 				std::uniform_int_distribution<int> rnd_option(0, options.size() - 1);
@@ -485,12 +496,14 @@ public:
 			} break;
 			case 9:  // largest domain
 				dom = x[root].size();
-				for (int i = 1; i < options.size(); i++) {
+				for (unsigned int i = 1; i < options.size(); i++) {
 					if (x[options[i]].size() > dom) {
 						dom = x[options[i]].size();
 						root = options[i];
 					}
 				}
+				break;
+			default:  // first (even if fixed)
 				break;
 		}
 		return root;
@@ -525,7 +538,7 @@ public:
 
 		// explore children of the root node
 		for (typename IntView<U>::iterator i = x[root].begin(); i != x[root].end(); ++i) {
-			int child = *i;
+			const int child = *i;
 
 			if (index[child] == -1)  // if haven't explored this yet
 			{
@@ -546,11 +559,11 @@ public:
 					}
 				}
 
-				Lit evidenceThis = getEvidenceLit(thisSubtree);
+				const Lit evidenceThis = getEvidenceLit(thisSubtree);
 				Lit evidenceOther = getEvidenceLit(prev);
 				vec<int> alloutside;
 				if (prev.size() == 0) {
-					for (int i = 0; i < later.size(); i++) {
+					for (unsigned int i = 0; i < later.size(); i++) {
 						alloutside.push(later[i]);
 					}
 					alloutside.push(root);
@@ -591,30 +604,30 @@ public:
 							// 3. and nodes in this subtree can't reach the
 							// previous one or unexplored ones.
 							vec<int> prev_later;
-							for (int i = 0; i < prev.size(); i++) {
+							for (unsigned int i = 0; i < prev.size(); i++) {
 								prev_later.push(prev[i]);
 							}
-							for (int i = 0; i < later.size(); i++) {
+							for (unsigned int i = 0; i < later.size(); i++) {
 								prev_later.push(later[i]);
 							}
 							vec<int> prev_this_later;
-							for (int i = 0; i < prev_later.size(); i++) {
+							for (unsigned int i = 0; i < prev_later.size(); i++) {
 								prev_this_later.push(prev_later[i]);
 							}
-							for (int i = 0; i < thisSubtree.size(); i++) {
+							for (unsigned int i = 0; i < thisSubtree.size(); i++) {
 								prev_this_later.push(thisSubtree[i]);
 							}
 							vec<int> this_later;
-							for (int i = 0; i < thisSubtree.size(); i++) {
+							for (unsigned int i = 0; i < thisSubtree.size(); i++) {
 								this_later.push(thisSubtree[i]);
 							}
-							for (int i = 0; i < later.size(); i++) {
+							for (unsigned int i = 0; i < later.size(); i++) {
 								this_later.push(later[i]);
 							}
 
-							int size1 = earlier.size() * prev_this_later.size();
-							int size2 = prev.size() * this_later.size();
-							int size3 = thisSubtree.size() * prev_later.size();
+							const int size1 = earlier.size() * prev_this_later.size();
+							const int size2 = prev.size() * this_later.size();
+							const int size3 = thisSubtree.size() * prev_later.size();
 							assert(prev_later.size() > 0);
 							Clause* r = Reason_new(size1 + size2 + size3 + 2);
 							(*r)[1] = evidenceThis;
@@ -654,30 +667,30 @@ public:
 								// The reason is the same as when failing above,
 								// but we leave out the one we're setting
 								vec<int> prev_later;
-								for (int i = 0; i < prev.size(); i++) {
+								for (unsigned int i = 0; i < prev.size(); i++) {
 									prev_later.push(prev[i]);
 								}
-								for (int i = 0; i < later.size(); i++) {
+								for (unsigned int i = 0; i < later.size(); i++) {
 									prev_later.push(later[i]);
 								}
 								vec<int> prev_this_later;
-								for (int i = 0; i < prev_later.size(); i++) {
+								for (unsigned int i = 0; i < prev_later.size(); i++) {
 									prev_this_later.push(prev_later[i]);
 								}
-								for (int i = 0; i < thisSubtree.size(); i++) {
+								for (unsigned int i = 0; i < thisSubtree.size(); i++) {
 									prev_this_later.push(thisSubtree[i]);
 								}
 								vec<int> this_later;
-								for (int i = 0; i < thisSubtree.size(); i++) {
+								for (unsigned int i = 0; i < thisSubtree.size(); i++) {
 									this_later.push(thisSubtree[i]);
 								}
-								for (int i = 0; i < later.size(); i++) {
+								for (unsigned int i = 0; i < later.size(); i++) {
 									this_later.push(later[i]);
 								}
 
-								int size1 = earlier.size() * prev_this_later.size();
-								int size2 = prev.size() * this_later.size();
-								int size3 = thisSubtree.size() * prev_later.size();
+								const int size1 = earlier.size() * prev_this_later.size();
+								const int size2 = prev.size() * this_later.size();
+								const int size3 = thisSubtree.size() * prev_later.size();
 								r = Reason_new(size1 + size2 + size3 + 2);
 								(*r)[1] = evidenceThis;
 								(*r)[2] = evidenceOther;
@@ -699,11 +712,11 @@ public:
 
 				// When a new subtree has been explored, update the prev and earlier vectors (only necessary
 				// if explaining)
-				for (int i = 0; i < prev.size(); i++) {
+				for (unsigned int i = 0; i < prev.size(); i++) {
 					earlier.push(prev[i]);
 				}
 				prev.clear();
-				for (int i = 0; i < thisSubtree.size(); i++) {
+				for (unsigned int i = 0; i < thisSubtree.size(); i++) {
 					prev.push(thisSubtree[i]);
 				}
 
@@ -726,11 +739,11 @@ public:
 					notseen.push(var);
 				}
 			}
-			int numNotSeen = size - nodesSeen;
-			assert(seen.size() == nodesSeen);
-			assert(notseen.size() == numNotSeen);
+			const int numNotSeen = size - nodesSeen;
+			assert(static_cast<int>(seen.size()) == nodesSeen);
+			assert(static_cast<int>(notseen.size()) == numNotSeen);
 
-			Lit evidenceSeen = getEvidenceLit(seen);
+			const Lit evidenceSeen = getEvidenceLit(seen);
 			if (evidenceSeen != lit_True) {
 				// XXX [AS] Commented following line, because propagator related statistics
 				// should be collected within the propagator class.
@@ -743,8 +756,8 @@ public:
 					(*r)[1] = evidenceSeen;
 					explainAcantreachB(r, 2, seen, notseen);
 				}
-				for (int i = 0; i < notseen.size(); i++) {
-					int outsideVar = notseen[i];
+				for (unsigned int i = 0; i < notseen.size(); i++) {
+					const int outsideVar = notseen[i];
 					if (x[outsideVar].setValNotR(outsideVar)) {
 						if (!x[outsideVar].setVal(outsideVar, r)) {
 							return false;
@@ -773,10 +786,11 @@ public:
 				}
 			}
 			assert(earlierSubtree.size() > 0);
-			assert(earlierSubtree.size() + lastSubtreeAndOutside.size() + 1 == size);
-			Lit evidenceLast = getEvidenceLit(lastSubtreeAndOutside);
+			assert(earlierSubtree.size() + lastSubtreeAndOutside.size() + 1 ==
+						 static_cast<unsigned int>(size));
+			const Lit evidenceLast = getEvidenceLit(lastSubtreeAndOutside);
 			if (evidenceLast != lit_True) {
-				// Build the reason if neccessary (it will be the same for all of the pruned edges)
+				// Build the reason if necessary (it will be the same for all of the pruned edges)
 				Clause* r = nullptr;
 				if (so.lazy) {
 					// Reason should state that no var in an earlier sub tree reaches a var
@@ -807,8 +821,8 @@ public:
 		}
 
 		// Perform the propagations
-		for (int i = 0; i < propQueue.size(); i++) {
-			PROP p = propQueue[i];
+		for (unsigned int i = 0; i < propQueue.size(); i++) {
+			PROP const p = propQueue[i];
 			// fprintf(stderr, "propagating\n");
 			if (p.fix) {
 				if (x[p.var].setValNotR(p.val)) {
@@ -830,9 +844,9 @@ public:
 	bool propagateCheck() {
 		// for each newly fixed variable, follow the chain and if you find a circuit
 		// then any variable not in the circuit must have its own index as a value
-		for (int i = 0; i < new_fixed.size(); i++) {
+		for (unsigned int i = 0; i < new_fixed.size(); i++) {
 			// new_fixed should only contain variables fixed to values other than their own indices
-			int startVar = new_fixed[i];
+			const int startVar = new_fixed[i];
 			assert(x[startVar].isFixed());
 			assert(x[startVar].getVal() != startVar);
 			int nextVar = startVar;
@@ -852,7 +866,7 @@ public:
 					foundCycle = true;
 					break;
 				}
-				nextVar = x[nextVar].getVal();
+				nextVar = static_cast<int>(x[nextVar].getVal());
 			}
 			if (foundCycle && chainLength < size) {
 				// fprintf(stderr,"found cycle length %d\n", chainLength);
@@ -874,7 +888,7 @@ public:
 						int v = startVar;
 						for (int j = 1; j <= chainLength; j++) {
 							(*r)[j] = x[v].getValLit();
-							v = x[v].getVal();
+							v = static_cast<int>(x[v].getVal());
 						}
 					} else {
 						// find the vars in and not in the cycle
@@ -888,12 +902,12 @@ public:
 						for (int j = 0; j < chainLength; j++) {
 							inCycle[j] = v;
 							notInCycle.remove(v);
-							v = x[v].getVal();
+							v = static_cast<int>(x[v].getVal());
 						}
 						r = Reason_new(inCycle.size() * notInCycle.size() + 2);
 						// the first literal is an evidence literal from inside the circuit
 						// choose the one from the highest level?
-						int chosenVar = chooseEvidenceVar(inCycle, so.checkevidence);
+						const int chosenVar = chooseEvidenceVar(inCycle, so.checkevidence);
 						(*r)[1] = x[chosenVar].getLit(chosenVar, LR_EQ);  // xi == i (is false)
 
 						if (so.checkexpl == 2) {  // inside can't reach out
@@ -935,7 +949,7 @@ public:
 				}
 				// now do the failing one(s) if there are any
 				if (failIndices.size() > 0) {
-					int chosenIndex = chooseEvidenceVar(failIndices, so.checkevidence);
+					const int chosenIndex = chooseEvidenceVar(failIndices, so.checkevidence);
 					if (x[chosenIndex].setVal(chosenIndex, r)) {
 						fprintf(stderr, "unexpected success\n");
 					}
@@ -1003,29 +1017,29 @@ public:
 		if (selectionMethod == 3) {
 			// highest level
 			// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-			// Maybe it shoud be replaced by sat.getLevel(.)?
+			// Maybe it should be replaced by sat.getLevel(.)?
 			int highestLevel = sat.trailpos[var(x[options[0]].getLit(options[0], LR_EQ))];
 			// int highestLevel = sat.getLevel(var(x[options[0]].getLit(options[0], LR_EQ)));
 			int bestVar = options[0];
-			for (int i = 0; i < options.size(); i++) {
+			for (unsigned int i = 0; i < options.size(); i++) {
 				// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-				// Maybe it shoud be replaced by sat.getLevel(.)?
+				// Maybe it should be replaced by sat.getLevel(.)?
 				if (sat.trailpos[var(x[options[0]].getLit(options[0], LR_EQ))] !=
 						sat.trailpos[var(x[options[0]].getLit(options[0], LR_NE))]) {
 					// if(sat.getLevel(var(x[options[0]].getLit(options[0], LR_EQ))) !=
 					// sat.getLevel(var(x[options[0]].getLit(options[0], LR_NE))))
 					fprintf(stderr, "not same\n");
 				}
-				int v = options[i];
-				Lit p = x[v].getLit(v, LR_EQ);
-				int satvar = var(p);
+				const int v = options[i];
+				const Lit p = x[v].getLit(v, LR_EQ);
+				const int satvar = var(p);
 				// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-				// Maybe it shoud be replaced by sat.getLevel(.)?
+				// Maybe it should be replaced by sat.getLevel(.)?
 				if (sat.trailpos[satvar] > highestLevel)
 				// if(sat.getLevel(satvar) > highestLevel)
 				{
 					// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-					// Maybe it shoud be replaced by sat.getLevel(.)?
+					// Maybe it should be replaced by sat.getLevel(.)?
 					highestLevel = sat.trailpos[satvar];
 					// highestLevel = sat.getLevel(satvar);
 					bestVar = v;
@@ -1036,21 +1050,21 @@ public:
 		if (selectionMethod == 4) {
 			// lowest level
 			// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-			// Maybe it shoud be replaced by sat.getLevel(.)?
+			// Maybe it should be replaced by sat.getLevel(.)?
 			int lowestLevel = sat.trailpos[var(x[options[0]].getLit(options[0], LR_EQ))];
 			// int lowestLevel = sat.getLevel(var(x[options[0]].getLit(options[0], LR_EQ)));
 			int bestVar = options[0];
-			for (int i = 0; i < options.size(); i++) {
-				int v = options[i];
-				Lit p = x[v].getLit(v, LR_EQ);
-				int satvar = var(p);
+			for (unsigned int i = 0; i < options.size(); i++) {
+				const int v = options[i];
+				const Lit p = x[v].getLit(v, LR_EQ);
+				const int satvar = var(p);
 				// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-				// Maybe it shoud be replaced by sat.getLevel(.)?
+				// Maybe it should be replaced by sat.getLevel(.)?
 				if (sat.trailpos[satvar] < lowestLevel)
 				// if(sat.getLevel(satvar) < lowestLevel)
 				{
 					// XXX [AS] Replaced 'sat.level' by 'sat.trailpos', because it was replaced in rev. 441
-					// Maybe it shoud be replaced by sat.getLevel(.)?
+					// Maybe it should be replaced by sat.getLevel(.)?
 					lowestLevel = sat.trailpos[satvar];
 					// lowestLevel = sat.getLevel(satvar);
 					if (lowestLevel == 0 && (sat.value(p) != l_False)) {
@@ -1064,7 +1078,7 @@ public:
 		if (selectionMethod == 6) {
 			// fprintf(stderr, "random\n");
 			std::uniform_int_distribution<int> rnd_option(0, options.size() - 1);
-			int bestIndex = options[rnd_option(engine.rnd)];
+			const int bestIndex = options[rnd_option(engine.rnd)];
 			return options[bestIndex];
 		}
 		return options[0];
@@ -1096,7 +1110,7 @@ public:
 						}
 						for (int i = 0; i < size; i++) {
 							if (x[i].isFixed()) {
-								int v = x[i].getVal();
+								const int v = static_cast<int>(x[i].getVal());
 								if (valueTaken[v]) {
 									alldiffbroken = true;
 								}
@@ -1115,7 +1129,7 @@ public:
 					return propagateCheck();
 				}
 			} else {
-				int root = chooseRoot();
+				const int root = chooseRoot();
 				if (root < 0)  // means all vars are fixed self-cycles
 				{
 					if (check) {
@@ -1140,15 +1154,15 @@ public:
 void subcircuit(vec<IntVar*>& _x, int offset) {
 	all_different(_x, CL_DOM);
 	vec<IntView<> > x;
-	for (int i = 0; i < _x.size(); i++) {
+	for (unsigned int i = 0; i < _x.size(); i++) {
 		_x[i]->specialiseToEL();
 	}
 	if (offset == 0) {
-		for (int i = 0; i < _x.size(); i++) {
+		for (unsigned int i = 0; i < _x.size(); i++) {
 			x.push(IntView<>(_x[i]));
 		}
 	} else {
-		for (int i = 0; i < _x.size(); i++) {
+		for (unsigned int i = 0; i < _x.size(); i++) {
 			x.push(IntView<4>(_x[i], 1, -offset));
 		}
 	}

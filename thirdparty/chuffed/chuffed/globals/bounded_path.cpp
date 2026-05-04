@@ -1,8 +1,24 @@
-#include <chuffed/globals/bounded_path.h>
+#include "chuffed/globals/bounded_path.h"
 
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/globals/graph.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
+
+#include <cassert>
+#include <cstring>
 #include <iostream>
-
-using namespace std;
+#include <utility>
+#include <vector>
 
 #define DEBUG 0
 
@@ -32,27 +48,27 @@ using namespace std;
 // }
 
 void BoundedPathPropagator::constructGraph(vec<vec<edge_id> >& _in, vec<vec<edge_id> >& _out,
-																					 vec<vec<int> >& _en) {
-	adj = vector<vector<int> >(_in.size(), vector<int>());
-	for (int i = 0; i < _in.size(); i++) {
-		for (int j = 0; j < _in[i].size(); j++) {
+																					 vec<vec<int> >& /*en*/) {
+	adj = std::vector<std::vector<int> >(_in.size(), std::vector<int>());
+	for (unsigned int i = 0; i < _in.size(); i++) {
+		for (unsigned int j = 0; j < _in[i].size(); j++) {
 			adj[i].push_back(_in[i][j]);
 		}
-		for (int j = 0; j < _out[i].size(); j++) {
+		for (unsigned int j = 0; j < _out[i].size(); j++) {
 			adj[i].push_back(_out[i][j]);
 		}
 	}
 
 	in = std::vector<std::vector<int> >(nbNodes(), std::vector<int>());
-	for (int i = 0; i < _in.size(); i++) {
-		for (int j = 0; j < _in[i].size(); j++) {
+	for (unsigned int i = 0; i < _in.size(); i++) {
+		for (unsigned int j = 0; j < _in[i].size(); j++) {
 			in[i].push_back(_in[i][j]);
 		}
 	}
 
 	ou = std::vector<std::vector<int> >(nbNodes(), std::vector<int>());
-	for (int i = 0; i < _out.size(); i++) {
-		for (int j = 0; j < _out[i].size(); j++) {
+	for (unsigned int i = 0; i < _out.size(); i++) {
+		for (unsigned int j = 0; j < _out[i].size(); j++) {
 			ou[i].push_back(_out[i][j]);
 		}
 	}
@@ -66,10 +82,10 @@ void BoundedPathPropagator::constructGraph(vec<vec<edge_id> >& _in, vec<vec<edge
 	}
 
 	last_state_e = new Tint[nbEdges()];
-	memset(last_state_e, UNK, sizeof(Tint) * nbEdges());
+	memset((int*)last_state_e, UNK, sizeof(Tint) * nbEdges());
 
 	was_shortest = new Tint[nbEdges()];
-	memset(was_shortest, 0, sizeof(Tint) * nbEdges());
+	memset((int*)was_shortest, 0, sizeof(Tint) * nbEdges());
 
 	for (int j = 0; j < nbEdges(); j++) {
 		getEdgeVar(j).attach(this, j, EVENT_LU);
@@ -81,7 +97,7 @@ void BoundedPathPropagator::constructGraph(vec<vec<edge_id> >& _in, vec<vec<edge
 	}
 
 	last_state_n = new Tint[nbNodes()];
-	memset(last_state_n, UNK, sizeof(Tint) * nbNodes());
+	memset((int*)last_state_n, UNK, sizeof(Tint) * nbNodes());
 	for (int j = 0; j < nbNodes(); j++) {
 		getNodeVar(j).attach(this, nbEdges() + j, EVENT_LU);
 	}
@@ -94,7 +110,7 @@ void BoundedPathPropagator::constructGraph(vec<vec<edge_id> >& _in, vec<vec<edge
 	}
 }
 
-void BoundedPathPropagator::constructWeights(vec<int>& _ws, IntVar* _w) {
+void BoundedPathPropagator::constructWeights(vec<int>& _ws, IntVar* /*_w*/) {
 	_ws.copyTo(ws);
 	for (int j = 0; j < nbEdges(); j++) {
 		getEdgeVar(j).attach(this, j, EVENT_LU);
@@ -106,13 +122,13 @@ void BoundedPathPropagator::constructWeights(vec<int>& _ws, IntVar* _w) {
 	}
 	w->attach(this, -1, EVENT_LU);
 }
-void BoundedPathPropagator::constructWeights(vec<vec<int> >& _wst, IntVar* _w) {
+void BoundedPathPropagator::constructWeights(vec<vec<int> >& _wst, IntVar* /*_w*/) {
 	_wst.copyTo(wst);
 	w->attach(this, -1, EVENT_LU);
 }
 
 void BoundedPathPropagator::constructBasicExplanations() {
-	// Leave a space at the beginning for the literal fo the maximim weight.
+	// Leave a space at the beginning for the literal for the maximum weight.
 	//* OLD EXPLANATIONS
 #ifdef BASIC_EXPL
 	fail_expl.push();
@@ -131,21 +147,21 @@ void BoundedPathPropagator::rootLevelPropagation() {
 	forward_sp->run();
 	if (forward_sp->distTo(dest) > w->getMin()) {
 		if (DEBUG) {
-			cout << "Setting Minimum to " << forward_sp->distTo(dest) << endl;
+			std::cout << "Setting Minimum to " << forward_sp->distTo(dest) << '\n';
 		}
 		w->setMin(forward_sp->distTo(dest), nullptr);
 	}
 	if (DEBUG) {
-		cout << "Forward Dijkstra " << forward_sp->distTo(dest) << endl;
+		std::cout << "Forward Dijkstra " << forward_sp->distTo(dest) << '\n';
 	}
 	if (DEBUG) {
-		cout << "Min: " << w->getMin() << endl;
+		std::cout << "Min: " << w->getMin() << '\n';
 	}
 	if (DEBUG) {
-		cout << "Max: " << w->getMax() << endl;
+		std::cout << "Max: " << w->getMax() << '\n';
 	}
 	backward_sp->run();
-	initial_dist_from_dest = vector<int>(nbNodes(), -1);
+	initial_dist_from_dest = std::vector<int>(nbNodes(), -1);
 	for (int i = 0; i < nbNodes(); i++) {
 		initial_dist_from_dest[i] = backward_sp->distTo(i);
 	}
@@ -154,19 +170,19 @@ void BoundedPathPropagator::rootLevelPropagation() {
 		dkm = new ImplementedDynamicKMeans(NB_CLUSTERS, nbNodes(), nbEdges(), this);
 		mandatory_sp->set_clustering(dkm);
 		initial_mandatory_sp->set_clustering(dkm);
-		bool set_target = false;
+		const bool set_target = false;
 		if (DEBUG) {
-			cout << "Running DPLB in constructor" << endl;
+			std::cout << "Running DPLB in constructor" << '\n';
 		}
-		int lb = initial_mandatory_sp->run(nullptr, set_target);
+		const int lb = initial_mandatory_sp->run(nullptr, set_target);
 		if (lb > w->getMin()) {
 			if (DEBUG) {
-				cout << "Setting Minimum to " << forward_sp->distTo(dest) << endl;
+				std::cout << "Setting Minimum to " << forward_sp->distTo(dest) << '\n';
 			}
 			w->setMin(lb, nullptr);
 		}
 		if (DEBUG) {
-			cout << "Done " << lb << endl;
+			std::cout << "Done " << lb << '\n';
 		}
 	}
 }
@@ -192,8 +208,8 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 	constructWeights(_ws, _w);
 
 	std::vector<std::vector<int> > en(nbEdges(), std::vector<int>());
-	for (int i = 0; i < _en.size(); i++) {
-		for (int j = 0; j < _en[i].size(); j++) {
+	for (unsigned int i = 0; i < _en.size(); i++) {
+		for (unsigned int j = 0; j < _en[i].size(); j++) {
 			en[i].push_back(_en[i][j]);
 		}
 	}
@@ -210,7 +226,7 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 	mandatory_explainer_sp->init();
 
 	for (int i = 0; i < nbEdges(); i++) {
-		int tmp = en[i][0];
+		const int tmp = en[i][0];
 		en[i][0] = en[i][1];
 		en[i][1] = tmp;
 	}
@@ -240,7 +256,7 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 			explanation_size(0),
 			in_nodes_tsize(0),
 			in_nodes_size(0) {
-	cerr << "Do not use BoundedPathPropagator for time-depending paths" << endl;
+	std::cerr << "Do not use BoundedPathPropagator for time-depending paths" << '\n';
 
 	priority = 5;
 
@@ -248,15 +264,15 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 	constructWeights(_wst, _w);
 
 	std::vector<std::vector<int> > en(nbEdges(), std::vector<int>());
-	for (int i = 0; i < _en.size(); i++) {
-		for (int j = 0; j < _en[i].size(); j++) {
+	for (unsigned int i = 0; i < _en.size(); i++) {
+		for (unsigned int j = 0; j < _en[i].size(); j++) {
 			en[i].push_back(_en[i][j]);
 		}
 	}
 
 	std::vector<std::vector<int> > weights(nbEdges(), std::vector<int>());
 	for (int i = 0; i < nbEdges(); i++) {
-		for (int j = 0; j < _wst[i].size(); j++) {
+		for (unsigned int j = 0; j < _wst[i].size(); j++) {
 			weights[i].push_back(_wst[i][j]);
 		}
 	}
@@ -268,7 +284,7 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 	mandatory_explainer_sp->init();
 
 	for (int i = 0; i < nbEdges(); i++) {
-		int tmp = en[i][0];
+		const int tmp = en[i][0];
 		en[i][0] = en[i][1];
 		en[i][1] = tmp;
 	}
@@ -281,20 +297,21 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 	rootLevelPropagation();
 	constructBasicExplanations();
 
-	vector<vector<int> > arrivalTime =
-			vector<vector<int> >(wst.size(), vector<int>(wst[0].size(), -1));
-	for (int i = 0; i < wst.size(); i++) {
-		for (int j = 0; j < wst[i].size(); j++) {
+	std::vector<std::vector<int> > arrivalTime =
+			std::vector<std::vector<int> >(wst.size(), std::vector<int>(wst[0].size(), -1));
+	for (unsigned int i = 0; i < wst.size(); i++) {
+		for (unsigned int j = 0; j < wst[i].size(); j++) {
 			arrivalTime[i][j] = wst[i][j] + j;
 		}
 	}
 
-	vector<vector<int> > latest = vector<vector<int> >(wst.size(), vector<int>());
+	std::vector<std::vector<int> > latest =
+			std::vector<std::vector<int> >(wst.size(), std::vector<int>());
 	for (unsigned int i = 0; i < latest.size(); i++) {
-		latest[i] = vector<int>(arrivalTime[i][arrivalTime[i].size() - 1] + 1, -1);
+		latest[i] = std::vector<int>(arrivalTime[i][arrivalTime[i].size() - 1] + 1, -1);
 		for (unsigned int x = 0; x < arrivalTime[i].size(); x++) {
 			int v = arrivalTime[i][x];
-			int v2 = latest[i].size();
+			int v2 = static_cast<int>(latest[i].size());
 			if (x < arrivalTime[i].size() - 1) {
 				v2 = arrivalTime[i][x + 1];
 			}
@@ -310,7 +327,7 @@ BoundedPathPropagator::BoundedPathPropagator(int _s, int _d, vec<BoolView>& _vs,
 		}
 	}
 
-	cout << "Done " << wst.size() << " " << wst[0].size() << endl;
+	std::cout << "Done " << wst.size() << " " << wst[0].size() << '\n';
 }
 
 BoundedPathPropagator::~BoundedPathPropagator() {
@@ -324,7 +341,7 @@ BoundedPathPropagator::~BoundedPathPropagator() {
 	delete dkm;
 }
 
-void BoundedPathPropagator::wakeup(int i, int c) {
+void BoundedPathPropagator::wakeup(int i, int /*c*/) {
 	priority = 5;
 	// assert(prop_expl.size() == fail_expl.size() + 1);
 	update_explanation();
@@ -343,7 +360,7 @@ void BoundedPathPropagator::wakeup(int i, int c) {
 		}
 
 	} else {
-		int u = i - nbEdges();
+		const int u = i - nbEdges();
 		if (getNodeVar(u).isTrue() && last_state_n[u] != VT_IN) {
 			last_state_n[u] = VT_IN;
 			in_nodes_tsize++;
@@ -355,7 +372,7 @@ void BoundedPathPropagator::wakeup(int i, int c) {
 
 void BoundedPathPropagator::addToExplanation(int e) {
 	if (DEBUG) {
-		cout << "Adding to explanation " << e << endl;
+		std::cout << "Adding to explanation " << e << '\n';
 	}
 	fail_expl.push(getEdgeVar(e).getValLit());
 	prop_expl.push(getEdgeVar(e).getValLit());
@@ -390,8 +407,8 @@ void BoundedPathPropagator::computeReason(Clause*& r) {
 }
 
 bool BoundedPathPropagator::falseOrFail(int e, Clause*& r) {
-	int hd = getHead(e);
-	int tl = getTail(e);
+	const int hd = getHead(e);
+	const int tl = getTail(e);
 #ifdef BASIC_EXPL
 	//* OLD EXPLANATIONS:
 	if (!getEdgeVar(e).isFixed()) {
@@ -413,7 +430,7 @@ bool BoundedPathPropagator::falseOrFail(int e, Clause*& r) {
 	// cout<<"False or fail on edge "<<e<<" ("<<getTail(e)<<","<<getHead(e)<<")"<<endl;
 	if (!getEdgeVar(e).isFixed()) {
 		if (so.lazy) {
-			vector<Lit> lits;
+			std::vector<Lit> lits;
 			lits.emplace_back();
 			backward_sp_tmp->set_source(tl);
 			backward_sp_tmp->run();
@@ -421,7 +438,7 @@ bool BoundedPathPropagator::falseOrFail(int e, Clause*& r) {
 			explain_sp->set_explaining(tl);
 			explain_sp->run();
 			// assert(check_expl(explain_sp->getExpl(),w->getMax() - backward_sp->distTo(hd) - ws[e],tl));
-			int relaxed_dist = w->getMax() - explain_sp->distTo(tl) - ws[e];
+			const int relaxed_dist = w->getMax() - explain_sp->distTo(tl) - ws[e];
 			explain_sp->set_source(hd);
 			explain_sp->reset(relaxed_dist, backward_sp);
 			explain_sp->set_explaining(dest);
@@ -437,7 +454,7 @@ bool BoundedPathPropagator::falseOrFail(int e, Clause*& r) {
 		last_state_e[e] = VT_OUT;
 	} else if (getEdgeVar(e).isTrue()) {
 		if (so.lazy) {
-			vector<Lit> lits;
+			std::vector<Lit> lits;
 			backward_sp_tmp->set_source(tl);
 			backward_sp_tmp->run();
 			explain_sp->reset(w->getMax() - backward_sp->distTo(hd) - ws[e], backward_sp_tmp, lits);
@@ -466,13 +483,13 @@ bool BoundedPathPropagator::propagate_scc_order() {
 		if (getEdgeVar(e).isFixed() && getEdgeVar(e).isFalse()) {
 			continue;
 		}
-		int hd = getHead(e);
-		int tl = getTail(e);
+		const int hd = getHead(e);
+		const int tl = getTail(e);
 		if (kosaraju->scc_of(hd) == kosaraju->scc_of(tl)) {
 			continue;
 		}
-		int lhd = kosaraju->level_of_scc(kosaraju->scc_of(hd));
-		int ltl = kosaraju->level_of_scc(kosaraju->scc_of(tl));
+		const int lhd = kosaraju->level_of_scc(kosaraju->scc_of(hd));
+		const int ltl = kosaraju->level_of_scc(kosaraju->scc_of(tl));
 		if (lhd > ltl + 1 || (lhd == ltl + 1 && !kosaraju->scc_mand(kosaraju->scc_of(tl)))) {
 			Clause* r = nullptr;
 			// Forbid edge
@@ -560,7 +577,7 @@ bool BoundedPathPropagator::propagate() {
 	update_explanation();
 	update_innodes();
 
-	bool ok = propagate_dijkstra();
+	const bool ok = propagate_dijkstra();
 	if (!ok) {
 		return false;
 	}
@@ -575,7 +592,7 @@ bool BoundedPathPropagator::propagate() {
 	static double delta = 500;
 
 	if (in_nodes_list.size() >= 3) {
-		bool set_target = false;
+		const bool set_target = false;
 
 		if (delta < 0.5) {
 			dkm->set_nb_clusters(dkm->nb_clusters() + 1);
@@ -591,17 +608,17 @@ bool BoundedPathPropagator::propagate() {
 		}
 
 		bool ok;
-		double st = wallClockTime();
+		const double st = wallClockTime();
 
 		if (DEBUG) {
-			cout << "Running DPLB" << endl;
+			std::cout << "Running DPLB" << '\n';
 		}
 
-		int lb = mandatory_sp->run(&ok, set_target);
+		const int lb = mandatory_sp->run(&ok, set_target);
 		delta = wallClockTime() - st;
 
 		if (DEBUG) {
-			cout << "Achieved lb: " << lb << " " << w->getMax() << " " << delta << endl;
+			std::cout << "Achieved lb: " << lb << " " << w->getMax() << " " << delta << '\n';
 		}
 
 		/*if(!ok) {//No benefit at all...
@@ -638,8 +655,8 @@ bool BoundedPathPropagator::propagate() {
 #else
 				mandatory_explainer_sp->run(&ok2, true);
 #endif
-				vector<Lit> lits = mandatory_explainer_sp->getLits();
-				for (int i : in_nodes_list) {
+				std::vector<Lit> lits = mandatory_explainer_sp->getLits();
+				for (const int i : in_nodes_list) {
 					lits.push_back(getNodeVar(i).getValLit());
 				}
 
@@ -658,14 +675,14 @@ bool BoundedPathPropagator::propagate() {
 				mandatory_explainer_sp->reset(lb, mandatory_sp);
 				bool ok2;
 				mandatory_explainer_sp->run(&ok2);
-				std::vector<int> edges = mandatory_explainer_sp->getExpl();
+				const std::vector<int> edges = mandatory_explainer_sp->getExpl();
 				// assert(_check_expl_mand(edges,w->getMax()));
 				vec<Lit> lits;
 				lits.push();
-				for (int edge : edges) {
+				for (const int edge : edges) {
 					lits.push(getEdgeVar(edge).getValLit());
 				}
-				for (int i : in_nodes_list) {
+				for (const int i : in_nodes_list) {
 					lits.push(getNodeVar(i).getValLit());
 				}
 				lits.push(w->getMaxLit());
@@ -689,7 +706,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 			fail_expl[0] = w->getMaxLit();
 			GiveFailureExplanation(fail_expl);
 #else
-			vector<Lit> lits;
+			std::vector<Lit> lits;
 			explain_sp->reset(w->getMax(), backward_sp, lits);
 			explain_sp->run();
 			lits = explain_sp->getLits();
@@ -735,7 +752,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 		if (forward_sp->distTo(u) > w->getMax()) {
 			if (!getNodeVar(u).isFixed()) {
 				if (so.lazy) {
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					lits.emplace_back();
 					backward_sp_tmp->set_source(u);
 					backward_sp_tmp->run();
@@ -755,7 +772,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 				recompute = true;
 			} else if (getNodeVar(u).isTrue()) {
 				if (so.lazy) {
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					backward_sp_tmp->set_source(u);
 					backward_sp_tmp->run();
 					explain_sp->reset(w->getMax(), backward_sp_tmp, lits);
@@ -771,7 +788,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 		} else if (backward_sp->distTo(u) > w->getMax()) {
 			if (!getNodeVar(u).isFixed()) {
 				if (so.lazy) {
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					lits.emplace_back();
 					explain_sp->set_source(u);
 					explain_sp->reset(w->getMax(), backward_sp, lits);
@@ -791,7 +808,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 				recompute = true;
 			} else if (getNodeVar(u).isTrue()) {
 				if (so.lazy) {
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					explain_sp->set_source(u);
 					explain_sp->reset(w->getMax(), backward_sp, lits);
 					explain_sp->set_explaining(dest);
@@ -815,7 +832,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 					prop_expl[0] = w->getMaxLit();
 					r = ReasonNew(prop_expl);
 #else
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					lits.emplace_back();
 					backward_sp_tmp->set_source(u);
 					backward_sp_tmp->run();
@@ -824,7 +841,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 					explain_sp->run();
 					// assert(check_expl(explain_sp->getExpl(),w->getMax() - backward_sp->distTo(u),u));
 					explain_sp->set_source(u);
-					int relaxed_dist = w->getMax() - explain_sp->distTo(u);
+					const int relaxed_dist = w->getMax() - explain_sp->distTo(u);
 					explain_sp->reset(relaxed_dist, backward_sp);
 					explain_sp->set_explaining(dest);
 					explain_sp->run();
@@ -852,7 +869,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 					GiveFailureExplanation(fail_expl);
 					fail_expl.resize(old_s);
 #else
-					vector<Lit> lits;
+					std::vector<Lit> lits;
 					backward_sp_tmp->set_source(u);
 					backward_sp_tmp->run();
 					explain_sp->reset(w->getMax() - backward_sp->distTo(u), backward_sp_tmp, lits);
@@ -860,7 +877,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 					explain_sp->run();
 					// assert(check_expl(explain_sp->getExpl(),w->getMax() - backward_sp->distTo(u),u));
 					explain_sp->set_source(u);
-					int relaxed_dist = w->getMax() - explain_sp->distTo(u);
+					const int relaxed_dist = w->getMax() - explain_sp->distTo(u);
 					explain_sp->reset(relaxed_dist, backward_sp);
 					explain_sp->set_explaining(dest);
 					explain_sp->run();
@@ -885,10 +902,10 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 	}
 
 	//*
-	for (int u : removed_nodes) {
-		vector<int> removed_e;
+	for (const int u : removed_nodes) {
+		std::vector<int> removed_e;
 		coherence_outedges(u, removed_e);
-		for (int i : removed_e) {
+		for (const int i : removed_e) {
 			last_state_e[i] = VT_OUT;
 		}
 	}  //*/
@@ -906,14 +923,14 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 			min_r = ReasonNew(prop_expl);
 			prop_expl[1] = w->getMaxLit();
 #else
-			vector<Lit> lits;
+			std::vector<Lit> lits;
 			lits.push_back(w->getMaxLit());
 			backward_sp_tmp->set_source(arg_max);
 			backward_sp_tmp->run();
 			explain_sp->reset(max_d - backward_sp->distTo(arg_max), backward_sp_tmp, lits);
 			explain_sp->set_explaining(arg_max);
 			explain_sp->run();
-			int relaxed_dist = max_d - explain_sp->distTo(arg_max);
+			const int relaxed_dist = max_d - explain_sp->distTo(arg_max);
 			explain_sp->set_source(arg_max);
 			explain_sp->reset(relaxed_dist, backward_sp);
 			explain_sp->set_explaining(dest);
@@ -938,34 +955,34 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 			continue;
 		}
 
-		int hd = getHead(e);
-		int tl = getTail(e);
+		const int hd = getHead(e);
+		const int tl = getTail(e);
 
 		// We know how long it takes to get from the head of this edge
 		// to de destination: hd_to_d = backward_sp->distTo(hd).
 		// We know how long it takes to get from the source to the tail
 		// of this edge: s_to_tl = forward_sp->distTo(tl).
-		// How long would it take to get fromt he source to the destination
+		// How long would it take to get from the source to the destination
 		// if we used this edge:
 		// s_to_d_through_e = s_to_tl + ws[e] + hd_to_d
 
-		int hd_to_d = backward_sp->distTo(hd);
+		const int hd_to_d = backward_sp->distTo(hd);
 		if (hd_to_d == -1) {  // Destination can't reach this node
 			if (!falseOrFail(e, r)) {
-				cerr << "Error " << __FILE__ << " " << __LINE__ << endl;
+				std::cerr << "Error " << __FILE__ << " " << __LINE__ << '\n';
 				return false;
 			}
 			continue;
 		}
-		int s_to_tl = forward_sp->distTo(tl);
+		const int s_to_tl = forward_sp->distTo(tl);
 		if (s_to_tl == -1) {  // Source can't reach this node
 			if (!falseOrFail(e, r)) {
-				cerr << "Error " << __FILE__ << " " << __LINE__ << endl;
+				std::cerr << "Error " << __FILE__ << " " << __LINE__ << '\n';
 				return false;
 			}
 			continue;
 		}
-		int s_to_d_through_e = s_to_tl + ws[e] + hd_to_d;
+		const int s_to_d_through_e = s_to_tl + ws[e] + hd_to_d;
 
 		// if (backward_sp->isInShortestPath(tl,hd) ||
 		//     forward_sp->isInShortestPath(tl,hd))
@@ -985,7 +1002,7 @@ bool BoundedPathPropagator::propagate_dijkstra() {
 }
 
 struct kkl_sorter {
-	bool operator()(std::pair<pair<int, int>, int> i, std::pair<pair<int, int>, int> j) {
+	bool operator()(std::pair<std::pair<int, int>, int> i, std::pair<std::pair<int, int>, int> j) {
 		return (i.second < j.second);
 	}
 } kkl_sorter;
@@ -1043,22 +1060,20 @@ void bounded_path(int from, int to, vec<BoolView>& _vs, vec<BoolView>& _es, vec<
 	//     engine.propagators.push(bounded_path_p);
 }
 
-#if 0
-//Experimental, needs testing!!!
-void bounded_path(int from, int to, vec<BoolView>& _vs, vec<BoolView>& _es, 
-                  vec< vec<edge_id> >& _in, vec< vec<edge_id> >& _out, 
-        vec< vec<int> >& _en, vec<vec< int> >& _ws, IntVar* w) {
+// //Experimental, needs testing!!!
+// void bounded_path(int from, int to, vec<BoolView>& _vs, vec<BoolView>& _es,
+//                   vec< vec<edge_id> >& _in, vec< vec<edge_id> >& _out,
+//         vec< vec<int> >& _en, vec<vec< int> >& _ws, IntVar* w) {
 
-    bp_path_helper(from,to,_vs,_es,_in,_out,_en);
+//     bp_path_helper(from,to,_vs,_es,_in,_out,_en);
 
-    bounded_path_p = new BoundedPathPropagator(from, to ,_vs,_es,_in,_out,_en,_ws,w);
-    if (so.check_prop)
-        engine.propagators.push(bounded_path_p);
-}
-#endif
+//     bounded_path_p = new BoundedPathPropagator(from, to ,_vs,_es,_in,_out,_en,_ws,w);
+//     if (so.check_prop)
+//         engine.propagators.push(bounded_path_p);
+// }
 
 class ShortestPathSearch : public BranchGroup {
-	vector<int> decisions;
+	std::vector<int> decisions;
 	int last_dec_level;
 
 	ShortestPathSearch(vec<Branching*>& _x, VarBranch vb, bool t) : BranchGroup(_x, vb, t) {
@@ -1077,7 +1092,7 @@ public:
 
 	bool backtrack() {
 		if (last_dec_level >= engine.decisionLevel()) {
-			int remove = -(engine.decisionLevel() - last_dec_level);
+			const int remove = -(engine.decisionLevel() - last_dec_level);
 			// cout <<"Backtracked "<<remove<<endl;
 			for (int i = 0; i < remove; i++) {
 				decisions.pop_back();
@@ -1120,7 +1135,7 @@ public:
 		}
 
 		if (di == nullptr) {
-			for (int i = 0; i < x.size(); i++) {
+			for (unsigned int i = 0; i < x.size(); i++) {
 				if (!x[i]->finished()) {
 					// di = new DecInfo(x[i],0,1);
 					di = new DecInfo(nullptr, toInt(bounded_path_p->getEdgeVar(i).getLit(false)));

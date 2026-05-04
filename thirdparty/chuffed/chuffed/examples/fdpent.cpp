@@ -1,28 +1,26 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/mddglobals.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/globals/mddglobals.h"
+#include "chuffed/mdd/MDD.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/support/ParseUtils.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/modelling.h"
 
 #include <cassert>
-#include <cerrno>
-#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <iostream>
 #include <utility>
-// #include <chuffed/globals/circglobals.h>
-#include <chuffed/mdd/circ_fns.h>
-#include <chuffed/support/ParseUtils.h>
-#include <chuffed/vars/modelling.h>
-// #include <chuffed/hlist.h>
-// #include <chuffed/hlutils.h>
+#include <zlib.h>
 
 #define ROTATE 1
 #define REFLECT 2
 #define RESTR 4
-
-#include <utility>
 
 // hlist.h
 //=======================================
@@ -56,11 +54,9 @@ public:
 
 	hlnode(T _data, hlnode<T>* _next)
 			: extcount(0), length(_next ? _next->length + 1 : 1), data(std::move(_data)), next(_next) {
-#if 1
 		if (_next) {
 			(_next->extcount)++;
 		}
-#endif
 		//        fprintf(stdout,"Created: %d\n", _data);
 	}
 };
@@ -126,30 +122,26 @@ public:
 		return curr->data;
 	}
 
-	bool is_empty() { return root == nullptr; }
+	bool is_empty() const { return root == nullptr; }
 
 	~hlist() {
 		//      std::cout << "DES" << this << std::endl;
 		if (root) {
 			(root->extcount)--;
 			assert(root->extcount >= 0);
-#if 1
 			if (!(root->extcount)) {
 				delete root;
 				root = nullptr;
 			}
-#endif
 		}
 	}
 
-#if 0
-   int count(void)
-   {
-      if( root )
-         return root->extcount;
-      return 0;
-   }
-#endif
+	//  int count(void)
+	//  {
+	//     if( root )
+	//        return root->extcount;
+	//     return 0;
+	//  }
 
 	hlist<T> cons(const T el) {
 		//      hlnode<T>* next = new hlnode<T>(el,root);
@@ -254,14 +246,12 @@ hlist<T> array2hl(const T* array, unsigned int sz) {
 
 template <class T>
 std::ostream& operator<<(std::ostream& out, hlist<T> list) {
-#if 0
-    if (list.is_empty())
-    {
-        out << "[]";
-    } else {
-        out << "(" << head(list) << "," << tail(list) << ")";
-    }
-#else
+	// if (list.is_empty())
+	// {
+	//     out << "[]";
+	// } else {
+	//     out << "(" << head(list) << "," << tail(list) << ")";
+	// }
 	out << "[";
 	bool first = true;
 	while (!list.is_empty()) {
@@ -275,7 +265,6 @@ std::ostream& operator<<(std::ostream& out, hlist<T> list) {
 		list = tail(list);
 	}
 	out << "]";
-#endif
 	return out;
 }
 
@@ -367,12 +356,12 @@ hlist<T> replicate(int n, T el) {
 
 class Opts {
 public:
-	Opts() : reflect(true), rotate(true), restr(false), symbreak(false) {}
+	Opts() = default;
 
-	bool reflect;
-	bool rotate;
-	bool restr;
-	bool symbreak;
+	bool reflect{true};
+	bool rotate{true};
+	bool restr{false};
+	bool symbreak{false};
 };
 
 // combine(a, bs) === zipWith (:) a bs
@@ -410,7 +399,7 @@ hlist<hlist<T> > rotate(hlist<hlist<T> > original) {
 hlist<int> pent_seq(int width, hlist<hlist<int> > pattern) {
 	//   std::cout << pattern << std::endl;
 	if (pattern.is_empty()) {
-		return hlist<int>();
+		return {};
 	}
 
 	if (pattern.length() == 1) {
@@ -420,7 +409,7 @@ hlist<int> pent_seq(int width, hlist<hlist<int> > pattern) {
 				 (replicate(width - head(pattern).length(), 0) + pent_seq(width, tail(pattern)));
 }
 
-static hlist<intpair> pentDFApr(hlist<int> pattern, int node) {
+static hlist<intpair> pentDFApr(const hlist<int>& pattern, int node) {
 	// Assumes leading 0s and garbage state has been handled.
 	assert(node > 1);
 
@@ -432,7 +421,7 @@ static hlist<intpair> pentDFApr(hlist<int> pattern, int node) {
 							pentDFApr(tail(pattern), node + 1));
 }
 
-static hlist<intpair> pentDFA(hlist<int> pattern, int node = 0) {
+static hlist<intpair> pentDFA(const hlist<int>& pattern, int node = 0) {
 	assert(!pattern.is_empty());
 
 	// Handle garbage state.
@@ -456,25 +445,24 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 	hlist<intpair> dfa;
 	MDD pentmdd = tab.fff();
 
-	MDD restr = tab.ttt();
+	MDD const restr = tab.ttt();
 
-#if 0
-   if( flags&RESTR )
-   {
-      std::vector<unsigned int> doms;
-      for( int i = 0; i < height*width; i++ )
-          doms.push_back(domain);
+	//  if( flags&RESTR )
+	//  {
+	//     std::vector<unsigned int> doms;
+	//     for( int i = 0; i < height*width; i++ )
+	//         doms.push_back(domain);
 
-      for( int i = 0; i < height; i++ )
-      {
-         for( int j = 0; j < width-1; j++ )
-         {
-            restr = tab.mdd_and( tab.mdd_not( doms, tab.mdd_vareq((i*width + j),domain - 1) ), restr );
-         }
-         restr = tab.mdd_and( tab.mdd_vareq( ((i+1)*width)-1,domain - 1 ), restr );
-      }
-   }
-#endif
+	//     for( int i = 0; i < height; i++ )
+	//     {
+	//        for( int j = 0; j < width-1; j++ )
+	//        {
+	//           restr = tab.mdd_and( tab.mdd_not( doms, tab.mdd_vareq((i*width + j),domain - 1) ),
+	//           restr );
+	//        }
+	//        restr = tab.mdd_and( tab.mdd_vareq( ((i+1)*width)-1,domain - 1 ), restr );
+	//     }
+	//  }
 
 	for (int i = 0; i < 4; i++) {
 		if (pattern.length() <= height && head(pattern).length() < width) {
@@ -485,13 +473,13 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 			vec<vec<int> > transition;
 			int count = 0;
 			while (!dfa.is_empty()) {
-				intpair node = head(dfa);
+				const intpair node = head(dfa);
 
-				assert(transition.size() == count);
+				assert(static_cast<int>(transition.size()) == count);
 				transition.push();
 				for (int v = 0; v < domain; v++) {
 					// NOLINTBEGIN
-					assert(transition.last().size() == v);
+					assert(static_cast<int>(transition.last().size()) == v);
 					if (v == val) {
 						/*
 						 dfa_trans t = {
@@ -523,8 +511,8 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 			vec<int> accepts;
 			// accepts.push_back(count-1);
 			accepts.push(count);
-			int q0 = 1;
-			MDD orientation =
+			const int q0 = 1;
+			MDD const orientation =
 					MDD(&tab, fd_regular(tab, height * width, count + 1, transition, q0, accepts, false));
 			pentmdd = (restr & orientation) | pentmdd;
 		}
@@ -547,13 +535,13 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 				vec<vec<int> > transition;
 				int count = 0;
 				while (!dfa.is_empty()) {
-					intpair node = head(dfa);
+					const intpair node = head(dfa);
 
-					assert(transition.size() == count);
+					assert(static_cast<int>(transition.size()) == count);
 					transition.push();
 					for (int v = 0; v < domain; v++) {
 						// NOLINTBEGIN
-						assert(transition.last().size() == v);
+						assert(static_cast<int>(transition.last().size()) == v);
 						if (v == val) {
 							/*
 							 dfa_trans t = {
@@ -589,8 +577,8 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 				// transition, accepts)),
 				//                         pentmdd );
 				accepts.push(count);
-				int q0 = 1;
-				MDD orientation =
+				const int q0 = 1;
+				MDD const orientation =
 						MDD(&tab, fd_regular(tab, height * width, count + 1, transition, q0, accepts, false));
 				pentmdd = (restr & orientation) | pentmdd;
 			}
@@ -610,8 +598,8 @@ static MDD pentFD(MDDTable& tab, int domain, int val, int height, int width,
 class Pent : public Problem {
 public:
 	Pent(Opts& opts) {
-		MDDOpts mopts;
-		// == Read shapes. ==
+		const MDDOpts mopts;
+		// == Read const shapes. ==
 		gzFile file(gzdopen(0, "rb"));
 		Parse::StreamBuffer in(file);
 
@@ -626,12 +614,12 @@ public:
 			while (*in == '#') {
 				Parse::skipLine(in);
 			}
-			int r = Parse::parseInt(in);
-			int c = Parse::parseInt(in);
+			const int r = Parse::parseInt(in);
+			const int c = Parse::parseInt(in);
 			(void)c;
 
 			//      parseInt(in);
-			int count = Parse::parseInt(in);
+			const int count = Parse::parseInt(in);
 			counts = cons(count, counts);
 			nshapes += count;
 			Parse::skipLine(in);
@@ -675,12 +663,12 @@ public:
 		int shapeid = nshapes - 1;
 		while (!shapes.is_empty()) {
 			// Remember to correct for extra column.
-			int reps = head(counts);
+			const int reps = head(counts);
 			for (int rep = 0; rep < reps; rep++) {
 				//         std::cout << "START:" << shapeid << std::endl;
 				MDDTable tab((width + 1) * height);
 
-				MDD b(pentFD(tab, nshapes + 1, shapeid, height, width + 1, head(shapes), opts));
+				MDD const b(pentFD(tab, nshapes + 1, shapeid, height, width + 1, head(shapes), opts));
 
 				addMDD(inst, b, mopts);
 
@@ -694,21 +682,20 @@ public:
 		}
 
 		// Setup extra column.
-#if 0
-   vec<Lit> dead;
-   dead.push(Lit(0,0));
-   for( int i = 0; i < height; i++ )
-   {
-      dead[0] = Lit(deadcol[i][dom-1],1);
-      S.addClause(dead);
-   }
 
-   for( int i = 0; i < width*height; i++ )
-   {
-       dead[0] = Lit(sets[i][dom-1],0);
-       S.addClause(dead);
-   }
-#endif
+		//  vec<Lit> dead;
+		//  dead.push(Lit(0,0));
+		//  for( int i = 0; i < height; i++ )
+		//  {
+		//     dead[0] = Lit(deadcol[i][dom-1],1);
+		//     S.addClause(dead);
+		//  }
+
+		//  for( int i = 0; i < width*height; i++ )
+		//  {
+		//      dead[0] = Lit(sets[i][dom-1],0);
+		//      S.addClause(dead);
+		//  }
 
 		// Handle symmetry breaking.
 

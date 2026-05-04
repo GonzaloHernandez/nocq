@@ -23,6 +23,7 @@ typedef SSIZE_T ssize_t;
 
 #include <netdb.h>
 #include <unistd.h>
+#include <sys/socket.h>
 
 #endif
 
@@ -120,8 +121,8 @@ static int sendall(int s, const char* buf, int* len) {
     if (n == -1) {
       break;
     }
-    total += n;
-    bytesleft -= n;
+    total += static_cast<int>(n);
+    bytesleft -= static_cast<int>(n);
   }
 
   *len = total;  // return number actually sent here

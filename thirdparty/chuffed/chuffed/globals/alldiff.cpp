@@ -1,5 +1,19 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstring>
 #include <utility>
 
 // AllDiff for mapping n vars to n values
@@ -8,9 +22,9 @@
 template <int U = 0>
 class AllDiffValue : public Propagator, public Checker {
 public:
-	int const sz;
+	const int sz;
 	IntView<U>* const x;
-	int const range;
+	const int range;
 
 	// Intermediate state
 	vec<int> new_fixed;
@@ -39,7 +53,7 @@ public:
 		}
 	}
 
-	void wakeup(int i, int c) override {
+	void wakeup(int i, int /*c*/) override {
 		assert(x[i].isFixed());
 		new_fixed.push(i);
 		pushInQueue();
@@ -47,9 +61,9 @@ public:
 
 	bool propagate() override {
 		// fprintf(stderr, "AllDiffValue::propagate()\n");
-		for (int i = 0; i < new_fixed.size(); i++) {
-			int a = new_fixed[i];
-			int b = x[a].getVal();
+		for (unsigned int i = 0; i < new_fixed.size(); i++) {
+			const int a = new_fixed[i];
+			const int b = static_cast<int>(x[a].getVal());
 			// fprintf(stderr, "var %d == %d:\n", a, b);
 			Clause* r = nullptr;
 			if (so.lazy) {
@@ -130,9 +144,9 @@ int pathmax(const int* t, int i) {
 template <int U = 0>
 class AllDiffBounds : public Propagator, public Checker {
 public:
-	int const sz;
+	const int sz;
 	IntView<U>* const x;
-	int const range;
+	const int range;
 
 	interval* iv;
 	int* minsorted;
@@ -155,7 +169,7 @@ public:
 			maxsorted[i] = i;
 			x[i].attach(this, i, EVENT_LU);
 		}
-		int n = 2 * sz + 2;
+		const int n = 2 * sz + 2;
 		bounds = new int[n];
 		t = new int[n];
 		d = new int[n];
@@ -171,8 +185,8 @@ public:
 		int last;
 
 		for (int i = sz - 1; i >= 0; --i) {
-			int t = minsorted[i];
-			iv[t].min = x[t].getMin();
+			const int t = minsorted[i];
+			iv[t].min = static_cast<int>(x[t].getMin());
 			int j;
 			for (j = i; j < sz - 1; ++j) {
 				if (iv[t].min < iv[minsorted[j + 1]].min) {
@@ -183,8 +197,8 @@ public:
 			minsorted[j] = t;
 		}
 		for (int i = sz - 1; i >= 0; --i) {
-			int t = maxsorted[i];
-			iv[t].max = x[t].getMax() + 1;
+			const int t = maxsorted[i];
+			iv[t].max = static_cast<int>(x[t].getMax()) + 1;
 			int j;
 			for (j = i; j < sz - 1; ++j) {
 				if (iv[t].max < iv[maxsorted[j + 1]].max) {
@@ -234,8 +248,8 @@ public:
 			bucket[i] = -1;  // this could perhaps be avoided
 		}
 		for (i = 0; i < sz; i++) {  // visit intervals in increasing max order
-			int minrank = iv[maxsorted[i]].minrank;
-			int maxrank = iv[maxsorted[i]].maxrank;
+			const int minrank = iv[maxsorted[i]].minrank;
+			const int maxrank = iv[maxsorted[i]].maxrank;
 			// fprintf(stderr, "var %d [%d, %d)\n", maxsorted[i], bounds[minrank], bounds[maxrank]);
 			j = t[z = pathmax(t, minrank + 1)];
 			iv[maxsorted[i]].next = bucket[z];
@@ -247,7 +261,7 @@ public:
 			// if (d[z] < bounds[z]-bounds[maxrank]) return false; // no solution
 			if (h[minrank] > minrank) {
 				Clause* r = nullptr;
-				int hall_max = bounds[w = pathmax(h, h[minrank])];
+				const int hall_max = bounds[w = pathmax(h, h[minrank])];
 				if (so.lazy) {
 					int hall_min = bounds[minrank];
 					// here both k and hall_min are decreasing, stop when k catches up
@@ -302,8 +316,8 @@ public:
 			bucket[i] = -1;  // this could perhaps be avoided
 		}
 		for (i = sz; --i >= 0;) {  // visit intervals in decreasing min order
-			int maxrank = iv[minsorted[i]].maxrank;
-			int minrank = iv[minsorted[i]].minrank;
+			const int maxrank = iv[minsorted[i]].maxrank;
+			const int minrank = iv[minsorted[i]].minrank;
 			// fprintf(stderr, "var %d [%d, %d)\n", minsorted[i], bounds[minrank], bounds[maxrank]);
 			j = t[z = pathmin(t, maxrank - 1)];
 			--d[z];
@@ -316,7 +330,7 @@ public:
 			// if (d[z] < bounds[minrank]-bounds[z]) return false; // no solution
 			if (h[maxrank] < maxrank) {
 				Clause* r = nullptr;
-				int hall_min = bounds[w = pathmin(h, h[maxrank])];
+				const int hall_min = bounds[w = pathmin(h, h[maxrank])];
 				if (so.lazy) {
 					int hall_max = bounds[maxrank];
 					// here both k and hall_max are increasing, stop when k catches up
@@ -410,9 +424,9 @@ struct Node {
 template <int U = 0>
 class AllDiffDomain : public Propagator, public Checker {
 public:
-	int const sz;
+	const int sz;
 	IntView<U>* const x;
-	int const range;
+	const int range;
 
 	// Persistent state
 	Node* var_nodes;
@@ -445,8 +459,8 @@ public:
 		memset(scoreboard, 0, range);
 	}
 
-	void wakeup(int i, int c) override {
-		int j = var_nodes[i].match;
+	void wakeup(int i, int /*c*/) override {
+		const int j = var_nodes[i].match;
 		if (j >= 0 && !x[i].indomain(j)) {
 			var_nodes[i].match = -1;
 			val_nodes[j].match = -1;
@@ -482,7 +496,7 @@ public:
 						val = *i;
 						if (!val_nodes[val].mark) {
 							assert(val != var_nodes[var].match);
-							int next_var = val_nodes[val].match;
+							const int next_var = val_nodes[val].match;
 							if (next_var < 0) {
 								goto augment;
 							}
@@ -503,7 +517,7 @@ public:
 		augment:
 			// found an augmenting path
 			while (true) {
-				int parent_val = var_nodes[var].match;
+				const int parent_val = var_nodes[var].match;
 				val_nodes[val].match = var;
 				var_nodes[var].match = val;
 				if (parent_val < 0) {
@@ -540,7 +554,7 @@ public:
 			int vals = 0;
 			int min_val = INT_MAX;
 			int max_val = INT_MIN;
-			int scc = val_nodes[i].scc;
+			const int scc = val_nodes[i].scc;
 			for (int j = scc; j >= 0; j = var_nodes[j].next) {
 				if (j < sz) {
 					++vars;
@@ -579,7 +593,7 @@ public:
 	bool tarjan(int node) {
 		var_nodes[node].mark = true;
 
-		int index_save = index++;
+		const int index_save = index++;
 		var_nodes[node].index = index_save;
 
 		var_nodes[node].next = stack;
@@ -590,7 +604,7 @@ public:
 		if (node < sz) {
 			// visiting var node
 			for (typename IntView<U>::iterator i = x[node].begin(); i != x[node].end();) {
-				int val = *i++;
+				const int val = *i++;
 				if (!val_nodes[val].mark && !tarjan(sz + val)) {
 					return false;
 				}
@@ -603,7 +617,7 @@ public:
 			}
 		} else {
 			// visiting val node
-			int var = var_nodes[node].match;
+			const int var = var_nodes[node].match;
 			if (var < 0) {
 				var_nodes[node].leak = true;  // unassigned value
 			} else {
@@ -618,8 +632,8 @@ public:
 		}
 
 		if (var_nodes[node].index >= index_save) {  // node is SCC-root
-			int leak = static_cast<int>(var_nodes[node].leak);
-			int scc = stack;
+			const int leak = static_cast<int>(var_nodes[node].leak);
+			const int scc = stack;
 			stack = var_nodes[node].next;
 			var_nodes[node].next = -1;
 
@@ -662,9 +676,9 @@ template <int U = 0>
 class AllDiffBoundsImp : public Propagator {
 public:
 	BoolView b;
-	int const sz;
+	const int sz;
 	IntView<U>* const x;
-	int const range;
+	const int range;
 
 	interval* iv;
 	int* minsorted;
@@ -689,7 +703,7 @@ public:
 			x[i].attach(this, i, EVENT_LU);
 		}
 		b.attach(this, -1, EVENT_LU);
-		int n = 2 * sz + 2;
+		const int n = 2 * sz + 2;
 		bounds = new int[n];
 		t = new int[n];
 		d = new int[n];
@@ -705,8 +719,8 @@ public:
 		int last;
 
 		for (int i = sz - 1; i >= 0; --i) {
-			int t = minsorted[i];
-			iv[t].min = x[t].getMin();
+			const int t = minsorted[i];
+			iv[t].min = static_cast<int>(x[t].getMin());
 			int j;
 			for (j = i; j < sz - 1; ++j) {
 				if (iv[t].min < iv[minsorted[j + 1]].min) {
@@ -717,8 +731,8 @@ public:
 			minsorted[j] = t;
 		}
 		for (int i = sz - 1; i >= 0; --i) {
-			int t = maxsorted[i];
-			iv[t].max = x[t].getMax() + 1;
+			const int t = maxsorted[i];
+			iv[t].max = static_cast<int>(x[t].getMax()) + 1;
 			int j;
 			for (j = i; j < sz - 1; ++j) {
 				if (iv[t].max < iv[maxsorted[j + 1]].max) {
@@ -768,8 +782,8 @@ public:
 			bucket[i] = -1;  // this could perhaps be avoided
 		}
 		for (i = 0; i < sz; i++) {  // visit intervals in increasing max order
-			int minrank = iv[maxsorted[i]].minrank;
-			int maxrank = iv[maxsorted[i]].maxrank;
+			const int minrank = iv[maxsorted[i]].minrank;
+			const int maxrank = iv[maxsorted[i]].maxrank;
 			// fprintf(stderr, "var %d [%d, %d)\n", maxsorted[i], bounds[minrank], bounds[maxrank]);
 			j = t[z = pathmax(t, minrank + 1)];
 			iv[maxsorted[i]].next = bucket[z];
@@ -781,7 +795,7 @@ public:
 			// if (d[z] < bounds[z]-bounds[maxrank]) return false; // no solution
 			if (h[minrank] > minrank) {
 				Clause* r = nullptr;
-				int hall_max = bounds[w = pathmax(h, h[minrank])];
+				const int hall_max = bounds[w = pathmax(h, h[minrank])];
 				if (so.lazy) {
 					int hall_min = bounds[minrank];
 					// here both k and hall_min are decreasing, stop when k catches up
@@ -845,8 +859,8 @@ public:
 			bucket[i] = -1;  // this could perhaps be avoided
 		}
 		for (i = sz; --i >= 0;) {  // visit intervals in decreasing min order
-			int maxrank = iv[minsorted[i]].maxrank;
-			int minrank = iv[minsorted[i]].minrank;
+			const int maxrank = iv[minsorted[i]].maxrank;
+			const int minrank = iv[minsorted[i]].minrank;
 			// fprintf(stderr, "var %d [%d, %d)\n", minsorted[i], bounds[minrank], bounds[maxrank]);
 			j = t[z = pathmin(t, maxrank - 1)];
 			--d[z];
@@ -859,7 +873,7 @@ public:
 			// if (d[z] < bounds[minrank]-bounds[z]) return false; // no solution
 			if (h[maxrank] < maxrank) {
 				Clause* r = nullptr;
-				int hall_min = bounds[w = pathmin(h, h[maxrank])];
+				const int hall_min = bounds[w = pathmin(h, h[maxrank])];
 				if (so.lazy) {
 					int hall_max = bounds[maxrank];
 					// here both k and hall_max are increasing, stop when k catches up
@@ -926,10 +940,10 @@ public:
 	}
 };
 
-void all_different_imp(BoolView b, vec<IntVar*>& x, ConLevel cl) {
+void all_different_imp(const BoolView& b, vec<IntVar*>& x, ConLevel cl) {
 	int min = INT_MAX;
 	int max = INT_MIN;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		if (x[i]->getMin() < min) {
 			min = x[i]->getMin();
 		}
@@ -937,12 +951,12 @@ void all_different_imp(BoolView b, vec<IntVar*>& x, ConLevel cl) {
 			max = x[i]->getMax();
 		}
 	}
-	int range = max + 1 - min;
+	const int range = max + 1 - min;
 	if (!(cl == CL_BND || cl == CL_DEF)) {
 		NOT_SUPPORTED;
 	}
 	vec<IntView<> > u;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		u.push(IntView<>(x[i], 1, -min));
 	}
 	if (min == 0) {
@@ -955,7 +969,7 @@ void all_different_imp(BoolView b, vec<IntVar*>& x, ConLevel cl) {
 void all_different(vec<IntVar*>& x, ConLevel cl) {
 	int min = INT_MAX;
 	int max = INT_MIN;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		if (x[i]->getMin() < min) {
 			min = x[i]->getMin();
 		}
@@ -963,10 +977,10 @@ void all_different(vec<IntVar*>& x, ConLevel cl) {
 			max = x[i]->getMax();
 		}
 	}
-	int range = max + 1 - min;
+	const int range = max + 1 - min;
 	if (cl == CL_DOM) {
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, -min));
 		}
 		if (min == 0) {
@@ -982,9 +996,9 @@ void all_different(vec<IntVar*>& x, ConLevel cl) {
 		// consistency level is specified as "domain". There is an issue with the
 		// value propagator in the case "IntVarLL" integer variables are involved
 		// (see Issue #10). In the future, it needs to be decided how to
-		// permamently fix this issue.
+		// permanently fix this issue.
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, -min));
 		}
 		if (min == 0) {
@@ -997,7 +1011,7 @@ void all_different(vec<IntVar*>& x, ConLevel cl) {
 		}
 	}
 	vec<IntView<> > u;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		u.push(IntView<>(x[i], 1, -min));
 	}
 	if (min == 0) {
@@ -1010,7 +1024,7 @@ void all_different(vec<IntVar*>& x, ConLevel cl) {
 void all_different_offset(vec<int>& a, vec<IntVar*>& x, ConLevel cl) {
 	int min = INT_MAX;
 	int max = INT_MIN;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		if (a[i] + x[i]->getMin() < min) {
 			min = a[i] + x[i]->getMin();
 		}
@@ -1018,10 +1032,10 @@ void all_different_offset(vec<int>& a, vec<IntVar*>& x, ConLevel cl) {
 			max = a[i] + x[i]->getMax();
 		}
 	}
-	int range = max + 1 - min;
+	const int range = max + 1 - min;
 	if (cl == CL_BND) {
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, a[i] - min));
 		}
 		new AllDiffBounds<4>(u, range);
@@ -1030,7 +1044,7 @@ void all_different_offset(vec<int>& a, vec<IntVar*>& x, ConLevel cl) {
 		}
 	} else if (cl == CL_DOM) {
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, a[i] - min));
 		}
 		new AllDiffDomain<4>(u, range);
@@ -1039,7 +1053,7 @@ void all_different_offset(vec<int>& a, vec<IntVar*>& x, ConLevel cl) {
 		}
 	}
 	vec<IntView<> > u;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		u.push(IntView<>(x[i], 1, a[i] - min));
 	}
 	new AllDiffValue<4>(u, range);
@@ -1051,7 +1065,7 @@ void all_different_offset(vec<int>& a, vec<IntVar*>& x, ConLevel cl) {
 
 void inverse(vec<IntVar*>& x, vec<IntVar*>& y, int o1, int o2, ConLevel cl) {
 	assert(x.size() == y.size());
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		TL_SET(x[i], setMin, o1);
 		TL_SET(x[i], setMax, o1 + x.size() - 1);
 		TL_SET(y[i], setMin, o2);
@@ -1059,7 +1073,7 @@ void inverse(vec<IntVar*>& x, vec<IntVar*>& y, int o1, int o2, ConLevel cl) {
 	}
 	if (cl == CL_BND) {
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, -o1));
 		}
 		if (o1 == 0) {
@@ -1069,7 +1083,7 @@ void inverse(vec<IntVar*>& x, vec<IntVar*>& y, int o1, int o2, ConLevel cl) {
 		}
 	} else if (cl == CL_DOM) {
 		vec<IntView<> > u;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			u.push(IntView<>(x[i], 1, -o1));
 		}
 		if (o1 == 0) {
@@ -1078,14 +1092,14 @@ void inverse(vec<IntVar*>& x, vec<IntVar*>& y, int o1, int o2, ConLevel cl) {
 			new AllDiffDomain<4>(u, x.size());
 		}
 	}
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		x[i]->specialiseToEL();
 	}
-	for (int i = 0; i < y.size(); i++) {
+	for (unsigned int i = 0; i < y.size(); i++) {
 		y[i]->specialiseToEL();
 	}
-	for (int i = 0; i < x.size(); i++) {
-		for (int j = 0; j < y.size(); j++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
+		for (unsigned int j = 0; j < y.size(); j++) {
 			sat.addClause(x[i]->getLit(o1 + j, LR_NE), y[j]->getLit(o2 + i, LR_EQ));
 			sat.addClause(x[i]->getLit(o1 + j, LR_EQ), y[j]->getLit(o2 + i, LR_NE));
 		}

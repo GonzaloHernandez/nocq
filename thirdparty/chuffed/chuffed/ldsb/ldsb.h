@@ -1,11 +1,9 @@
 #ifndef ldsb_h
 #define ldsb_h
 
-#include <chuffed/support/misc.h>
+#include "chuffed/support/misc.h"
 
 #include <utility>
-
-using namespace std;
 
 class Clause;
 class IntVar;
@@ -16,7 +14,7 @@ class Symmetry;
 class LDSB {
 public:
 	vec<Symmetry*> symmetries;
-	vec<vec<pair<int, int> > >
+	vec<vec<std::pair<int, int> > >
 			lookupTable;  // lookup by var_id, which symmetries it is in and what pos in that symmetry
 
 	vec<Clause*> sym_learnts;  // List of symmetric learnt clauses

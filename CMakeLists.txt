@@ -45,11 +45,14 @@ endif()
 target_include_directories(nocq PRIVATE 
     src/
     thirdparty/chuffed
+    "${CMAKE_CURRENT_BINARY_DIR}/chuffed_build"
 )
 
 target_link_libraries(nocq PRIVATE 
     "${CMAKE_CURRENT_BINARY_DIR}/chuffed_build/libchuffed.a"
-    pthread
+    "${CMAKE_CURRENT_BINARY_DIR}/chuffed_build/libchuffed_fzn.a"
+    "${CMAKE_CURRENT_BINARY_DIR}/chuffed_build/libchuffed.a"
+    ${CMAKE_THREAD_LIBS_INIT}
 )
 
 add_dependencies(nocq chuffed_project)

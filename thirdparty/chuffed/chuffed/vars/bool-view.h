@@ -1,8 +1,8 @@
 #ifndef bool_view_h
 #define bool_view_h
 
-#include <chuffed/core/sat.h>
-#include <chuffed/vars/vars.h>
+#include "chuffed/core/sat.h"
+#include "chuffed/vars/vars.h"
 
 class Propagator;
 
@@ -11,10 +11,10 @@ class BoolView : public Var {
 	bool s;
 
 public:
-	BoolView() {}
+	BoolView() = default;
 	BoolView(Lit p) : v(var(p)), s(sign(p)) {}
 
-	friend BoolView operator~(BoolView& o) { return BoolView(o.getLit(false)); }
+	friend BoolView operator~(BoolView& o) { return {o.getLit(false)}; }
 
 	friend bool operator<(const BoolView& a, const BoolView& b) {
 		return (2 * a.v + static_cast<int>(a.s) < 2 * b.v + static_cast<int>(b.s));
@@ -75,13 +75,13 @@ public:
 
 	bool setVal2(bool x, Reason r = nullptr) const {
 		assert(setValNotR(x));
-		sat.enqueue(getLit(x), r.pt);
+		sat.enqueue(getLit(x), r);
 		return (sat.confl == nullptr);
 	}
 
 	operator Lit() const { return getLit(true); }
 	Lit operator=(bool v) const { return getLit(v); }
-	bool operator==(BoolView o) const { return v == o.v && s == o.s; }
+	bool operator==(const BoolView& o) const { return v == o.v && s == o.s; }
 
 	void setLearnable(bool learnable) const { sat.flags[v].setLearnable(learnable); }
 
@@ -94,7 +94,7 @@ const BoolView bv_true(lit_True);
 const BoolView bv_false(lit_False);
 
 inline BoolView newBoolVar(int min = 0, int max = 1) {
-	int varNumber = sat.newVar();
+	const int varNumber = sat.newVar();
 	BoolView v(Lit(varNumber, false));
 	if (min == 1) {
 		v.setVal(true);

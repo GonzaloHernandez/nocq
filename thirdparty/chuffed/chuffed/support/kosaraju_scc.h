@@ -33,18 +33,18 @@ public:
 	KosarajuSCC(int v, std::vector<std::vector<int> > outgoing,
 							std::vector<std::vector<int> > ingoing, std::vector<std::vector<int> > ends);
 
-	virtual ~KosarajuSCC() {}
+	virtual ~KosarajuSCC() = default;
 
-	virtual bool ignore_edge(int e) { return false; }
-	virtual bool ignore_node(int n) { return false; }
-	virtual bool mandatory_node(int n) { return false; }
+	virtual bool ignore_edge(int /*e*/) { return false; }
+	virtual bool ignore_node(int /*n*/) { return false; }
+	virtual bool mandatory_node(int /*n*/) { return false; }
 
 	// The main function that finds and prints strongly connected
 	// components
 	void run();
 	inline int scc_of(int u) { return scc[u]; }
 	inline std::vector<int> get_scc(int i) { return sccs[i]; }
-	inline int nb_sccs() { return sccs.size(); }
+	int nb_sccs() { return static_cast<int>(sccs.size()); }
 
 	// Levels
 	void _set_levels(int start, int sink);
@@ -52,7 +52,7 @@ public:
 												std::vector<std::vector<int> >& ends, std::queue<int>& sort,
 												std::vector<bool>& seen);
 	void _set_levels(int u, bool vis[], std::unordered_map<int, bool>& mscc, int parent = -1,
-									 std::string des = "");
+									 const std::string& des = "");
 	void set_levels(int start, int sink);
 	inline int level_of_scc(int scc) { return levels[scc]; }
 	inline bool scc_mand(int scc) { return is_mand[scc]; }

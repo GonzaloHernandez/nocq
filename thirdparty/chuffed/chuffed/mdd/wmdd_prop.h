@@ -1,20 +1,20 @@
 #ifndef EVMDD_PROP_H_
 #define EVMDD_PROP_H_
 // Propagator for weighted (edge-valued) MDDs.
-#include <chuffed/core/propagator.h>
-#include <chuffed/mdd/opts.h>
-#include <chuffed/mdd/weighted_dfa.h>
-#include <chuffed/support/BVec.h>
-#include <chuffed/support/misc.h>
-#include <chuffed/support/sparse_set.h>
-#include <chuffed/vars/int-view.h>
+#include "chuffed/core/propagator.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/mdd/weighted_dfa.h"
+#include "chuffed/support/BVec.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/sparse_set.h"
+#include "chuffed/vars/int-view.h"
 
 #include <climits>
 #include <utility>
 
-typedef int EdgeID;
+using EdgeID = int;
 
-typedef struct {
+struct Edge {
 	// Permanent properties
 	int val;
 	int weight;
@@ -24,20 +24,20 @@ typedef struct {
 	// Transient info
 	unsigned int kill_flags;
 	unsigned int watch_flags;
-} Edge;
+};
 
 // A disjunction of edges.
-typedef struct {
+struct Disj {
 	int sz;
 	int curr_sz;
 	EdgeID edges[1];
-} Disj;
+};
 
 // Separation of the watch from the clause.
 // Seems to add complexity without any real benefit.
-typedef Disj* DisjRef;
+using DisjRef = Disj*;
 
-typedef struct {
+struct Val {
 	int var;
 	int val;
 	DisjRef edges;
@@ -45,9 +45,9 @@ typedef struct {
 	// Transient info
 	unsigned int status;
 	//  unsigned int val_lim;
-} Val;
+};
 
-typedef struct {
+struct Node {
 	// Basic properties
 	int var;
 	DisjRef in;
@@ -61,7 +61,7 @@ typedef struct {
 	int in_value;
 	int out_value;
 	int status;
-} Node;
+};
 
 class WMDDProp : public Propagator {
 	// ====================================
@@ -111,7 +111,7 @@ public:
 
 	// Wake up only parts relevant to this event
 	void wakeup(int i, int c) override {
-		if (i == boolvars.size()) {
+		if (i == static_cast<int>(boolvars.size())) {
 			// Cost has changed.
 			assert(c & EVENT_U);
 			cost_changed = true;
@@ -132,7 +132,7 @@ public:
 	inline bool edge_dead(int eid) { return dead_edges.elem(eid); }
 
 	inline int edge_pathC(int eid) {
-		Edge& e(edges[eid]);
+		const Edge& e(edges[eid]);
 		return nodes[e.begin].in_pathC + e.weight + nodes[e.end].out_pathC;
 	}
 
@@ -168,7 +168,7 @@ protected:
 		p_info.push(Pinfo(engine.getBTPos(), leaf));
 		return Reason(prop_id, p_info.size()-1);
 		*/
-		return Reason(prop_id, leaf);
+		return {prop_id, leaf};
 	}
 	/*
 	Reason createReason(BTPos pos, int leaf) {
@@ -229,8 +229,8 @@ protected:
 	vec<int> out_base;
 
 	// FIXME: Not yet initialized
-	int root;
-	int T;
+	int root{1};
+	int T{0};
 
 	vec<Edge> edges;
 	TBitVec dead_edges;

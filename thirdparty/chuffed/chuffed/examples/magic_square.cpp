@@ -1,16 +1,20 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/ldsb/ldsb.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/ldsb/ldsb.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/modelling.h"
 
 #include <cassert>
-#include <cstdio>
+#include <cstdlib>
+#include <ostream>
 
 class MagicSquare : public Problem {
 public:
-	int const n;
-	int const sum;
+	const int n;
+	const int sum;
 	vec<vec<IntVar*> > x;  // squares labels
 
 	MagicSquare(int _n) : n(_n), sum(n * (n * n + 1) / 2) {

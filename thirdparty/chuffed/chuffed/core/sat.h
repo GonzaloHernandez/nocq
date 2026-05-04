@@ -1,10 +1,10 @@
 #ifndef sat_h
 #define sat_h
 
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/sat-types.h>
-#include <chuffed/support/heap.h>
-#include <chuffed/support/misc.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/support/heap.h"
+#include "chuffed/support/misc.h"
 
 #include <climits>
 #include <cmath>
@@ -35,7 +35,7 @@ inline std::string getLitString(int n) {
 	if (n == toInt(~lit_False)) {
 		return "true";
 	}
-	std::map<int, std::string>::const_iterator it = litString.find(n);
+	const std::map<int, std::string>::const_iterator it = litString.find(n);
 	if (it != litString.end()) {
 		return it->second;
 	}
@@ -85,7 +85,7 @@ public:
 	vec<vec<Clause*> > rtrail;  // List of temporary reason clauses
 
 	// Intermediate state
-	Clause* confl;
+	Clause* confl{nullptr};
 	int index;
 	vec<Lit> out_learnt;
 	vec<int> out_learnt_level;
@@ -101,8 +101,8 @@ public:
 	Clause* short_confl;
 
 	// VSIDS
-	double var_inc;        // Amount to bump variable with.
-	double cla_inc;        // Amount to bump clause with.
+	double var_inc{1};     // Amount to bump variable with.
+	double cla_inc{1};     // Amount to bump clause with.
 	vec<double> activity;  // A heuristic measurement of the activity of a variable.
 	Heap<VarOrderLt>
 			order_heap;  // A priority queue of variables ordered with respect to the variable activity.
@@ -117,17 +117,17 @@ public:
 	void learntLenBumpActivity(int l);
 
 	// Statistics
-	int bin_clauses, tern_clauses, long_clauses, learnt_clauses;
-	long long int propagations, back_jumps, nrestarts, next_simp_db;
-	long long int clauses_literals, learnts_literals, max_literals, tot_literals;
-	double avg_depth;
-	double confl_rate;
+	int bin_clauses{0}, tern_clauses{0}, long_clauses{0}, learnt_clauses{0};
+	long long int propagations{0}, back_jumps{0}, nrestarts{0}, next_simp_db{100000};
+	long long int clauses_literals{0}, learnts_literals{0}, max_literals{0}, tot_literals{0};
+	double avg_depth{100};
+	double confl_rate{1000};
 
 	// Parallel
 
 	time_point ll_time;
-	double ll_inc;
-	double learnt_len_el;
+	double ll_inc{1};
+	double learnt_len_el{10};
 	vec<double> learnt_len_occ;
 
 	// Propagator methods
@@ -163,12 +163,12 @@ public:
 	// Branching methods
 
 	bool finished() override;
-	double getScore(VarBranch vb) override { NEVER; }
+	double getScore(VarBranch /*vb*/) override { NEVER; }
 	DecInfo* branch() override;
 
 	// Solution-based phase saving
 	void saveCurrentPolarities() {
-		for (int i = 0; i < assigns.size(); i++) {
+		for (unsigned int i = 0; i < assigns.size(); i++) {
 			if (assigns[i] == toInt(l_True)) {
 				polarity[i] = false;  // False means to branch 'true' on this SAT variable
 			} else if (assigns[i] == toInt(l_False)) {
@@ -187,12 +187,12 @@ public:
 	void clearSeen();
 	int findBackTrackLevel();
 
-	bool consistent() const { return qhead.last() == trail.last().size(); }
+	bool consistent() const { return static_cast<unsigned int>(qhead.last()) == trail.last().size(); }
 	int nVars() const { return assigns.size(); }
 	int decisionLevel() const { return trail.size() - 1; }
 	Lit decLit(int i) const { return trail[i][0]; }
 	lbool value(Lit p) const { return toLbool(assigns[var(p)]) ^ sign(p); }
-	bool locked(Clause& c) const { return reason[var(c[0])].pt == &c && value(c[0]) == l_True; }
+	bool locked(Clause& c) const { return reason[var(c[0])].pt() == &c && value(c[0]) == l_True; }
 
 	void newDecisionLevel();
 	void incVarUse(int v);
@@ -242,19 +242,19 @@ inline void SAT::decVarUse(int v) {
 }
 
 inline Clause* SAT::getExpl(Lit p) {
-	Reason& r = reason[var(p)];
-	switch (r.d.type) {
+	const Reason& r = reason[var(p)];
+	switch (r.type()) {
 		case 0:
-			return r.pt;
+			return r.pt();
 		case 1:
 			btToPos(index, trailpos[var(p)]);
 			return _getExpl(p);
 		default:
 			Clause& c = *short_expl;
-			c.sz = r.d.type;
-			c[1] = toLit(r.d.d1);
+			c.sz = r.type();
+			c[1] = toLit(r.d1());
 			if (c.sz == 3) {
-				c[2] = toLit(r.d.d2);
+				c[2] = toLit(r.d2());
 			}
 			return short_expl;
 	}

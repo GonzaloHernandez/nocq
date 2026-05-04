@@ -1,7 +1,11 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/mddglobals.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/globals/mddglobals.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
 
 #include <cassert>
 #include <cstdio>
@@ -85,7 +89,7 @@ public:
 		}
 
 		vec<IntVar*> pref_order;
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			pref_order.push(x[i]);
 		}
 
@@ -95,7 +99,7 @@ public:
 
 	void print(std::ostream& os) override {
 		for (int i = 0; i < nvars; i++) {
-			int v = x[i]->getVal();
+			const int v = x[i]->getVal();
 			os << i << ": " << v << "\n";
 		}
 	}

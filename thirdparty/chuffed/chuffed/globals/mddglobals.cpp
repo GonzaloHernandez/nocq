@@ -1,19 +1,23 @@
-#include <vector>
-// #include <chuffed/Vec.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/mddglobals.h>
-#include <chuffed/mdd/MDD.h>
-#include <chuffed/mdd/mdd_prop.h>
-#include <chuffed/mdd/opts.h>
-#include <chuffed/mdd/weighted_dfa.h>
-#include <chuffed/mdd/wmdd_prop.h>
-// #include <chuffed/mdd/case.h>
+#include "chuffed/globals/mddglobals.h"
 
-typedef struct {
+#include "chuffed/core/sat.h"
+#include "chuffed/mdd/MDD.h"
+#include "chuffed/mdd/mdd_prop.h"
+#include "chuffed/mdd/opts.h"
+#include "chuffed/mdd/weighted_dfa.h"
+#include "chuffed/mdd/wmdd_prop.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+
+#include <cassert>
+#include <vector>
+
+struct dfa_trans {
 	int state;
 	int value;
 	int dest;
-} dfa_trans;
+};
 
 static void addMDDProp(vec<IntVar*>& x, MDDTable& tab, MDDNodeInt m, const MDDOpts& mopts);
 
@@ -43,7 +47,7 @@ static void addMDDProp(vec<IntVar*>& x, MDDTable& tab, MDDNodeInt m, const MDDOp
 	vec<IntView<> > w;
 
 	vec<intpair> bounds;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		bounds.push(intpair(x[i]->getMin(), x[i]->getMax()));
 		doms.push(x[i]->getMax() + 1);
 		// assert( x[i]->getMin() == 0 );
@@ -51,10 +55,10 @@ static void addMDDProp(vec<IntVar*>& x, MDDTable& tab, MDDNodeInt m, const MDDOp
 	//   m = tab.bound(m, bounds);
 	//   m = tab.expand(0, m);
 
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		x[i]->specialiseToEL();
 	}
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		w.push(IntView<>(x[i], 1, 0));
 	}
 
@@ -66,10 +70,10 @@ static void addMDDProp(vec<IntVar*>& x, MDDTable& tab, MDDNodeInt m, const MDDOp
 // x: Vars | q: # states | s: alphabet size | d[state,symbol] -> state | q0: start state | f:
 // accepts States range from 1..q (0 is reserved as dead)
 //
-void mdd_regular(vec<IntVar*>& x, int q, int s, vec<vec<int> >& d, int q0, vec<int>& f, bool offset,
-								 const MDDOpts& mopts) {
+void mdd_regular(vec<IntVar*>& x, int q, int /*s*/, vec<vec<int> >& d, int q0, vec<int>& f,
+								 bool offset, const MDDOpts& mopts) {
 	MDDTable tab(x.size());
-	MDDNodeInt m(fd_regular(tab, x.size(), q + 1, d, q0, f, offset));
+	const MDDNodeInt m(fd_regular(tab, x.size(), q + 1, d, q0, f, offset));
 	addMDDProp(x, tab, m, mopts);
 }
 
@@ -77,7 +81,7 @@ void mdd_table(vec<IntVar*>& x, vec<vec<int> >& t, const MDDOpts& mopts) {
 	vec<int> doms;
 
 	int maxdom = 0;
-	for (int i = 0; i < x.size(); i++) {
+	for (unsigned int i = 0; i < x.size(); i++) {
 		// assert(x[i]->getMin() == 0);
 		doms.push(x[i]->getMax() + 1);
 
@@ -89,7 +93,7 @@ void mdd_table(vec<IntVar*>& x, vec<vec<int> >& t, const MDDOpts& mopts) {
 	MDDTable tab(x.size());
 
 	// Assumes a positive table.
-	MDDNodeInt m(mdd_table(tab, x.size(), doms, t, true));
+	const MDDNodeInt m(mdd_table(tab, x.size(), doms, t, true));
 
 	//   tab.print_mdd_tikz(m);
 
@@ -100,17 +104,18 @@ void mdd_table(vec<IntVar*>& x, vec<vec<int> >& t, const MDDOpts& mopts) {
 // entries, bool is_pos)
 MDDNodeInt mdd_table(MDDTable& mddtab, int arity, vec<int>& doms, vec<vec<int> >& entries,
 										 bool is_pos) {
-	assert(doms.size() == arity);
+	assert(static_cast<int>(doms.size()) == arity);
 
 	MDDNodeInt table = MDDFALSE;
 
-	for (int i = 0; i < entries.size(); i++) {
+	for (unsigned int i = 0; i < entries.size(); i++) {
 		table = mddtab.mdd_or(table, mddtab.tuple(entries[i]));
 	}
 
 	if (!is_pos) {
 		std::vector<unsigned int> vdoms;
-		for (int i = 0; i < doms.size(); i++) {
+		vdoms.reserve(doms.size());
+		for (unsigned int i = 0; i < doms.size(); i++) {
 			vdoms.push_back(doms[i]);
 		}
 
@@ -130,7 +135,7 @@ MDDNodeInt fd_regular(MDDTable& tab, int n, int nstates, vec<vec<int> >& transit
 		states[i].push_back(MDDFALSE);
 	}
 
-	for (int i = 0; i < accepts.size(); i++) {
+	for (unsigned int i = 0; i < accepts.size(); i++) {
 		states[accepts[i] - 1][0] = MDDTRUE;
 	}
 
@@ -139,7 +144,7 @@ MDDNodeInt fd_regular(MDDTable& tab, int n, int nstates, vec<vec<int> >& transit
 	for (int j = n - 1; j >= 0; j--) {
 		for (int i = 0; i < nstates - 1; i++) {
 			std::vector<edgepair> cases;
-			for (int k = 0; k < transition[i].size(); k++) {
+			for (unsigned int k = 0; k < transition[i].size(); k++) {
 				if (transition[i][k] > 0) {
 					cases.emplace_back(offset ? k + 1 : k, states[transition[i][k] - 1][prevlevel]);
 				}
@@ -149,7 +154,7 @@ MDDNodeInt fd_regular(MDDTable& tab, int n, int nstates, vec<vec<int> >& transit
 		prevlevel++;
 	}
 
-	MDDNodeInt out(states[q0 - 1][states[0].size() - 1]);
+	const MDDNodeInt out(states[q0 - 1][states[0].size() - 1]);
 
 	return out;
 }
@@ -167,12 +172,12 @@ void wmdd_cost_regular(vec<IntVar*>& x, int q, int s, vec<vec<int> >& d, vec<vec
 		vec<int>& w_q(w[qi]);
 
 		for (int vi = 0; vi < s; vi++) {
-			WDFATrans t = {w_q[vi], d_q[vi]};
+			const WDFATrans t = {w_q[vi], d_q[vi]};
 			T.push(t);
 		}
 	}
 
 	EVLayerGraph g;
-	EVLayerGraph::NodeID root = wdfa_to_layergraph(g, x.size(), s, (WDFATrans*)T, q, q0, f);
+	const EVLayerGraph::NodeID root = wdfa_to_layergraph(g, x.size(), s, (WDFATrans*)T, q, q0, f);
 	evgraph_to_wmdd(x, cost, g, root, mopts);
 }

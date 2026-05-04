@@ -1,8 +1,26 @@
-#include <chuffed/mip/mip.h>
-#include <chuffed/vars/int-var.h>
+#include "chuffed/vars/int-var.h"
 
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/mip/mip.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/vars.h"
+
+#include <algorithm>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <map>
 #include <sstream>
+#include <string>
 
 // When set, branch variable (first_fail) and value (indomain_median,
 // indomain_split, indomain_reverse_split) specifications will count domain
@@ -10,35 +28,12 @@
 // (There is not too much penalty if INT_DOMAIN_LIST enabled in int-var.h).
 #define INT_BRANCH_HOLES 0
 
-using namespace std;
-
-map<int, IntVar*> ic_map;
+std::map<int, IntVar*> ic_map;
 
 extern std::map<IntVar*, std::string> intVarString;
 
 IntVar::IntVar(int _min, int _max)
-		: var_id(engine.vars.size()),
-			min(_min),
-			max(_max),
-			min0(_min),
-			max0(_max),
-			shadow_val(0),
-			in_scip(false),
-			all_in_scip(true),
-			should_be_learnable(true),
-			should_be_decidable(true),
-			vals(nullptr),
-			preferred_val(PV_MIN),
-			activity(0),
-			in_queue(false),
-			sbps_value_selection(false),
-			last_solution_value(-1)
-#ifdef HAS_VAR_IMPACT
-			,
-			impact(0.042),
-			impact_count(0)
-#endif
-{
+		: var_id(engine.vars.size()), min(_min), max(_max), min0(_min), max0(_max) {
 	assert(min_limit <= min && min <= max && max <= max_limit);
 	engine.vars.push(this);
 	changes = EVENT_C | EVENT_L | EVENT_U;
@@ -76,7 +71,7 @@ IntVar* getConstant(int v) {
 	intVarString[var] = ss.str();
 
 	var->specialiseToEL();
-	ic_map.insert(pair<int, IntVar*>(v, var));
+	ic_map.emplace(v, var);
 
 	return var;
 }
@@ -118,8 +113,8 @@ void IntVar::specialiseToSL(vec<int>& values) {
 
 	vec<int> v = values;
 	std::sort((int*)v, (int*)v + v.size());
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	for (i = j = 0; i < v.size(); i++) {
 		if (i == 0 || v[i] != v[i - 1]) {
 			v[j++] = v[i];
@@ -135,7 +130,7 @@ void IntVar::specialiseToSL(vec<int>& values) {
 	}
 
 	// determine whether it is sparse or dense
-	if (v.last() - v[0] >= v.size() * mylog2(v.size())) {
+	if (v.last() - v[0] >= static_cast<int>(v.size() * mylog2(v.size()))) {
 		// fprintf(stderr, "SL\n");
 		new (this) IntVarSL(*((IntVar*)this), v);
 	} else {
@@ -161,7 +156,7 @@ void IntVar::initVals(bool optional) {
 		perror("malloc()");
 		exit(1);
 	}
-	memset(vals, 1, max - min + 2);
+	memset((char*)vals, 1, max - min + 2);
 	vals -= min;
 	if (vals == nullptr) {
 		vals++;  // Hack to make vals != NULL whenever it's allocated
@@ -207,8 +202,8 @@ void IntVar::wakePropagators() {
 }
 
 int IntVar::simplifyWatches() {
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 	for (i = j = 0; i < pinfo.size(); i++) {
 		if (pinfo[i].p->satisfied == 0) {
 			pinfo[j++] = pinfo[i];
@@ -245,7 +240,7 @@ double IntVar::getScore(VarBranch vb) {
 			return max - min;
 #endif
 		case VAR_DEGREE_MIN:
-			return -pinfo.size();
+			return -static_cast<double>(pinfo.size());
 		case VAR_DEGREE_MAX:
 			return pinfo.size();
 		case VAR_REDUCED_COST:
@@ -317,7 +312,7 @@ DecInfo* IntVar::branch() {
 			if (vals == nullptr) {
 				CHUFFED_ERROR("Median value selection is not supported this variable.\n");
 			} else {
-				int values = (size() - 1) / 2;
+				const int values = (size() - 1) / 2;
 				iterator j = begin();
 				for (int i = 0; i < values; ++i) {
 					++j;
@@ -363,7 +358,7 @@ inline void IntVar::updateFixed() {
 	}
 }
 
-bool IntVar::setMin(int64_t v, Reason r, bool channel) {
+bool IntVar::setMin(int64_t v, Reason /*r*/, bool /*channel*/) {
 	assert(setMinNotR(v));
 	if (v > max) {
 		return false;
@@ -379,7 +374,7 @@ bool IntVar::setMin(int64_t v, Reason r, bool channel) {
 		min = v;
 	changes |= EVENT_C | EVENT_L;
 #else
-	min = v;
+	min = static_cast<int>(v);
 	changes |= EVENT_C | EVENT_L;
 	if (vals != nullptr) {
 		updateMin();
@@ -390,7 +385,7 @@ bool IntVar::setMin(int64_t v, Reason r, bool channel) {
 	return true;
 }
 
-bool IntVar::setMax(int64_t v, Reason r, bool channel) {
+bool IntVar::setMax(int64_t v, Reason /*r*/, bool /*channel*/) {
 	assert(setMaxNotR(v));
 	if (v < min) {
 		return false;
@@ -406,7 +401,7 @@ bool IntVar::setMax(int64_t v, Reason r, bool channel) {
 		max = v;
 	changes |= EVENT_C | EVENT_U;
 #else
-	max = v;
+	max = static_cast<int>(v);
 	changes |= EVENT_C | EVENT_U;
 	if (vals != nullptr) {
 		updateMax();
@@ -417,17 +412,17 @@ bool IntVar::setMax(int64_t v, Reason r, bool channel) {
 	return true;
 }
 
-bool IntVar::setVal(int64_t v, Reason r, bool channel) {
+bool IntVar::setVal(int64_t v, Reason /*r*/, bool /*channel*/) {
 	assert(setValNotR(v));
 	if (!indomain(v)) {
 		return false;
 	}
 	if (min < v) {
-		min = v;
+		min = static_cast<int>(v);
 		changes |= EVENT_C | EVENT_L | EVENT_F;
 	}
 	if (max > v) {
-		max = v;
+		max = static_cast<int>(v);
 		changes |= EVENT_C | EVENT_U | EVENT_F;
 	}
 #if INT_DOMAIN_LIST
@@ -437,7 +432,7 @@ bool IntVar::setVal(int64_t v, Reason r, bool channel) {
 	return true;
 }
 
-bool IntVar::remVal(int64_t v, Reason r, bool channel) {
+bool IntVar::remVal(int64_t v, Reason /*r*/, bool /*channel*/) {
 	assert(remValNotR(v));
 	if (isFixed()) {
 		return false;
@@ -479,7 +474,7 @@ bool IntVar::allowSet(vec<int>& v, Reason r, bool channel) {
 	if ((vals == nullptr) && !engine.finished_init) {
 		NOT_SUPPORTED;
 	}
-	int i = 0;
+	unsigned int i = 0;
 	int m = min;
 	while (i < v.size() && v[i] < m) {
 		i++;

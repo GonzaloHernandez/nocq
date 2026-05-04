@@ -20,13 +20,32 @@
  *
  */
 
-#include <chuffed/branching/branching.h>
-#include <chuffed/branching/warm-start.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/flatzinc/flatzinc.h>
-#include <chuffed/support/vec.h>
+#include "chuffed/flatzinc/flatzinc.h"
 
-using namespace std;
+#include "chuffed/branching/branching.h"
+#include "chuffed/branching/warm-start.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/flatzinc/ast.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
+
+#include <algorithm>
+#include <cassert>
+#include <cstdio>
+#include <exception>
+#include <iostream>
+#include <ostream>
+#include <random>
+#include <string>
+#include <utility>
 
 namespace FlatZinc {
 
@@ -71,9 +90,9 @@ VarBranch ann2ivarsel(AST::Node* ann) {
 		if (s->id == "impact") return VAR_IMPACT;
 #endif
 	}
-	cerr << "% Warning: Unknown or not support variable selection annotation '";
-	ann->print(cerr);
-	cerr << "'! Ignore variable selection annotation and replace it by 'input_order'." << endl;
+	std::cerr << "% Warning: Unknown or not support variable selection annotation '";
+	ann->print(std::cerr);
+	std::cerr << "'! Ignore variable selection annotation and replace it by 'input_order'." << '\n';
 	return VAR_INORDER;
 }
 
@@ -111,24 +130,18 @@ ValBranch ann2ivalsel(AST::Node* ann) {
 	}
 	std::cerr << "% Warning, ignored search annotation: ";
 	ann->print(std::cerr);
-	std::cerr << std::endl;
+	std::cerr << '\n';
 	return VAL_DEFAULT;
 }
 
-FlatZincSpace::FlatZincSpace(int intVars, int boolVars, int setVars)
-		: intVarCount(0),
-			boolVarCount(0),
-			iv(intVars),
-			iv_introduced(intVars),
-			bv(boolVars),
-			bv_introduced(boolVars),
-			output(nullptr) {
+FlatZincSpace::FlatZincSpace(int intVars, int boolVars, int /*setVars*/)
+		: iv(intVars), iv_introduced(intVars), bv(boolVars), bv_introduced(boolVars) {
 	s = this;
 }
 
 void FlatZincSpace::newIntVar(IntVarSpec* vs, const std::string& name) {
 	// Resizing of the vectors if required
-	if (intVarCount == iv.size()) {
+	if (intVarCount == static_cast<int>(iv.size())) {
 		const int newSize = intVarCount > 0 ? 2 * intVarCount : 1;
 		iv.growTo(newSize);
 		iv_introduced.resize(newSize);
@@ -155,14 +168,15 @@ void FlatZincSpace::newIntVar(IntVarSpec* vs, const std::string& name) {
 				intVarString.insert(std::pair<IntVar*, std::string>(v, name));
 			} else {
 				vec<int> d;
-				for (int& i : sl->s) {
+				for (const int& i : sl->s) {
 					d.push(i);
 				}
-				sort((int*)d, (int*)d + d.size());
+				std::sort((int*)d, (int*)d + d.size());
 				v = ::newIntVar(d[0], d.last());
 				intVarString.insert(std::pair<IntVar*, std::string>(v, name));
-				if ((d.last() - d[0] >= d.size() * mylog2(d.size())) ||
-						(d.size() <= so.eager_limit && (d.last() - d[0] + 1) > so.eager_limit)) {
+				if ((d.last() - d[0] >= static_cast<int>(d.size() * mylog2(d.size()))) ||
+						(static_cast<int>(d.size()) <= so.eager_limit &&
+						 (d.last() - d[0] + 1) > so.eager_limit)) {
 					new (v) IntVarSL(*v, d);
 				} else {
 					if (!v->allowSet(d)) {
@@ -188,7 +202,7 @@ void FlatZincSpace::newIntVar(IntVarSpec* vs, const std::string& name) {
 
 void FlatZincSpace::newBoolVar(BoolVarSpec* vs) {
 	// Resizing of the vectors if required
-	if (boolVarCount == bv.size()) {
+	if (boolVarCount == static_cast<int>(bv.size())) {
 		const int newSize = boolVarCount > 0 ? 2 * boolVarCount : 1;
 		bv.growTo(newSize);
 		bv_introduced.resize(newSize);
@@ -272,7 +286,7 @@ void FlatZincSpace::postConstraint(const ConExpr& ce, AST::Node* ann) {
 		registry().post(ce, ann);
 	} catch (AST::TypeError& e) {
 		throw FlatZinc::Error("Type error", e.what());
-	} catch (exception& e) {
+	} catch (std::exception& e) {
 		throw FlatZinc::Error("LazyGeoff", e.what());
 	}
 }
@@ -320,8 +334,8 @@ void FlatZincSpace::parseSolveAnnBoolSearch(AST::Node* elemAnn, BranchGroup* bra
 		AST::Call* call = elemAnn->getCall("bool_search");
 		AST::Array* args = call->getArgs(4);
 		AST::Array* vars = args->a[0]->getArray();
-		vec<Branching*> va(vars->a.size());
-		for (int i = vars->a.size(); (i--) != 0;) {
+		vec<Branching*> va(static_cast<unsigned int>(vars->a.size()));
+		for (auto i = va.size(); (i--) != 0;) {
 			va[i] = new BoolView(bv[vars->a[i]->getBoolVar()]);
 		}
 		branching->add(createBranch(va, ann2ivarsel(args->a[1]), ann2ivalsel(args->a[2])));
@@ -354,7 +368,7 @@ void FlatZincSpace::parseSolveAnnPrioritySearch(AST::Node* elemAnn, BranchGroup*
 			// Removal of constants
 			IntVar* v = nullptr;
 			if (i->isInt()) {
-				int value = i->getInt();
+				const int value = i->getInt();
 				v = getConstant(value);
 			} else {
 				v = iv[i->getIntVar()];
@@ -366,7 +380,7 @@ void FlatZincSpace::parseSolveAnnPrioritySearch(AST::Node* elemAnn, BranchGroup*
 		// Parse search annotations
 		int nbChildSearchAnnotations = 0;
 		parseSolveAnn(annotations, priorityBranching, nbChildSearchAnnotations);
-		if (vars->a.size() != nbChildSearchAnnotations) {
+		if (static_cast<int>(vars->a.size()) != nbChildSearchAnnotations) {
 			throw FlatZinc::Error("Type error in priority_search annotation",
 														"Variable and annotation array must have the same size");
 		}
@@ -383,7 +397,7 @@ void FlatZincSpace::parseSolveAnnPrioritySearch(AST::Node* elemAnn, BranchGroup*
 }
 
 void FlatZincSpace::parseSolveAnnWarmStart(AST::Node* elemAnn, BranchGroup* branching,
-																					 int& nbNonEmptySearchAnnotations) {
+																					 int& /*nbNonEmptySearchAnnotations*/) {
 	vec<Lit> decs;
 	if (elemAnn->isCall("warm_start_bool")) {
 		AST::Call* call = elemAnn->getCall("warm_start_bool");
@@ -393,9 +407,12 @@ void FlatZincSpace::parseSolveAnnWarmStart(AST::Node* elemAnn, BranchGroup* bran
 		if (vars->a.size() != vals->a.size()) {
 			fprintf(stderr, "WARNING: length mismatch in warm_start_bool annotation.\n");
 		}
-		int sz = min(vars->a.size(), vals->a.size());
-		for (int ii = 0; ii < sz; ii++) {
-			decs.push(bv[vars->a[ii]->getBoolVar()].getLit(vals->a[ii]->getBool()));
+		const auto sz = std::min(vars->a.size(), vals->a.size());
+		for (unsigned int ii = 0; ii < sz; ii++) {
+			// Ignore constants
+			if (vars->a[ii]->isBoolVar()) {
+				decs.push(bv[vars->a[ii]->getBoolVar()].getLit(vals->a[ii]->getBool()));
+			}
 		}
 	} else {
 		AST::Call* call = elemAnn->getCall("warm_start_int");
@@ -405,10 +422,14 @@ void FlatZincSpace::parseSolveAnnWarmStart(AST::Node* elemAnn, BranchGroup* bran
 		if (vars->a.size() != vals->a.size()) {
 			fprintf(stderr, "WARNING: length mismatch in warm_start_int annotation.\n");
 		}
-		int sz = min(vars->a.size(), vals->a.size());
-		for (int ii = 0; ii < sz; ii++) {
+		const auto sz = std::min(vars->a.size(), vals->a.size());
+		for (unsigned int ii = 0; ii < sz; ii++) {
+			if (vars->a[ii]->isInt()) {
+				// Ignore constants
+				continue;
+			}
 			IntVar* x(iv[vars->a[ii]->getIntVar()]);
-			int k(vals->a[ii]->getInt());
+			const int k(vals->a[ii]->getInt());
 			switch (x->getType()) {
 				case INT_VAR_EL:
 				case INT_VAR_SL:
@@ -416,7 +437,7 @@ void FlatZincSpace::parseSolveAnnWarmStart(AST::Node* elemAnn, BranchGroup* bran
 					break;
 				default:
 					// Fallback. TODO: Do something nicer here.
-					BoolView r = ::newBoolVar();
+					const BoolView r = ::newBoolVar();
 					int_rel_reif(x, IRT_EQ, k, r);
 					decs.push(r.getLit(true));
 					break;
@@ -451,7 +472,7 @@ void FlatZincSpace::parseSolveAnn(AST::Array* ann) {
 		// Parse the search annotation
 		parseSolveAnn(ann, engine.branching, nbNonEmptySearchAnnotations);
 	} catch (FlatZinc::Error& e) {
-		cerr << "% " << e.toString() << ". Ignore search annotation!" << endl;
+		std::cerr << "% " << e.toString() << ". Ignore search annotation!" << '\n';
 		// Removal of successful parsed parts of the search annotation
 		engine.branching = new BranchGroup();
 		// Reset counter
@@ -613,8 +634,8 @@ void FlatZincSpace::setOutput() const {
 	for (auto* ai : output->a) {
 		if (ai->isArray()) {
 			AST::Array* aia = ai->getArray();
-			int size = aia->a.size();
-			for (int j = 0; j < size; j++) {
+			const auto size = aia->a.size();
+			for (unsigned int j = 0; j < size; j++) {
 				setOutputElem(aia->a[j]);
 			}
 		} else if (ai->isCall("ifthenelse")) {
@@ -627,7 +648,7 @@ void FlatZincSpace::setOutput() const {
 	}
 }
 
-void FlatZincSpace::printElem(AST::Node* ai, ostream& out) const {
+void FlatZincSpace::printElem(AST::Node* ai, std::ostream& out) const {
 	int k;
 	if (ai->isInt(k)) {
 		out << k;
@@ -676,6 +697,92 @@ void FlatZincSpace::printElem(AST::Node* ai, ostream& out) const {
 			}
 		}
 	}
+}
+
+void FlatZincSpace::storeSolution() {
+	solution_found = true;
+	if (!enable_store_solution) {
+		return;
+	}
+
+	for (auto& i : int_sol) {
+		i[1] = iv[i[0]]->getVal();
+	}
+	for (auto& i : bool_sol) {
+		std::get<1>(i) = bv[std::get<0>(i)].isTrue();
+	}
+	new_solution = true;
+}
+
+bool FlatZincSpace::onRestart(Engine* e) {
+	if (!enable_on_restart) {
+		return false;
+	}
+	if (mark_complete) {
+		return true;
+	}
+
+	// Reset Assumptions if not called from constrain()
+	if (e->assumptions.size() != 0) {
+		if (!solution_found) {
+			e->assumptions.clear();
+		} else if (e->assumptions.size() > 1) {
+			const Lit p = e->opt_type != 0 ? e->opt_var->getLit(e->best_sol + 1, LR_GE)
+																		 : e->opt_var->getLit(e->best_sol - 1, LR_LE);
+			e->assumptions.clear();
+			e->assumptions.push(toInt(p));
+		}
+	}
+
+	// Helper functions to create assumptions using value assignments
+	auto assume_int_val = [&](IntVar* iv, int v) {
+		if (iv->getType() == INT_VAR_LL) {
+			e->assumptions.push(toInt(iv->getLit(v, LR_GE)));
+			e->assumptions.push(toInt(iv->getLit(v, LR_LE)));
+		} else {
+			e->assumptions.push(toInt(iv->getLit(v, LR_EQ)));
+		}
+	};
+	auto assume_bool_val = [&](BoolView bv, bool v) {
+		BoolView const nv = v ? bv : ~bv;
+		e->assumptions.push(toInt(nv));
+	};
+
+	// Set restart status
+	if (restart_status > 0) {
+		if (new_solution) {
+			assume_int_val(iv[restart_status], 4);  // SAT
+		} else if (!solution_found) {
+			assume_int_val(iv[restart_status], 1);  // START
+		} else {
+			assume_int_val(iv[restart_status], 2);  // UNKNOWN
+		}
+	}
+
+	// Set variables to last captured assignments
+	for (const auto& i : int_last_val) {
+		assume_int_val(iv[i[0]], i[1]);
+	}
+	for (const auto& i : bool_last_val) {
+		assume_bool_val(bv[i.first], i.second);
+	}
+
+	// Set new random values
+	for (const auto& i : int_uniform) {
+		std::uniform_int_distribution<int> rnd_range(i[0], i[1]);
+		assume_int_val(iv[i[2]], rnd_range(engine.rnd));
+	}
+
+	// Set last found solutions values
+	for (const auto& i : int_sol) {
+		assume_int_val(iv[i[2]], i[1]);
+	}
+	for (const auto& i : bool_sol) {
+		assume_bool_val(bv[std::get<2>(i)], std::get<1>(i));
+	}
+
+	new_solution = false;
+	return false;
 }
 
 }  // namespace FlatZinc

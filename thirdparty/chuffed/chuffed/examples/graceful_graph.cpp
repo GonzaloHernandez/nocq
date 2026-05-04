@@ -1,24 +1,32 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/ldsb/ldsb.h>
-#include <chuffed/vars/modelling.h>
+#include "chuffed/branching/branching.h"
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/ldsb/ldsb.h"
+#include "chuffed/primitives/primitives.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/modelling.h"
+#include "chuffed/vars/vars.h"
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <iomanip>
+#include <ostream>
 
 class GracefulGraph : public Problem {
 public:
-	int const m;      // size of cliques
-	int const n;      // number of cliques
+	const int m;      // size of cliques
+	const int n;      // number of cliques
 	vec<IntVar*> x;   // vertex labels
 	vec<IntVar*> d;   // raw difference of vertex labels
 	vec<IntVar*> ad;  // absolute differences of vertex labels
 
 	GracefulGraph(int _m, int _n) : m(_m), n(_n) {
-		int nodes = m * n;
-		int nedges = m * (m - 1) / 2 * n + (n - 1) * m;
+		const int nodes = m * n;
+		const int nedges = m * (m - 1) / 2 * n + (n - 1) * m;
 
 		vec<int> origins;
 		vec<int> destinations;
@@ -38,7 +46,7 @@ public:
 			}
 		}
 
-		assert(origins.size() == nedges);
+		assert(static_cast<int>(origins.size()) == nedges);
 
 		createVars(x, nodes, 0, nedges);
 		createVars(d, nedges, -nedges, nedges);
@@ -108,9 +116,9 @@ public:
 	void restrict_learnable() override {
 		printf("Setting learnable white list\n");
 		for (int i = 0; i < sat.nVars(); i++) {
-			sat.flags[i] = 0;
+			sat.flags[i] = LitFlags(false, false, false);
 		}
-		for (int i = 0; i < x.size(); i++) {
+		for (unsigned int i = 0; i < x.size(); i++) {
 			assert(x[i]->getType() == INT_VAR_EL);
 			((IntVarEL*)x[i])->setVLearnable();
 			((IntVarEL*)x[i])->setVDecidable(true);

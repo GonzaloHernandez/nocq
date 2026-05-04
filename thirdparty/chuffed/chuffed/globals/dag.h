@@ -1,48 +1,48 @@
 #ifndef DAGPROPAGATOR_H
 #define DAGPROPAGATOR_H
 
-#include <chuffed/globals/dconnected.h>
-#include <chuffed/support/trailed_cst_list.h>
+#include "chuffed/globals/dconnected.h"
+#include "chuffed/support/trailed_cst_list.h"
 
 class DAGPropagator : public DReachabilityPropagator {
-	class TrailedSuccList : public TrailedConstantAccessList<std::pair<int, int> > {
+	class TrailedSuccList final : public TrailedConstantAccessList<std::pair<int, int> > {
 	public:
 		TrailedSuccList(int n) : TrailedConstantAccessList(n) {}
 		int key(std::pair<int, int> p) override { return p.first; }
 		void print() {
-			std::cout << "Size: " << size << std::endl;
+			std::cout << "Size: " << size << '\n';
 			;
 			std::cout << "Sparse: ";
-			for (int i : sparse) {
+			for (const int i : sparse) {
 				std::cout << i << " ";
 			}
-			std::cout << std::endl;
+			std::cout << '\n';
 
 			std::cout << "Dense: ";
 			for (auto& i : dense) {
 				std::cout << "(" << i.first << "," << i.second << ") ";
 			}
-			std::cout << std::endl;
+			std::cout << '\n';
 		}
 	};
-	class TrailedPredList : public TrailedConstantAccessList<int> {
+	class TrailedPredList final : public TrailedConstantAccessList<int> {
 	public:
 		TrailedPredList(int n) : TrailedConstantAccessList(n) {}
 		int key(int p) override { return p; }
 		void print() {
-			std::cout << "Size: " << size << std::endl;
+			std::cout << "Size: " << size << '\n';
 			;
 			std::cout << "Sparse: ";
-			for (int i : sparse) {
+			for (const int i : sparse) {
 				std::cout << i << " ";
 			}
-			std::cout << std::endl;
+			std::cout << '\n';
 
 			std::cout << "Dense: ";
-			for (int i : dense) {
+			for (const int i : dense) {
 				std::cout << i << " ";
 			}
-			std::cout << std::endl;
+			std::cout << '\n';
 		}
 	};
 

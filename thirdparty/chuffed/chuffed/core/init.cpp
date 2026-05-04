@@ -1,20 +1,17 @@
-#include <chuffed/branching/branching.h>
-#include <chuffed/core/engine.h>
-#include <chuffed/core/options.h>
-#include <chuffed/core/propagator.h>
-#include <chuffed/core/sat.h>
-#include <chuffed/ldsb/ldsb.h>
-#include <chuffed/mip/mip.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/globals.h"
+#include "chuffed/ldsb/ldsb.h"
+#include "chuffed/mip/mip.h"
 
-#include <cassert>
-#include <cstdio>
 #include <iostream>
 
 void process_ircs();
 
 void Engine::init() {
 	// Get the vars ready
-	for (int i = 0; i < vars.size(); i++) {
+	for (unsigned int i = 0; i < vars.size(); i++) {
 		IntVar* v = vars[i];
 		if (v->pinfo.size() == 0) {
 			v->in_queue = true;
@@ -24,7 +21,7 @@ void Engine::init() {
 	}
 
 	if (so.lazy) {
-		for (int i = 0; i < vars.size(); i++) {
+		for (unsigned int i = 0; i < vars.size(); i++) {
 			if (vars[i]->getMax() - vars[i]->getMin() <= so.eager_limit) {
 				vars[i]->specialiseToEL();
 			} else {
@@ -35,7 +32,7 @@ void Engine::init() {
 			}
 		}
 	} else {
-		for (int i = 0; i < vars.size(); i++) {
+		for (unsigned int i = 0; i < vars.size(); i++) {
 			vars[i]->initVals(true);
 		}
 	}

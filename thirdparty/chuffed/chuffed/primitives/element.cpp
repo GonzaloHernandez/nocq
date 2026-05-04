@@ -1,14 +1,27 @@
-#include <chuffed/core/propagator.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/int-view.h"
+#include "chuffed/vars/vars.h"
 
+#include <cassert>
+#include <climits>
+#include <cstdint>
 #include <map>
 #include <utility>
+#include <vector>
 
 // y = a[x-offset]
 
 void array_bool_element(IntVar* _x, vec<bool>& a, BoolView y, int offset) {
 	_x->specialiseToEL();
-	IntView<4> x(_x, 1, -offset);
-	for (int i = 0; i < a.size(); i++) {
+	const IntView<4> x(_x, 1, -offset);
+	for (unsigned int i = 0; i < a.size(); i++) {
 		sat.addClause(y = a[i], x != i);
 	}
 	// Add clause [y != x[i]] \/ [x = i_1] \/ ... \/ [x = i_m]
@@ -16,7 +29,7 @@ void array_bool_element(IntVar* _x, vec<bool>& a, BoolView y, int offset) {
 	vec<Lit> ps2;
 	ps1.push(y);
 	ps2.push(~y);
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		if (a[i]) {
 			ps2.push(x = i);
 		} else {
@@ -49,10 +62,10 @@ void array_int_element(IntVar* _x, vec<int>& a, IntVar* _y, int offset) {
 	_y->specialiseToSL(z);
 	_x->specialiseToEL();
 
-	IntView<0> y(_y);
-	IntView<4> x(_x, 1, -offset);
+	const IntView<0> y(_y);
+	const IntView<4> x(_x, 1, -offset);
 
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		sat.addClause(y = a[i], x != i);
 	}
 
@@ -60,7 +73,7 @@ void array_int_element(IntVar* _x, vec<int>& a, IntVar* _y, int offset) {
 
 	// Add clause [y != a[i]] \/ [x = i_1] \/ ... \/ [x = i_m]
 	vec<vec<Lit> > pss;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		if (!y.indomain(a[i])) {
 			continue;
 		}
@@ -78,7 +91,7 @@ void array_int_element(IntVar* _x, vec<int>& a, IntVar* _y, int offset) {
 			pss[index].push(x = i);
 		}
 	}
-	for (int i = 0; i < pss.size(); i++) {
+	for (unsigned int i = 0; i < pss.size(); i++) {
 		sat.addClause(pss[i]);
 	}
 }
@@ -89,14 +102,14 @@ void array_int_element(IntVar* _x, vec<int>& a, IntVar* _y, int offset) {
 
 void array_var_bool_element(IntVar* _x, vec<BoolView>& a, BoolView y, int offset) {
 	_x->specialiseToEL();
-	IntView<4> x(_x, 1, -offset);
+	const IntView<4> x(_x, 1, -offset);
 	vec<Lit> ps1(a.size() + 1);
 	vec<Lit> ps2(a.size() + 1);
 	// Add clause !y \/ c_1 \/ ... \/ c_n
 	// Add clause y \/ d_1 \/ ... \/ d_n
 	ps1[0] = ~y;
 	ps2[0] = y;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		BoolView c_i(Lit(sat.newVar(), true));
 		BoolView d_i(Lit(sat.newVar(), true));
 		sat.addClause(~c_i, x = i);
@@ -127,8 +140,8 @@ void array_var_bool_element(IntVar* _x, vec<BoolView>& a, BoolView y, int offset
 template <int U = 0, int V = 0, int W = 0>
 class IntElemBoundsImp : public Propagator {
 	BoolView b;
-	IntView<U> const y;
-	IntView<V> const x;
+	const IntView<U> y;
+	const IntView<V> x;
 	vec<IntView<W> > a;
 
 	// persistent state
@@ -140,8 +153,8 @@ class IntElemBoundsImp : public Propagator {
 
 	// intermediate state
 
-	bool no_min_support;
-	bool no_max_support;
+	bool no_min_support{false};
+	bool no_max_support{false};
 
 public:
 	IntElemBoundsImp(BoolView _b, IntView<U> _y, IntView<V> _x, vec<IntView<W> >& _a)
@@ -152,10 +165,8 @@ public:
 				is_fixed(0),
 				min_support(-1),
 				max_support(-1),
-				fixed_index(-1),
-				no_min_support(false),
-				no_max_support(false) {
-		for (int i = 0; i < a.size(); i++) {
+				fixed_index(-1) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			a[i].attach(this, i, EVENT_LU);
 		}
 		y.attach(this, a.size(), EVENT_LU);
@@ -164,22 +175,22 @@ public:
 	}
 
 	void wakeup(int i, int c) override {
-		if (i == a.size() + 2 && (c & EVENT_F)) {
+		if (i == static_cast<int>(a.size()) + 2 && ((c & EVENT_F) != 0)) {
 			if (b.getVal() == 0) {
 				return;
 			}
 		}
-		if (i == a.size() + 1 && (c & EVENT_F)) {
+		if (i == static_cast<int>(a.size()) + 1 && ((c & EVENT_F) != 0)) {
 			is_fixed = 1;
-			fixed_index = x.getVal();
+			fixed_index = static_cast<int>(x.getVal());
 			no_min_support = no_max_support = false;
 			pushInQueue();
 		} else if (is_fixed != 0) {
-			if (i == a.size() || i == fixed_index) {
+			if (i == static_cast<int>(a.size()) || i == fixed_index) {
 				pushInQueue();
 			}
 		} else {
-			if (i < a.size()) {
+			if (i < static_cast<int>(a.size())) {
 				if (i == min_support && a[i].getMin() > y.getMin()) {
 					no_min_support = true;
 				}
@@ -187,7 +198,7 @@ public:
 					no_max_support = true;
 				}
 				pushInQueue();
-			} else if (i == a.size() + 1) {
+			} else if (i == static_cast<int>(a.size() + 1)) {
 				if (!x.indomain(min_support)) {
 					no_min_support = true;
 					pushInQueue();
@@ -209,14 +220,14 @@ public:
 		}
 
 		// x is out of bounds
-		if (is_fixed && (fixed_index < 0 || fixed_index >= a.size())) {
+		if ((is_fixed != 0) && (fixed_index < 0 || fixed_index >= static_cast<int>(a.size()))) {
 			return b.setVal(false, x.getValLit());
 		}
 
 		// y = a[fixed_index]
 		if (is_fixed != 0) {
 			assert(x.getVal() == fixed_index);
-			IntView<W>& f = a[fixed_index];
+			const IntView<W>& f = a[fixed_index];
 			if (b.isFixed()) {
 				setDom(y, setMin, f.getMin(), Reason_new({b.getValLit(), f.getMinLit(), x.getValLit()}));
 				setDom(f, setMin, y.getMin(), Reason_new({b.getValLit(), y.getMinLit(), x.getValLit()}));
@@ -236,7 +247,7 @@ public:
 		}
 
 		if (b.isFixed()) {
-			for (int i = 0; i < a.size(); i++) {
+			for (unsigned int i = 0; i < a.size(); i++) {
 				if (!x.indomain(i)) {
 					continue;
 				}
@@ -253,7 +264,7 @@ public:
 			std::vector<Lit> expl;
 			bool push_min = false;
 			bool push_max = false;
-			int i = 0;
+			unsigned int i = 0;
 			while (i <= a.size()) {
 				if (!x.indomain(i)) {
 					expl.push_back(x.getLit(i, LR_EQ));
@@ -281,14 +292,14 @@ public:
 		}
 
 		if (no_min_support) {
-			int64_t old_m = y.getMin();
+			const int64_t old_m = y.getMin();
 			int64_t new_m = INT64_MAX;
 			int best = -1;
-			for (int i = 0; i < a.size(); i++) {
+			for (unsigned int i = 0; i < a.size(); i++) {
 				if (!x.indomain(i)) {
 					continue;
 				}
-				int64_t cur_m = a[i].getMin();
+				const int64_t cur_m = a[i].getMin();
 				if (cur_m < new_m) {
 					best = i;
 					new_m = cur_m;
@@ -304,7 +315,7 @@ public:
 					if (so.lazy) {
 						r = Reason_new(a.size() + 2);
 						// Finesse lower bounds
-						for (int i = 0; i < a.size(); i++) {
+						for (unsigned int i = 0; i < a.size(); i++) {
 							(*r)[i + 2] = x.indomain(i) ? a[i].getFMinLit(new_m) : x.getLit(i, LR_EQ);
 						}
 					}
@@ -326,14 +337,14 @@ public:
 		}
 
 		if (no_max_support) {
-			int64_t old_m = y.getMax();
+			const int64_t old_m = y.getMax();
 			int64_t new_m = INT_MIN;
 			int best = -1;
-			for (int i = 0; i < a.size(); i++) {
+			for (unsigned int i = 0; i < a.size(); i++) {
 				if (!x.indomain(i)) {
 					continue;
 				}
-				int64_t cur_m = a[i].getMax();
+				const int64_t cur_m = a[i].getMax();
 				if (cur_m > new_m) {
 					best = i;
 					new_m = cur_m;
@@ -349,7 +360,7 @@ public:
 					if (so.lazy) {
 						r = Reason_new(a.size() + 2);
 						// Finesse upper bounds
-						for (int i = 0; i < a.size(); i++) {
+						for (unsigned int i = 0; i < a.size(); i++) {
 							(*r)[i + 2] = x.indomain(i) ? a[i].getFMaxLit(new_m) : x.getLit(i, LR_EQ);
 						}
 					}
@@ -393,8 +404,8 @@ public:
 
 template <int U = 0, int V = 0, int W = 0>
 class IntElemBounds : public Propagator {
-	IntView<U> const y;
-	IntView<V> const x;
+	const IntView<U> y;
+	const IntView<V> x;
 	vec<IntView<W> > a;
 
 	// persistent state
@@ -405,20 +416,13 @@ class IntElemBounds : public Propagator {
 
 	// intermediate state
 
-	bool no_min_support;
-	bool no_max_support;
+	bool no_min_support{false};
+	bool no_max_support{false};
 
 public:
 	IntElemBounds(IntView<U> _y, IntView<V> _x, vec<IntView<W> >& _a)
-			: y(_y),
-				x(_x),
-				a(_a),
-				min_support(-1),
-				max_support(-1),
-				fixed_index(-1),
-				no_min_support(false),
-				no_max_support(false) {
-		for (int i = 0; i < a.size(); i++) {
+			: y(_y), x(_x), a(_a), min_support(-1), max_support(-1), fixed_index(-1) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			a[i].attach(this, i, EVENT_LU);
 		}
 		y.attach(this, a.size(), EVENT_LU);
@@ -426,17 +430,17 @@ public:
 	}
 
 	void wakeup(int i, int c) override {
-		if (i == a.size() + 1 && (c & EVENT_F)) {
-			fixed_index = x.getVal();
+		if (i == static_cast<int>(a.size()) + 1 && ((c & EVENT_F) != 0)) {
+			fixed_index = static_cast<int>(x.getVal());
 			no_min_support = no_max_support = false;
 			pushInQueue();
 		}
 		if (fixed_index >= 0) {
-			if (i == a.size() || i == fixed_index) {
+			if (i == static_cast<int>(a.size()) || i == fixed_index) {
 				pushInQueue();
 			}
 		} else {
-			if (i < a.size()) {
+			if (i < static_cast<int>(a.size())) {
 				if (i == min_support && a[i].getMin() > y.getMin()) {
 					no_min_support = true;
 				}
@@ -444,7 +448,7 @@ public:
 					no_max_support = true;
 				}
 				pushInQueue();
-			} else if (i == a.size() + 1) {
+			} else if (i == static_cast<int>(a.size()) + 1) {
 				if (!x.indomain(min_support)) {
 					no_min_support = true;
 					pushInQueue();
@@ -463,7 +467,7 @@ public:
 		// y = a[fixed_index]
 		if (fixed_index >= 0) {
 			assert(x.getVal() == fixed_index);
-			IntView<W>& f = a[fixed_index];
+			const IntView<W>& f = a[fixed_index];
 			setDom(y, setMin, f.getMin(), f.getMinLit(), x.getValLit());
 			setDom(f, setMin, y.getMin(), y.getMinLit(), x.getValLit());
 			setDom(y, setMax, f.getMax(), f.getMaxLit(), x.getValLit());
@@ -474,7 +478,7 @@ public:
 			return true;
 		}
 
-		for (int i = 0; i < a.size(); i++) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			if (!x.indomain(i)) {
 				continue;
 			}
@@ -487,14 +491,14 @@ public:
 		}
 
 		if (no_min_support) {
-			int64_t old_m = y.getMin();
+			const int64_t old_m = y.getMin();
 			int64_t new_m = INT64_MAX;
 			int best = -1;
-			for (int i = 0; i < a.size(); i++) {
+			for (unsigned int i = 0; i < a.size(); i++) {
 				if (!x.indomain(i)) {
 					continue;
 				}
-				int64_t cur_m = a[i].getMin();
+				const int64_t cur_m = a[i].getMin();
 				if (cur_m < new_m) {
 					best = i;
 					new_m = cur_m;
@@ -509,7 +513,7 @@ public:
 				if (so.lazy) {
 					r = Reason_new(a.size() + 1);
 					// Finesse lower bounds
-					for (int i = 0; i < a.size(); i++) {
+					for (unsigned int i = 0; i < a.size(); i++) {
 						(*r)[i + 1] = x.indomain(i) ? a[i].getFMinLit(new_m) : x.getLit(i, LR_EQ);
 					}
 				}
@@ -521,14 +525,14 @@ public:
 		}
 
 		if (no_max_support) {
-			int64_t old_m = y.getMax();
+			const int64_t old_m = y.getMax();
 			int64_t new_m = INT_MIN;
 			int best = -1;
-			for (int i = 0; i < a.size(); i++) {
+			for (unsigned int i = 0; i < a.size(); i++) {
 				if (!x.indomain(i)) {
 					continue;
 				}
-				int64_t cur_m = a[i].getMax();
+				const int64_t cur_m = a[i].getMax();
 				if (cur_m > new_m) {
 					best = i;
 					new_m = cur_m;
@@ -543,7 +547,7 @@ public:
 				if (so.lazy) {
 					r = Reason_new(a.size() + 1);
 					// Finesse upper bounds
-					for (int i = 0; i < a.size(); i++) {
+					for (unsigned int i = 0; i < a.size(); i++) {
 						(*r)[i + 1] = x.indomain(i) ? a[i].getFMaxLit(new_m) : x.getLit(i, LR_EQ);
 					}
 				}
@@ -576,8 +580,8 @@ public:
 
 template <int U = 0, int V = 0, int W = 0>
 class IntElemDomain : public Propagator {
-	IntView<U> const y;
-	IntView<V> const x;
+	const IntView<U> y;
+	const IntView<V> x;
 	vec<IntView<W> > a;
 
 	// persistent state
@@ -598,10 +602,10 @@ public:
 		temp_sup = new int[x.getMax() - x.getMin() + 1];
 
 		vec<int> temp;
-		for (int v = y.getMin(); v <= y.getMax(); v++) {
+		for (int v = static_cast<int>(y.getMin()); v <= static_cast<int>(y.getMax()); v++) {
 			temp.clear();
 			if (y.indomain(v)) {
-				for (int i = x.getMin(); i <= x.getMax(); i++) {
+				for (int i = static_cast<int>(x.getMin()); i <= static_cast<int>(x.getMax()); i++) {
 					if (x.indomain(i) && a[i].indomain(v)) {
 						temp.push(i);
 					}
@@ -609,12 +613,12 @@ public:
 			}
 			num_support[v] = temp.size();
 			support[v] = new int[temp.size()];
-			for (int i = 0; i < temp.size(); i++) {
+			for (unsigned int i = 0; i < temp.size(); i++) {
 				support[v][i] = temp[i];
 			}
 		}
 
-		for (int i = 0; i < a.size(); i++) {
+		for (unsigned int i = 0; i < a.size(); i++) {
 			a[i].attach(this, i, EVENT_C);
 		}
 		y.attach(this, a.size(), EVENT_C);
@@ -623,7 +627,7 @@ public:
 
 	bool propagate() override {
 		// propagate holes in y
-		for (int v = y.getMin(); v <= y.getMax(); v++) {
+		for (int v = static_cast<int>(y.getMin()); v <= static_cast<int>(y.getMax()); v++) {
 			if (!y.indomain(v)) {
 				continue;
 			}
@@ -641,16 +645,16 @@ public:
 				// v has no support, remove from y
 				Clause* r = nullptr;
 				if (so.lazy) {
-					r = Reason_new(x.getMax() + 4 - x.getMin());
+					r = Reason_new(static_cast<int>(x.getMax() + 4 - x.getMin()));
 					(*r)[1] = x.getMinLit();
 					(*r)[2] = x.getMaxLit();
-					for (int i = x.getMin(); i <= x.getMax(); i++) {
-						int reasonIndex = 3 + i - x.getMin();
+					for (int i = static_cast<int>(x.getMin()); i <= static_cast<int>(x.getMax()); i++) {
+						const int reasonIndex = static_cast<int>(3 + i - x.getMin());
 						if (x.indomain(i)) {
-							Lit l = ~a[i].getLit(v, LR_NE);
+							const Lit l = ~a[i].getLit(v, LR_NE);
 							(*r)[reasonIndex] = l;
 						} else {
-							Lit l = ~x.getLit(i, LR_NE);
+							const Lit l = ~x.getLit(i, LR_NE);
 							(*r)[reasonIndex] = l;
 						}
 					}
@@ -679,14 +683,14 @@ public:
 
 		// propagate holes in a_i
 		if (x.isFixed()) {
-			int v = x.getVal();
-			IntView<W>& f = a[v];
+			const int v = static_cast<int>(x.getVal());
+			const IntView<W>& f = a[v];
 			setDom(y, setMin, f.getMin(), f.getMinLit(), x.getValLit());
 			setDom(f, setMin, y.getMin(), y.getMinLit(), x.getValLit());
 			setDom(y, setMax, f.getMax(), f.getMaxLit(), x.getValLit());
 			setDom(f, setMax, y.getMax(), y.getMaxLit(), x.getValLit());
 			for (typename IntView<W>::iterator i = a[v].begin(); i != a[v].end();) {
-				int w = *i++;
+				const int w = *i++;
 				if (!y.indomain(w) &&
 						!a[v].remVal(w,
 												 so.lazy ? Reason(~y.getLit(w, LR_NE), ~x.getLit(v, LR_EQ)) : Reason())) {
@@ -705,7 +709,7 @@ public:
 void array_var_int_element_bound(IntVar* x, vec<IntVar*>& a, IntVar* y, int offset) {
 	x->specialiseToEL();
 	vec<IntView<> > w;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		w.push(IntView<>(a[i]));
 	}
 	if (offset != 0) {
@@ -715,11 +719,11 @@ void array_var_int_element_bound(IntVar* x, vec<IntVar*>& a, IntVar* y, int offs
 	}
 }
 
-void array_var_int_element_bound_imp(BoolView b, IntVar* x, vec<IntVar*>& a, IntVar* y,
+void array_var_int_element_bound_imp(const BoolView& b, IntVar* x, vec<IntVar*>& a, IntVar* y,
 																		 int offset) {
 	x->specialiseToEL();
 	vec<IntView<> > w;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		w.push(IntView<>(a[i]));
 	}
 	if (offset != 0) {
@@ -735,7 +739,7 @@ void array_var_int_element_dom(IntVar* x, vec<IntVar*>& a, IntVar* y, int offset
 	x->initVals();
 	y->initVals();
 	vec<IntView<> > w;
-	for (int i = 0; i < a.size(); i++) {
+	for (unsigned int i = 0; i < a.size(); i++) {
 		a[i]->initVals();
 		w.push(IntView<>(a[i]));
 	}

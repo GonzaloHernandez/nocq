@@ -6,22 +6,22 @@
 
 template <class T>
 class vec {
-	int sz;
-	int cap;
+	unsigned int sz;
+	unsigned int cap;
 	T* data;
 
 public:
 	// Constructors:
 	vec() : sz(0), cap(0), data(nullptr) {}
-	vec(int _sz) : sz(_sz), cap(sz) {
+	vec(unsigned int _sz) : sz(_sz), cap(sz) {
 		data = sz != 0 ? (T*)malloc(cap * sizeof(T)) : nullptr;
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			new (&data[i]) T();
 		}
 	}
-	vec(int _sz, const T& pad) : sz(_sz), cap(sz) {
+	vec(unsigned int _sz, const T& pad) : sz(_sz), cap(sz) {
 		data = sz != 0 ? (T*)malloc(cap * sizeof(T)) : nullptr;
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			new (&data[i]) T(pad);
 		}
 	}
@@ -29,14 +29,14 @@ public:
 	vec(vec<U>& other) : sz(other.size()), cap(sz) {
 		assert(sizeof(U) == sizeof(T));
 		data = (T*)malloc(cap * sizeof(T));
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			new (&data[i]) T(other[i]);
 		}
 		//		for (int i = 0; i < sz; i++) data[i] = other[i];
 	}
 
 	~vec() {
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			data[i].~T();
 		}
 		if (data) {
@@ -46,17 +46,17 @@ public:
 	}
 
 	// Size operations:
-	int size() const { return sz; }
-	int& _size() { return sz; }
-	int capacity() const { return cap; }
-	void resize(int nelems) {
+	unsigned int size() const { return sz; }
+	unsigned int& _size() { return sz; }
+	unsigned int capacity() const { return cap; }
+	void resize(unsigned int nelems) {
 		assert(nelems <= sz);
-		for (int i = nelems; i < sz; i++) {
+		for (unsigned int i = nelems; i < sz; i++) {
 			data[i].~T();
 		}
 		sz = nelems;
 	}
-	void shrink(int nelems) {
+	void shrink(unsigned int nelems) {
 		assert(nelems <= sz);
 		resize(sz - nelems);
 	}
@@ -65,15 +65,15 @@ public:
 	// Stack interface:
 	void push() {
 		if (sz == cap) {
-			cap = imax(2, (cap * 3 + 1) >> 1);
-			data = (T*)realloc(data, cap * sizeof(T));
+			cap = cap <= 1 ? 2 : (cap * 3 + 1) >> 1;
+			data = (T*)realloc((char*)data, cap * sizeof(T));
 		}
 		new (&data[sz++]) T();
 	}
 	void push(const T& elem) {
 		if (sz == cap) {
-			cap = imax(2, (cap * 3 + 1) >> 1);
-			data = (T*)realloc(data, cap * sizeof(T));
+			cap = cap <= 1 ? 2 : (cap * 3 + 1) >> 1;
+			data = (T*)realloc((char*)data, cap * sizeof(T));
 		}
 		new (&data[sz++]) T(elem);
 	}
@@ -82,8 +82,8 @@ public:
 	T& last() { return data[sz - 1]; }
 
 	// Vector interface:
-	const T& operator[](int index) const { return data[index]; }
-	T& operator[](int index) { return data[index]; }
+	const T& operator[](unsigned int index) const { return data[index]; }
+	T& operator[](unsigned int index) { return data[index]; }
 
 	// Raw access to data
 	T* release() {
@@ -99,7 +99,7 @@ public:
 	void copyTo(vec<T>& copy) const {
 		copy.clear();
 		copy.growTo(sz);
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			new (&copy[i]) T(data[i]);
 		}
 	}
@@ -113,17 +113,7 @@ public:
 		cap = 0;
 	}
 
-	int imin(int x, int y) {
-		int mask = ((x - y) >> 31);
-		return (x & mask) + (y & (~mask));
-	}
-
-	int imax(int x, int y) {
-		int mask = ((y - x) >> 31);
-		return (x & mask) + (y & (~mask));
-	}
-
-	void reserve(int size) {
+	void reserve(unsigned int size) {
 		if (size > cap) {
 			if (cap == 0) {
 				cap = (size > 2) ? size : 2;
@@ -132,39 +122,39 @@ public:
 					cap = (cap * 3 + 1) >> 1;
 				} while (cap < size);
 			}
-			data = (T*)realloc(data, cap * sizeof(T));
+			data = (T*)realloc((char*)data, cap * sizeof(T));
 		}
 	}
 
-	void growTo(int size) {
+	void growTo(unsigned int size) {
 		if (size <= sz) {
 			return;
 		}
 		reserve(size);
-		for (int i = sz; i < size; i++) {
+		for (unsigned int i = sz; i < size; i++) {
 			new (&data[i]) T();
 		}
 		sz = size;
 	}
 
-	void growTo(int size, const T& pad) {
+	void growTo(unsigned int size, const T& pad) {
 		if (size <= sz) {
 			return;
 		}
 		reserve(size);
-		for (int i = sz; i < size; i++) {
+		for (unsigned int i = sz; i < size; i++) {
 			new (&data[i]) T(pad);
 		}
 		sz = size;
 	}
 
-	void growBy(int extra, const T& pad = T()) { growTo(sz + extra, pad); }
+	void growBy(unsigned int extra, const T& pad = T()) { growTo(sz + extra, pad); }
 
 	void clear(bool dealloc = false) {
 		if (!data) {
 			return;
 		}
-		for (int i = 0; i < sz; i++) {
+		for (unsigned int i = 0; i < sz; i++) {
 			data[i].~T();
 		}
 		sz = 0;
@@ -176,7 +166,7 @@ public:
 	}
 
 	void remove(const T& t) {
-		int j;
+		unsigned int j;
 		for (j = 0; j < sz && data[j] != t; j++) {
 			;
 		}
@@ -192,14 +182,14 @@ public:
 template <class T>
 class queue {
 public:
-	int sz;
-	int cap;
-	int head;
-	int tail;
-	bool fifo;
+	unsigned int sz{0};
+	unsigned int cap{10};
+	unsigned int head{0};
+	unsigned int tail{0};
+	bool fifo{false};
 	T* data;
 
-	queue() : sz(0), cap(10), head(0), tail(0), fifo(false) { data = (T*)malloc(cap * sizeof(T)); }
+	queue() { data = (T*)malloc(cap * sizeof(T)); }
 
 	void reserve() {
 		if (++sz == cap) {

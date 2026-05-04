@@ -1,11 +1,11 @@
 #ifndef int_var_h
 #define int_var_h
 
-#include <chuffed/core/engine.h>
-#include <chuffed/core/sat-types.h>
-#include <chuffed/support/misc.h>
-#include <chuffed/vars/bool-view.h>
-#include <chuffed/vars/vars.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/vars.h"
 
 #include <cstdint>
 #include <new>
@@ -49,31 +49,31 @@ IntVarLL;: Lazy lit class, lits are lazily generated
 
 class IntVar : public Var {
 public:
-	int const var_id;
+	const int var_id;
 
 	Tint min;
 	Tint max;
 	int min0;  // Initial minimum
 	int max0;  // Initial maximum
-	int shadow_val;
-	bool in_scip;
-	bool all_in_scip;
+	int shadow_val{0};
+	bool in_scip{false};
+	bool all_in_scip{true};
 
-	bool should_be_learnable;
-	bool should_be_decidable;
+	bool should_be_learnable{true};
+	bool should_be_decidable{true};
 
-	Tchar* vals;
+	Tchar* vals{nullptr};
 #if INT_DOMAIN_LIST
 	Tint* vals_list;
 	Tint vals_count;
 #endif
 
-	PreferredVal preferred_val;
+	PreferredVal preferred_val{PV_MIN};
 
-	double activity;
+	double activity{0};
 #ifdef HAS_VAR_IMPACT
-	double impact;
-	int impact_count;
+	double impact{0.042};
+	int impact_count{0};
 #endif
 
 	IntVar(int min, int max);
@@ -102,7 +102,7 @@ public:
 
 	// intermediate state
 	int changes;
-	bool in_queue;
+	bool in_queue{false};
 
 	// persistent state
 	vec<PropInfo> pinfo;
@@ -120,8 +120,8 @@ public:
 	bool finished() override { return isFixed(); }
 	double getScore(VarBranch vb) override;
 #ifdef HAS_VAR_IMPACT
-	double updateImpact(double const newImpact) {
-		double const weight = (1 - IMPACT_DAMPING) * impact_count++;
+	double updateImpact(const double newImpact) {
+		const double weight = (1 - IMPACT_DAMPING) * impact_count++;
 		return impact = (weight * impact + newImpact) / (weight + 1);
 	}
 #endif
@@ -129,8 +129,8 @@ public:
 	DecInfo* branch() override;
 
 	// Solution-based phase saving
-	bool sbps_value_selection;
-	int last_solution_value;
+	bool sbps_value_selection{false};
+	int last_solution_value{-1};
 	void saveCurrentValue() {
 		last_solution_value = getVal();
 		if (!sbps_value_selection) {
@@ -195,7 +195,7 @@ public:
 		int val;
 
 	public:
-		iterator() {}
+		iterator() = default;
 		iterator(const IntVar* _var, int _val) : var(_var), val(_val) {}
 		int operator*() const {
 			assert(val >= var->min && val <= var->max && var->vals && var->vals[val]);
@@ -216,7 +216,7 @@ public:
 #endif
 				return *this;
 			}
-			iterator operator++(int dummy) {
+			iterator operator++(int /*dummy*/) {
 				iterator temp = *this;
 				++*this;
 				return temp;
@@ -236,7 +236,7 @@ public:
 				}
 				return *this;
 			}
-			iterator operator--(int dummy) {
+			iterator operator--(int /*dummy*/) {
 				iterator temp = *this;
 				--*this;
 				return temp;
@@ -250,15 +250,15 @@ public:
 				return (val != rhs.val);
 			}
 		};
-		typedef iterator const_iterator;
-		iterator begin() const { return iterator(this, min); }
-		iterator end() const { return iterator(this, static_cast<int>(0x80000000)); }
+		using const_iterator = iterator;
+		iterator begin() const { return {this, min}; }
+		iterator end() const { return {this, static_cast<int>(0x80000000)}; }
 
 		class reverse_iterator {
 			iterator forward;
 
 		public:
-			reverse_iterator() {}
+			reverse_iterator() = default;
 			reverse_iterator(iterator _forward) : forward(_forward) {}
 			int operator*() const {
 				iterator temp = forward;
@@ -268,7 +268,7 @@ public:
 				--forward;
 				return *this;
 			}
-			reverse_iterator operator++(int dummy) {
+			reverse_iterator operator++(int /*dummy*/) {
 				reverse_iterator temp = *this;
 				++*this;
 				return temp;
@@ -277,7 +277,7 @@ public:
 				++forward;
 				return *this;
 			}
-			reverse_iterator operator--(int dummy) {
+			reverse_iterator operator--(int /*dummy*/) {
 				reverse_iterator temp = *this;
 				--*this;
 				return temp;
@@ -286,9 +286,9 @@ public:
 			bool operator==(const reverse_iterator& rhs) const { return (forward == rhs.forward); }
 			bool operator!=(const reverse_iterator& rhs) const { return (forward != rhs.forward); }
 		};
-		typedef reverse_iterator const_reverse_iterator;
-		reverse_iterator rbegin() const { return reverse_iterator(end()); }
-		reverse_iterator rend() const { return reverse_iterator(begin()); }
+		using const_reverse_iterator = reverse_iterator;
+		reverse_iterator rbegin() const { return {end()}; }
+		reverse_iterator rend() const { return {begin()}; }
 
 		int size() const {
 #ifdef HAS_VAR_IMPACT
@@ -316,12 +316,12 @@ public:
 		virtual Lit getMinLit() const { NEVER; }
 		virtual Lit getMaxLit() const { NEVER; }
 		virtual Lit getValLit() const { NEVER; }
-		virtual Lit getFMinLit(int64_t v) { NEVER; }
-		virtual Lit getFMaxLit(int64_t v) { NEVER; }
+		virtual Lit getFMinLit(int64_t /*v*/) { NEVER; }
+		virtual Lit getFMaxLit(int64_t /*v*/) { NEVER; }
 
 		// NOTE: No support for INT_VAR_LL vars yet!
 		// t = 0: [x != v], t = 1: [x = v], t = 2: [x >= v], t = 3: [x <= v]
-		virtual Lit getLit(int64_t v, LitRel t) { NEVER; }
+		virtual Lit getLit(int64_t /*v*/, LitRel /*t*/) { NEVER; }
 
 		//--------------------------------------------------
 		// Domain operations
@@ -420,8 +420,13 @@ public:
 
 #undef IMPACT_DAMPING
 
-#include <chuffed/vars/int-var-el.h>
-#include <chuffed/vars/int-var-ll.h>
-#include <chuffed/vars/int-var-sl.h>
+	class IntVarEL;
+#include "chuffed/vars/int-var-el.h"
+	class IntVarLL;
+#include "chuffed/vars/int-var-ll.h"
+	// A enumerated type use to distinguish between different rounding modes.
+	enum RoundMode { ROUND_DOWN = 0, ROUND_UP = 1, ROUND_NONE = 2 };
+	class IntVarSL;
+#include "chuffed/vars/int-var-sl.h"
 
 #endif

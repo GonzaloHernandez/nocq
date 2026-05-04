@@ -1,11 +1,23 @@
-#include <chuffed/core/propagator.h>
-#include <chuffed/globals/tree.h>
-#include <chuffed/support/union_find.h>
+#include "chuffed/core/engine.h"
+#include "chuffed/core/options.h"
+#include "chuffed/core/propagator.h"
+#include "chuffed/core/sat-types.h"
+#include "chuffed/core/sat.h"
+#include "chuffed/globals/tree.h"
+#include "chuffed/support/misc.h"
+#include "chuffed/support/union_find.h"
+#include "chuffed/support/vec.h"
+#include "chuffed/vars/bool-view.h"
+#include "chuffed/vars/int-var.h"
+#include "chuffed/vars/vars.h"
 
+#include <cassert>
+#include <climits>
+#include <cstring>
 #include <iostream>
 #include <queue>
-#include <set>
-#include <stack>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #define CPLEX_AVAILABLE 0
@@ -24,13 +36,10 @@
  * the nodes of G, so the lower bound is different.
  */
 
-using namespace std;
 #define TREEPROP_DEBUG 0
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
 //*
-// This version needs to work in conjucntion with a TreePropagator
+// This version needs to work in conjunction with a TreePropagator
 // It won't do the propagations of treeness, only inherits from it
 // to avoid replicating code
 class IncrementalMinimumWTreePropagator : public TreePropagator {
@@ -64,17 +73,17 @@ protected:
 			uf.print();
 			for (int i = 0; i < nbNodes(); i++) {
 				if (getNodeVar(i).isFixed() && getNodeVar(i).isTrue()) {
-					cout << i << " ";
+					std::cout << i << " ";
 				}
 			}
-			cout << endl;
+			std::cout << '\n';
 			for (int i = 0; i < nbNodes(); i++) {
 				if (spC[i] != -1) {
-					cout << i << " ";
+					std::cout << i << " ";
 				}
 			}
-			cout << endl;
-			cout << ccc << " " << ccs << endl;
+			std::cout << '\n';
+			std::cout << ccc << " " << ccs << '\n';
 		}
 		assert(ccc == ccs);
 		for (int i = 0; i < nbNodes(); i++) {
@@ -86,7 +95,7 @@ protected:
 					if (ccs > 1) {
 						if (!(spC[i] > 0 && spTo[i] != -1 && spTo[i] != i)) {
 							uf.print();
-							cout << "Node " << i << " " << spC[i] << " " << spTo[i] << endl;
+							std::cout << "Node " << i << " " << spC[i] << " " << spTo[i] << '\n';
 						}
 						assert(spC[i] > 0 && spTo[i] != -1 && spTo[i] != i);
 						int s = 0;
@@ -98,19 +107,19 @@ protected:
 						}
 						if (s != spC[i]) {
 							uf.print();
-							cout << "Node " << i << " " << spC[i] << " " << spTo[i] << " " << s << endl;
+							std::cout << "Node " << i << " " << spC[i] << " " << spTo[i] << " " << s << '\n';
 						}
 						assert(s == spC[i]);
 					} else {
 						if (!(spC[i] == -1 && spTo[i] == -1)) {
 							uf.print();
-							cout << "Node " << i << " " << spC[i] << " " << spTo[i] << endl;
+							std::cout << "Node " << i << " " << spC[i] << " " << spTo[i] << '\n';
 							for (int j = 0; j < nbNodes(); j++) {
 								if (getNodeVar(j).isFixed() && getNodeVar(j).isTrue()) {
-									cout << j << " ";
+									std::cout << j << " ";
 								}
 							}
-							cout << endl;
+							std::cout << '\n';
 						}
 						assert(spC[i] == -1 && spTo[i] == -1);
 						for (int j = 0; j < nbEdges(); j++) {
@@ -150,7 +159,7 @@ protected:
 	}
 	class comp {
 	public:
-		bool operator()(const pair<int, int>& lhs, const pair<int, int>& rhs) const {
+		bool operator()(const std::pair<int, int>& lhs, const std::pair<int, int>& rhs) const {
 			return lhs.second > rhs.second;
 		}
 	};
@@ -169,12 +178,12 @@ protected:
 				q;  // priority key: cost
 		int count = 0;
 		costs[s] = 0;
-		std::pair<int, int> val(s, costs[s]);
+		const std::pair<int, int> val(s, costs[s]);
 		q.push(val);
 
 		int curr = s;
 		while (count < nbNodes()) {
-			std::pair<int, int> top = q.top();
+			const std::pair<int, int> top = q.top();
 			curr = top.first;
 			visited[curr] = true;
 			// Reached the closest terminal outside of the CC of s
@@ -198,12 +207,12 @@ protected:
 			q.pop();
 			count++;
 
-			for (int i = 0; i < adj[curr].size(); i++) {
-				int e = adj[curr][i];
+			for (unsigned int i = 0; i < adj[curr].size(); i++) {
+				const int e = adj[curr][i];
 				if (getEdgeVar(e).isFixed() && getEdgeVar(e).isFalse()) {
 					continue;  // Cannot take this edge
 				}
-				int other = getOtherEndnode(e, curr);
+				const int other = getOtherEndnode(e, curr);
 				if (visited[other] || (getNodeVar(other).isFixed() && getNodeVar(other).isFalse())) {
 					continue;  // cannot take this node
 				}
@@ -219,7 +228,7 @@ protected:
 				if (costs[curr] + cost < costs[other]) {
 					edge[other] = e;
 					costs[other] = costs[curr] + cost;
-					pair<int, int> val(other, costs[other]);
+					const std::pair<int, int> val(other, costs[other]);
 					q.push(val);
 				}
 			}
@@ -242,12 +251,12 @@ protected:
 		bool first_hit = true;
 		int count = 0;
 		costs[s] = 0;
-		std::pair<int, int> val(s, costs[s]);
+		const std::pair<int, int> val(s, costs[s]);
 		q.push(val);
 
 		int curr = s;
 		while (!q.empty() && count < nbNodes()) {
-			std::pair<int, int> top = q.top();
+			const std::pair<int, int> top = q.top();
 			curr = top.first;
 			visited[curr] = true;
 			// Reached the closest terminal outside of the CC of s
@@ -293,12 +302,12 @@ protected:
 			q.pop();
 			count++;
 
-			for (int i = 0; i < adj[curr].size(); i++) {
-				int e = adj[curr][i];
+			for (unsigned int i = 0; i < adj[curr].size(); i++) {
+				const int e = adj[curr][i];
 				if (getEdgeVar(e).isFixed() && getEdgeVar(e).isFalse()) {
 					continue;  // Cannot take this edge
 				}
-				int other = getOtherEndnode(e, curr);
+				const int other = getOtherEndnode(e, curr);
 				if (visited[other] || (getNodeVar(other).isFixed() && getNodeVar(other).isFalse())) {
 					continue;  // cannot take this node
 				}
@@ -314,7 +323,7 @@ protected:
 				if (costs[curr] + cost < costs[other]) {
 					edge[other] = e;
 					costs[other] = costs[curr] + cost;
-					pair<int, int> val(other, costs[other]);
+					const std::pair<int, int> val(other, costs[other]);
 					q.push(val);
 				}
 			}
@@ -330,14 +339,14 @@ public:
 				mw(0),
 				splb(0),
 				explv_sz(0),
-				w(_w),
 				ccs(0),
-				specialtint(0) {
+				specialtint(0),
+				w(_w) {
 		explvp.push();
 		priority = 5;
 		nb_innodes = 0;
 
-		for (int i = 0; i < _ws.size(); i++) {
+		for (unsigned int i = 0; i < _ws.size(); i++) {
 			weights.push(_ws[i]);
 		}
 
@@ -392,7 +401,7 @@ public:
 
 	bool propagateNewNode(int n) override {
 		// Full Dijkstra from this node
-		//  -> udpate spTo[n], spC[n] and spFrom[n]
+		//  -> update spTo[n], spC[n] and spFrom[n]
 		//  -> for all other mandatories,
 		//      if spC[other] > full_dijkstra(n)[other]
 		//          splb -= spC[other]
@@ -402,7 +411,7 @@ public:
 		//          eInSP[other] = vector<edge>(zeroes)
 		//          eInSP[other] = [1 for e in edges if e used from n to other]
 
-		int rn = uf.find(n);
+		const int rn = uf.find(n);
 		full_dijkstra(rn);
 		assert(spTo[rn] != uf.find(rn));
 
@@ -419,7 +428,6 @@ public:
 
 		for (int i = 0; i < nbNodes(); i++) {
 			if (eInSP[i][e] != 0) {
-				int tmp = splb;
 				splb -= spC[i] / 2;
 				short_dijkstra(i);
 				assert(spTo[i] != i);
@@ -441,13 +449,13 @@ public:
 			explv_sz++;
 		}
 
-		int u = getEndnode(e, 0);
-		int v = getEndnode(e, 1);
+		const int u = getEndnode(e, 0);
+		const int v = getEndnode(e, 1);
 		assert(getNodeVar(u).isFixed() && getNodeVar(u).isTrue());
 		assert(getNodeVar(v).isFixed() && getNodeVar(v).isTrue());
 
-		int ru = uf.find(u);
-		int rv = uf.find(v);
+		const int ru = uf.find(u);
+		const int rv = uf.find(v);
 
 		if (ru == rv) {
 			return true;
@@ -466,13 +474,13 @@ public:
 				uf.unite(u,v);
 		}//*/
 		uf.unite(u, v);
-		int n_r = uf.find(ru);
+		const int n_r = uf.find(ru);
 		// cout<<"United "<<u<<" "<<v<<" ->"<<n_r<<endl;
 
-		// United to CCs that had each otehr as SP
+		// United to CCs that had each other as SP
 		if (spTo[ru] == rv && spTo[rv] == ru) {
 			assert(ru != rv);
-			int loser = n_r == ru ? rv : ru;
+			const int loser = n_r == ru ? rv : ru;
 			spC[loser] = -1;
 			spTo[loser] = -1;
 			clearPathData(loser);
@@ -526,7 +534,7 @@ public:
 	}
 
 	bool propagate() override {
-		if (explv_sz < explvf.size()) {
+		if (explv_sz < static_cast<int>(explvf.size())) {
 			explvf.resize(explv_sz);
 			explvp.resize(explv_sz + 1);
 		}
@@ -545,7 +553,7 @@ public:
 		cout<<endl;
 		//*/
 
-		unordered_set<int>::iterator it;
+		std::unordered_set<int>::iterator it;
 
 		// cout<<"1. spC[0] = "<<spC[0]<<endl;
 		// uf.print();
@@ -564,8 +572,8 @@ public:
 				assert(!uf.connected(getEndnode(*it, 0), getEndnode(*it, 1)));
 				// cout<<"new edge "<<*it<<" ("<<getEndnode(*it,0)<<" "<<getEndnode(*it,1)<<"
 				// ccs:"<<ccs<<endl;
-				int u = getEndnode(*it, 0);
-				int v = getEndnode(*it, 1);
+				// const int u = getEndnode(*it, 0);
+				// const int v = getEndnode(*it, 1);
 				// if (spC[uf.find(u)] != -1 && spC[uf.find(v)] != -1)
 				ccs--;
 				propagateNewEdge(*it);
@@ -598,12 +606,12 @@ public:
 
 		// cout<<"4. spC[0] = "<<spC[0]<<endl;
 
-		int old = splb;
 		int sum = 0;
 		int minspC = -1;
-		int ccc = ccs;
+		const int ccc = ccs;
 
 #if TREEPROP_DEBUG
+		const int old = splb;
 		for (int i = 0; i < nbNodes(); i++)
 			if (getNodeVar(i).isFixed() && getNodeVar(i).isTrue() && uf.find(i) == i) ccc++;
 
@@ -671,7 +679,7 @@ public:
 		}
 
 		assert(sum != 1);
-		int splb = sum;
+		const int splb = sum;
 
 		assert(verify_state());
 
@@ -729,14 +737,14 @@ protected:
 			return true;
 		}
 		// A steiner node (non-terminal) of degree 2 MUST use its two edges.
-		// Otherwise its costing us wieght for nothing
+		// Otherwise its costing us weight for nothing
 		// If adding that new edge creates a cycle, we will fail and learn later
 		// If we cant add the second edge, we fail.
 		//!\This is only valid if tree() is the only constraint forcing terminals in
 		if (!isTerminal[node]) {
 			int degree = 0;
 			vec<edge_id> connectingEdges;
-			for (int e : adj[node]) {
+			for (const int e : adj[node]) {
 				if (!getEdgeVar(e).isFixed() || getEdgeVar(e).isTrue()) {
 					degree++;
 					connectingEdges.push(e);
@@ -751,7 +759,7 @@ protected:
 					vec<Lit> ps;
 					assert(getNodeVar(node).isFixed());
 					ps.push(getNodeVar(node).getValLit());
-					for (int e : adj[node]) {
+					for (const int e : adj[node]) {
 						if (getEdgeVar(e).isFixed()) {
 							ps.push(getEdgeVar(e).getValLit());
 						}
@@ -766,7 +774,7 @@ protected:
 			if (degree == 2) {
 				// Force both edges in if they arent already.
 				for (int i = 0; i < 2; i++) {
-					edge_id e = connectingEdges[i];
+					const edge_id e = connectingEdges[i];
 					// If its fixed, its fixed to 1, which is OK
 					if (!getEdgeVar(e).isFixed()) {
 						Clause* r = nullptr;
@@ -775,7 +783,7 @@ protected:
 							ps.push();
 							assert(getNodeVar(node).isFixed());
 							ps.push(getNodeVar(node).getValLit());
-							for (int i : adj[node]) {
+							for (const int i : adj[node]) {
 								if (getEdgeVar(i).isFixed()) {
 									ps.push(getEdgeVar(i).getValLit());
 								}
@@ -783,7 +791,7 @@ protected:
 							r = Reason_new(ps);
 						}
 						if (TREEPROP_DEBUG) {
-							cout << "STEINER " << e << endl;
+							std::cout << "STEINER " << e << '\n';
 						}
 						getEdgeVar(e).setVal(true, r);  // New edge in (bridge)
 					}
@@ -802,7 +810,7 @@ public:
 				mandatoryWeight(0),  // apsp(this),
 				lowerBound(0),
 				totalWeight(_w) {
-		for (int i = 0; i < _ws.size(); i++) {
+		for (unsigned int i = 0; i < _ws.size(); i++) {
 			weights.push(_ws[i]);
 		}
 
@@ -836,13 +844,13 @@ public:
 		shortestPathsInfo = new Tint*[nbNodes()];
 		for (int i = 0; i < nbNodes(); i++) {
 			shortestPathsEdges[i] = new Tint[nbEdges()];
-			std::memset(shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
+			std::memset((int*)shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
 			shortestPathsInfo[i] = new Tint[2];
-			std::memset(shortestPathsInfo[i], -1, sizeof(Tint) * 2);
+			std::memset((int*)shortestPathsInfo[i], -1, sizeof(Tint) * 2);
 		}
 
 		removedEdgesFromSP = new Tint[nbEdges()];
-		std::memset(removedEdgesFromSP, 0, sizeof(Tint) * nbEdges());
+		std::memset((int*)removedEdgesFromSP, 0, sizeof(Tint) * nbEdges());
 
 		return;
 
@@ -854,7 +862,7 @@ public:
 				if (!isTerminal[i] && !getNodeVar(i).isFixed()) {
 					int deg = 0;
 					int lastSeen = -1;
-					for (int j : adj[i]) {
+					for (const int j : adj[i]) {
 						if (!getEdgeVar(j).isFixed() || getEdgeVar(j).isTrue()) {
 							deg++;
 							lastSeen = j;
@@ -876,9 +884,9 @@ public:
 	void wakeup(int i, int c) override {
 		if (i == totalWeightVarID) {
 			if (TREEPROP_DEBUG) {
-				cout << "Wakeup" << endl;
-				cout << __FILE__ << " " << __LINE__ << " totalWeight " << totalWeight->getMax() << endl;
-				cout << "event Upperbound" << endl;
+				std::cout << "Wakeup" << '\n'
+									<< __FILE__ << " " << __LINE__ << " totalWeight " << totalWeight->getMax() << '\n'
+									<< "event Upperbound" << '\n';
 			}
 			pushInQueue();
 		} else {
@@ -899,17 +907,17 @@ public:
 
 	class comp {
 	public:
-		bool operator()(const pair<int, int>& lhs, const pair<int, int>& rhs) const {
+		bool operator()(const std::pair<int, int>& lhs, const std::pair<int, int>& rhs) const {
 			return lhs.second > rhs.second;
 		}
 	};
 
-	typedef struct DijkstraInfo {
-		int cost;
-		int prev;
-		int edge;
-		DijkstraInfo() : cost(0), prev(0), edge(0) {}
-	} DijkstraInfo;
+	struct DijkstraInfo {
+		int cost{0};
+		int prev{0};
+		int edge{0};
+		DijkstraInfo() = default;
+	};
 
 	/**
 	 * This implementation of Dijkstra stops when reaching a "terminal"
@@ -930,12 +938,12 @@ public:
 		res[s].prev = s;
 		res[s].cost = 0;
 
-		std::pair<int, int> val(s, res[s].cost);
+		const std::pair<int, int> val(s, res[s].cost);
 		q.push(val);
 
 		int curr = s;
 		while (count < n) {
-			std::pair<int, int> top = q.top();
+			const std::pair<int, int> top = q.top();
 			curr = top.first;
 			// Reached the closest terminal outside of the CC of s
 			if (getNodeVar(curr).isFixed() && getNodeVar(curr).isTrue()) {
@@ -949,9 +957,9 @@ public:
 			visited[curr] = true;
 			count++;
 
-			for (int i = 0; i < adj[curr].size(); i++) {
-				int e = adj[curr][i];
-				int other = OTHER(getEndnode(e, 0), getEndnode(e, 1), curr);
+			for (unsigned int i = 0; i < adj[curr].size(); i++) {
+				const int e = adj[curr][i];
+				const int other = OTHER(getEndnode(e, 0), getEndnode(e, 1), curr);
 
 				if (visited[other] || (getNodeVar(other).isFixed() && getNodeVar(other).isFalse())) {
 					continue;  // cannot take this node
@@ -971,7 +979,7 @@ public:
 					res[other].edge = e;
 					res[other].cost = res[curr].cost + cost;
 
-					pair<int, int> val(other, res[other].cost);
+					const std::pair<int, int> val(other, res[other].cost);
 
 					q.push(val);
 				}
@@ -993,21 +1001,21 @@ public:
 		res[s].prev = s;
 		res[s].cost = 0;
 
-		std::pair<int, int> val(s, res[s].cost);
+		const std::pair<int, int> val(s, res[s].cost);
 		q.push(val);
 
 		int curr = s;
 		while (count < n) {
-			std::pair<int, int> top = q.top();
+			const std::pair<int, int> top = q.top();
 			curr = top.first;
 
 			q.pop();
 			visited[curr] = true;
 			count++;
 
-			for (int i = 0; i < adj[curr].size(); i++) {
-				int e = adj[curr][i];
-				int other = OTHER(getEndnode(e, 0), getEndnode(e, 1), curr);
+			for (unsigned int i = 0; i < adj[curr].size(); i++) {
+				const int e = adj[curr][i];
+				const int other = OTHER(getEndnode(e, 0), getEndnode(e, 1), curr);
 
 				if (visited[other] || (getNodeVar(other).isFixed() && getNodeVar(other).isFalse())) {
 					continue;  // cannot take this node
@@ -1027,7 +1035,7 @@ public:
 					res[other].edge = e;
 					res[other].cost = res[curr].cost + cost;
 
-					pair<int, int> val(other, res[other].cost);
+					const std::pair<int, int> val(other, res[other].cost);
 
 					q.push(val);
 				}
@@ -1040,23 +1048,23 @@ public:
 	 * Update node i if its a representative of a CC
 	 * eopt is used to force the update in case of an edge removal
 	 *  because the weight of the newlly found sp might be == to the old
-	 *  one and thus look like its not necesary to do anything, yet it is
+	 *  one and thus look like its not necessary to do anything, yet it is
 	 *  because a removed edge is used.
 	 */
 	bool elementaryUpdate(int i, int eopt = -1) {
-		// The || condition is required at the begining, when all ndoes have
+		// The || condition is required at the beginning, when all nodes have
 		// shortestPathsInfo[node][0] = -1
 		if (getNodeVar(i).isFixed() && getNodeVar(i).isTrue() &&
 				(/*shortestPathsInfo[i][0] != -1 ||*/ ruf.isRoot(i))) {
 			if (TREEPROP_DEBUG) {
-				cout << "elementary update of #" << i << " (isRoot:" << ruf.isRoot(i) << endl;
+				std::cout << "elementary update of #" << i << " (isRoot:" << ruf.isRoot(i) << '\n';
 			}
-			int rep = i;
+			const int rep = i;
 			std::vector<DijkstraInfo> dijkstraPath(nbNodes());
 			struct CC cc;
 			std::vector<bool> ccvisited(nbNodes(), false);
 			getCC(rep, ccvisited, &cc);
-			int other = Dijkstra(rep, dijkstraPath.data(), ccvisited, nbNodes());
+			const int other = Dijkstra(rep, dijkstraPath.data(), ccvisited, nbNodes());
 			// other can be three things:
 			// -another terminal in another CC (interesting case)
 			// -another terminal in the same CC as n (same as next case)
@@ -1066,8 +1074,8 @@ public:
 			// if 'other' is a fixed-in node in another CC...
 			if (getNodeVar(other).isFixed() && getNodeVar(other).isTrue() && !ccvisited[other]) {
 				// cout <<"filling column #" <<rep<<" reached "<<other<<endl;
-				int repN = ruf.find(rep);
-				int repO = ruf.find(other);
+				const int repN = ruf.find(rep);
+				const int repO = ruf.find(other);
 				assert(repN != repO);
 				// assert(repN == rep);
 				// Mark the edges in the path from repN to repO
@@ -1100,21 +1108,21 @@ public:
 						shortestPathsEdges[repN][i] = tmp[i];
 					}
 					if (TREEPROP_DEBUG) {
-						cout << "been here6 " << repN << " " << shortestPathsInfo[repN][1] << " " << other
-								 << "prev cost: " << shortestPathsInfo[repN][0]
-								 << "new cost: " << dijkstraPath[other].cost << endl;
+						std::cout << "been here6 " << repN << " " << shortestPathsInfo[repN][1] << " " << other
+											<< "prev cost: " << shortestPathsInfo[repN][0]
+											<< "new cost: " << dijkstraPath[other].cost << '\n';
 					}
 					shortestPathsInfo[repN][0] = dijkstraPath[other].cost;
 					shortestPathsInfo[repN][1] = other;
 				}
 			} else {
-				std::memset(shortestPathsEdges[rep], 0, sizeof(Tint) * nbEdges());
+				std::memset((int*)shortestPathsEdges[rep], 0, sizeof(Tint) * nbEdges());
 				shortestPathsInfo[rep][0] = -1;
 				shortestPathsInfo[rep][1] = -1;
 			}
 		} else {
 			if (shortestPathsInfo[i][0] != -1) {
-				std::memset(shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
+				std::memset((int*)shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
 				shortestPathsInfo[i][0] = -1;
 				shortestPathsInfo[i][1] = -1;
 			}
@@ -1125,7 +1133,7 @@ public:
 
 	bool updateLowerBound() {
 		if (TREEPROP_DEBUG) {
-			cout << "update all" << endl;
+			std::cout << "update all" << '\n';
 		}
 		lowerBound = 0;
 		// For each repr of any CC:
@@ -1149,12 +1157,12 @@ public:
 			return false;
 		}
 
-		bool ok = TreePropagator::propagateNewNode(n);
+		const bool ok = TreePropagator::propagateNewNode(n);
 		if (!ok) {
 			return false;
 		}
 
-		int repN = ruf.find(n);
+		const int repN = ruf.find(n);
 		std::vector<DijkstraInfo> dijkstraPath(nbNodes());
 		// int end = fullDijkstra(repN, dijkstraPath,nbNodes());
 		struct CC cc;
@@ -1171,7 +1179,7 @@ public:
 					assert(shortestPathsInfo[i][0] != -1 || i == repN);
 					int prev1 = i;
 					int prev2 = dijkstraPath[prev1].prev;
-					std::memset(shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
+					std::memset((int*)shortestPathsEdges[i], 0, sizeof(Tint) * nbEdges());
 					int count = 0;
 					while (prev1 != repN) {
 						shortestPathsEdges[i][dijkstraPath[prev1].edge] = 1;
@@ -1181,7 +1189,7 @@ public:
 						assert(count <= nbNodes());
 					}
 					if (TREEPROP_DEBUG) {
-						cout << "been here5 " << i << endl;
+						std::cout << "been here5 " << i << '\n';
 					}
 					shortestPathsInfo[i][0] = dijkstraPath[i].cost;
 					shortestPathsInfo[i][1] = repN;
@@ -1191,7 +1199,7 @@ public:
 		if (argmin != -1) {  // more CCs
 			int prev1 = argmin;
 			int prev2 = dijkstraPath[prev1].prev;
-			std::memset(shortestPathsEdges[repN], 0, sizeof(Tint) * nbEdges());
+			std::memset((int*)shortestPathsEdges[repN], 0, sizeof(Tint) * nbEdges());
 			int count = 0;
 			while (prev1 != repN) {
 				shortestPathsEdges[repN][dijkstraPath[prev1].edge] = 1;
@@ -1201,7 +1209,7 @@ public:
 				assert(count <= nbNodes());
 			}
 			if (TREEPROP_DEBUG) {
-				cout << "been here4 " << repN << endl;
+				std::cout << "been here4 " << repN << '\n';
 			}
 			shortestPathsInfo[repN][0] = dijkstraPath[argmin].cost;
 			shortestPathsInfo[repN][1] = argmin;
@@ -1211,35 +1219,35 @@ public:
 
 	bool propagateNewEdge(int e) override {
 		if (TREEPROP_DEBUG) {
-			cout << "newEdge" << endl;
+			std::cout << "newEdge" << '\n';
 		}
-		int rep0 = ruf.find(getEndnode(e, 0));
-		int rep1 = ruf.find(getEndnode(e, 1));
+		const int rep0 = ruf.find(getEndnode(e, 0));
+		const int rep1 = ruf.find(getEndnode(e, 1));
 		bool mergeCC = false;
 		if (getNodeVar(rep0).isFixed() && getNodeVar(rep0).isTrue() && getNodeVar(rep1).isFixed() &&
 				getNodeVar(rep1).isTrue()) {
 			mergeCC = true;
 		}
-		int e0 = getEndnode(e, 0);
-		int e1 = getEndnode(e, 1);
-		bool wasE0Fixed = getNodeVar(getEndnode(e, 0)).isFixed();
-		bool wasE1Fixed = getNodeVar(getEndnode(e, 1)).isFixed();
+		const int e0 = getEndnode(e, 0);
+		const int e1 = getEndnode(e, 1);
+		const bool wasE0Fixed = getNodeVar(getEndnode(e, 0)).isFixed();
+		const bool wasE1Fixed = getNodeVar(getEndnode(e, 1)).isFixed();
 
-		bool ok = TreePropagator::propagateNewEdge(e);
+		const bool ok = TreePropagator::propagateNewEdge(e);
 		if (!ok) {
 			return false;
 		}
 
 		// mandatoryWeight += weights[e];
 		if (mergeCC) {
-			int newR = ruf.find(e0);
+			const int newR = ruf.find(e0);
 			assert(newR == e0 || newR == e1);
-			int maxR = (shortestPathsInfo[rep0][0] > shortestPathsInfo[rep1][0]) ? rep0 : rep1;
-			int minR = (maxR == rep0) ? rep1 : rep0;
+			const int maxR = (shortestPathsInfo[rep0][0] > shortestPathsInfo[rep1][0]) ? rep0 : rep1;
+			const int minR = (maxR == rep0) ? rep1 : rep0;
 			if (TREEPROP_DEBUG) {
-				cout << "been here3 " << maxR << endl;
+				std::cout << "been here3 " << maxR << '\n';
 			}
-			std::memset(shortestPathsEdges[maxR], 0, sizeof(Tint) * nbEdges());
+			std::memset((int*)shortestPathsEdges[maxR], 0, sizeof(Tint) * nbEdges());
 			shortestPathsInfo[maxR][0] = -1;
 			shortestPathsInfo[maxR][1] = -1;
 			int count = 0;
@@ -1250,44 +1258,47 @@ public:
 			}
 			if (count > 1) {  // More than one CC
 				if (TREEPROP_DEBUG) {
-					cout << "been here2 " << newR << endl;
+					std::cout << "been here2 " << newR << '\n';
 				}
-				std::memcpy(shortestPathsEdges[newR], shortestPathsEdges[minR], sizeof(Tint) * nbEdges());
+				std::memcpy((int*)shortestPathsEdges[newR], (int*)shortestPathsEdges[minR],
+										sizeof(Tint) * nbEdges());
 				shortestPathsInfo[newR][0] = shortestPathsInfo[minR][0];
 				shortestPathsInfo[newR][1] = shortestPathsInfo[minR][1];
 			}
 			if (minR != newR) {
 				if (TREEPROP_DEBUG) {
-					cout << "been here1 " << minR << endl;
+					std::cout << "been here1 " << minR << '\n';
 				}
-				std::memset(shortestPathsEdges[minR], 0, sizeof(Tint) * nbEdges());
+				std::memset((int*)shortestPathsEdges[minR], 0, sizeof(Tint) * nbEdges());
 				shortestPathsInfo[minR][0] = -1;
 				shortestPathsInfo[minR][1] = -1;
 			}
 		} else {
-			int newR = ruf.find(e0);
+			const int newR = ruf.find(e0);
 			assert(newR == e0 || newR == e1);
 			if (TREEPROP_DEBUG) {
-				cout << "maybe here?" << endl;
+				std::cout << "maybe here?" << '\n';
 			}
 
 			if (wasE0Fixed && !wasE1Fixed) {
 				assert(ruf.find(e1) == e0);
 				if (newR != rep0) {
-					std::memcpy(shortestPathsEdges[newR], shortestPathsEdges[rep0], sizeof(Tint) * nbEdges());
+					std::memcpy((int*)shortestPathsEdges[newR], (int*)shortestPathsEdges[rep0],
+											sizeof(Tint) * nbEdges());
 					shortestPathsInfo[newR][0] = shortestPathsInfo[rep0][0];
 					shortestPathsInfo[newR][1] = shortestPathsInfo[rep0][1];
-					std::memset(shortestPathsEdges[rep0], 0, sizeof(Tint) * nbEdges());
+					std::memset((int*)shortestPathsEdges[rep0], 0, sizeof(Tint) * nbEdges());
 					shortestPathsInfo[rep0][0] = -1;
 					shortestPathsInfo[rep0][1] = -1;
 				}
 			} else if (wasE1Fixed && !wasE0Fixed) {
 				assert(ruf.find(e0) == e1);
 				if (newR != rep1) {
-					std::memcpy(shortestPathsEdges[newR], shortestPathsEdges[rep1], sizeof(Tint) * nbEdges());
+					std::memcpy((int*)shortestPathsEdges[newR], (int*)shortestPathsEdges[rep1],
+											sizeof(Tint) * nbEdges());
 					shortestPathsInfo[newR][0] = shortestPathsInfo[rep1][0];
 					shortestPathsInfo[newR][1] = shortestPathsInfo[rep1][1];
-					std::memset(shortestPathsEdges[rep1], 0, sizeof(Tint) * nbEdges());
+					std::memset((int*)shortestPathsEdges[rep1], 0, sizeof(Tint) * nbEdges());
 					shortestPathsInfo[rep1][0] = -1;
 					shortestPathsInfo[rep1][1] = -1;
 				}
@@ -1309,13 +1320,13 @@ public:
 
 	bool propagateRemNode(int n) override {
 		if (TREEPROP_DEBUG) {
-			cout << "remNode " << n << endl;
+			std::cout << "remNode " << n << '\n';
 		}
-		bool ok = TreePropagator::propagateRemNode(n);
+		const bool ok = TreePropagator::propagateRemNode(n);
 		if (!ok) {
 			return false;
 		}
-		for (int e : adj[n]) {
+		for (const int e : adj[n]) {
 			for (int i = 0; i < nbNodes(); i++) {
 				if (getNodeVar(i).isFixed() && getNodeVar(i).isTrue()) {
 					if (shortestPathsEdges[i][e] == 1) {
@@ -1332,14 +1343,14 @@ public:
 
 	bool propagateRemEdge(int e) override {
 		if (TREEPROP_DEBUG) {
-			cout << "remEdge " << e << endl;
+			std::cout << "remEdge " << e << '\n';
 		}
-		bool ok = TreePropagator::propagateRemEdge(e);
+		const bool ok = TreePropagator::propagateRemEdge(e);
 		if (!ok) {
 			return false;
 		}
 		for (int i = 0; i < 2; i++) {
-			int node = getEndnode(e, i);
+			const int node = getEndnode(e, i);
 			if (!steiner_node(node)) {
 				return false;
 			}
@@ -1360,39 +1371,40 @@ public:
 
 	void printEdgesMatrix() {
 		for (int i = 0; i < nbNodes(); i++) {
-			cout << ((getNodeVar(i).isFixed() && getNodeVar(i).getVal() == 1 && ruf.isRoot(i)) ? "R "
-																																												 : "  ");
+			std::cout << ((getNodeVar(i).isFixed() && getNodeVar(i).getVal() == 1 && ruf.isRoot(i))
+												? "R "
+												: "  ");
 		}
-		cout << endl;
+		std::cout << '\n';
 		for (int i = 0; i < nbNodes(); i++) {
-			cout << ((getNodeVar(i).isFixed() && getNodeVar(i).getVal() == 1 &&
-								shortestPathsInfo[i][0] != -1)
-									 ? "R "
-									 : "  ");
+			std::cout << ((getNodeVar(i).isFixed() && getNodeVar(i).getVal() == 1 &&
+										 shortestPathsInfo[i][0] != -1)
+												? "R "
+												: "  ");
 		}
-		cout << endl;
+		std::cout << '\n';
 		for (int i = 0; i < nbNodes(); i++) {
-			cout << ((shortestPathsInfo[i][0] != -1) ? "R " : "  ");
+			std::cout << ((shortestPathsInfo[i][0] != -1) ? "R " : "  ");
 		}
-		cout << endl;
+		std::cout << '\n';
 		for (int i = 0; i < nbEdges(); i++) {
 			for (int j = 0; j < nbNodes(); j++) {
-				cout << shortestPathsEdges[j][i] << " ";
+				std::cout << shortestPathsEdges[j][i] << " ";
 			}
-			cout << endl;
+			std::cout << '\n';
 		}
-		cout << endl;
+		std::cout << '\n';
 	}
 
 	bool propagate() override {
 		if (TREEPROP_DEBUG) {
-			cout << "ppgate" << endl;
+			std::cout << "ppgate" << '\n';
 		}
 
-		bool computeLBFromScratch = true;  //(newFixedN.size() > 0);
-		unordered_set<int>::iterator it;
+		const bool computeLBFromScratch = true;  //(newFixedN.size() > 0);
+		std::unordered_set<int>::iterator it;
 		for (it = newFixedN.begin(); it != newFixedN.end(); ++it) {
-			int j = *it;  // newFixedN[i];
+			const int j = *it;  // newFixedN[i];
 
 			nb_innodes = nb_innodes + ((getNodeVar(j).isTrue()) ? 1 : 0);
 			if (getNodeVar(j).isTrue()) {
@@ -1405,13 +1417,13 @@ public:
 				}
 			}
 		}
-		if (nb_innodes == 1) {  // One ndoe in in the entire graph
+		if (nb_innodes == 1) {  // One node in in the entire graph
 			lowerBound = 0;
 			return true;
 		}
 
 		for (it = newFixedE.begin(); it != newFixedE.end(); ++it) {
-			int j = *it;  // newFixedE[i];
+			const int j = *it;  // newFixedE[i];
 			if (getEdgeVar(j).isTrue()) {
 				// cout<<"Added edge between "<<getEndnode(j,0)<<" and "<<getEndnode(j,1)<<endl;
 				if (computeLBFromScratch) {
@@ -1430,17 +1442,17 @@ public:
 				}
 
 				mandatoryWeight += weights[j];
-				Clause* r = nullptr;
-				if (so.lazy) {
-					vec<Lit> ps;
-					ps.push();
-					for (int i = 0; i < nbEdges(); i++) {
-						if (getEdgeVar(i).isFixed() && getEdgeVar(i).isTrue()) {
-							ps.push(getEdgeVar(i).getValLit());
-						}
-					}
-					r = Reason_new(ps);
-				}
+				// Clause* r = nullptr;
+				// if (so.lazy) {
+				// 	vec<Lit> ps;
+				// 	ps.push();
+				// 	for (int i = 0; i < nbEdges(); i++) {
+				// 		if (getEdgeVar(i).isFixed() && getEdgeVar(i).isTrue()) {
+				// 			ps.push(getEdgeVar(i).getValLit());
+				// 		}
+				// 	}
+				// 	r = Reason_new(ps);
+				// }
 				// if (totalWeight->setMinNotR(mandatoryWeight))
 				//     totalWeight->setMin(mandatoryWeight,r);
 			} else {
@@ -1498,10 +1510,10 @@ public:
 		//  }
 		//  mandatoryWeight = s;
 		// Update the mandatory weight.
-		int total = lowerBound / 2 + mandatoryWeight;
+		const int total = lowerBound / 2 + mandatoryWeight;
 		if (TREEPROP_DEBUG) {
-			cout << total << " " << lowerBound << " " << totalWeight->getMax() << " " << mandatoryWeight
-					 << endl;
+			std::cout << total << " " << lowerBound << " " << totalWeight->getMax() << " "
+								<< mandatoryWeight << '\n';
 		}
 
 		if (total > totalWeight->getMax()) {  // Not going to be a good solution!
@@ -1534,7 +1546,7 @@ public:
 				sat.confl = expl;
 			}
 			if (TREEPROP_DEBUG) {
-				cout << "                                                           SAVED" << endl;
+				std::cout << "                                                           SAVED" << '\n';
 			}
 			// cout << lb <<" " <<totalWeight->getMax()<<" " <<mandatoryWeight<<endl;
 			return false;
@@ -1544,7 +1556,7 @@ public:
 	}
 };
 
-// Very dodgy/experimental way of chekcing if it is better to combine the two bounding propagators
+// Very dodgy/experimental way of checking if it is better to combine the two bounding propagators
 // or have the LP alone with the tree propagations.
 #define TREEPROPAGATORCLASS 0
 #define MINIMUMWTREEPROPAGATORCLASS 1
@@ -2069,8 +2081,8 @@ public:
 		// if (nb_innodes < 2) return SUPERTREEPROPCLASS::propagate();
 
 		// The methods in LPLBsteinr tree wont get called because MWST avoids
-		// slow computation fo the lower bound by calling the treepropagator
-		// methods when a new node is in, thus skipping thise methos. We update
+		// slow computation for the lower bound by calling the treepropagator
+		// methods when a new node is in, thus skipping these methods. We update
 		// the lower bounds by hand then
 		std::unordered_set<int>::iterator it;
 #if SUPERTREEPROPCLASSCHOOSE == MINIMUMWTREEPROPAGATORCLASS
@@ -2297,22 +2309,4 @@ void steiner_tree(vec<BoolView>& _vs, vec<BoolView>& _es, vec<vec<edge_id>>& _ad
 
 	new TreePropagator(_vs, _es, _adj, _en);
 	new IncrementalMinimumWTreePropagator(_vs, _es, _adj, _en, _w, _ws);
-
-	/* This is deprecated as the MinimumWeightPropagator is worse than the
-	 * IncrementalMinimumWTreePropagator and the LPLBSteinerTreePropagator requires commercial licence
-	 * of CPLEX)
-	 * */
-#if 0
-    if (!so.steinerlp) {
-        new MinimumWTreePropagator(_vs,_es,_adj,_en,_w,_ws);
-    } else {
-#if CPLEX_AVAILABLE && LEMON_AVAILABLE
-        new LPLBSteinerTreePropagator(_vs,_es,_adj,_en,_w,_ws);
-#else
-        fprintf(stderr,"CPLEx or Lemon libraries not available."
-                "Using Traditional MinimumWeightPropagator instead.\n");
-            new MinimumWTreePropagator(_vs,_es,_adj,_en,_w,_ws);
-#endif
-    }
-#endif
 }

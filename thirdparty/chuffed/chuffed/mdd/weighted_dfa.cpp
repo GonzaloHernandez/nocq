@@ -1,6 +1,11 @@
-#include <chuffed/mdd/weighted_dfa.h>
+#include "chuffed/mdd/weighted_dfa.h"
+
+#include "chuffed/mdd/opcache.h"
+#include "chuffed/support/vec.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
 #include <thirdparty/MurmurHash3/MurmurHash3.h>
@@ -24,10 +29,10 @@ struct edge_leq {
 	}
 } edge_leq;
 
-EVLayerGraph::EVLayerGraph() : opcache(OpCache(OPCACHE_SZ)), intermed_maxsz(2) {
+EVLayerGraph::EVLayerGraph() : opcache(OpCache(OPCACHE_SZ)) {
 	// Initialize \ttt
 	nodes.push_back(nullptr);  // true node
-	TravInfo tinfo = {0, -1, 1};
+	const TravInfo tinfo = {0, -1, 1};
 	status.push_back(tinfo);
 
 	intermed = allocNode(intermed_maxsz);
@@ -42,8 +47,8 @@ EVLayerGraph::~EVLayerGraph() {
 
 EVLayerGraph::NodeID EVLayerGraph::insert(int level, vec<EInfo>& edges) {
 	// Ensure there's adequate space in the intermed node.
-	if (intermed_maxsz < edges.size()) {
-		while (intermed_maxsz < edges.size()) {
+	if (intermed_maxsz < static_cast<int>(edges.size())) {
+		while (intermed_maxsz < static_cast<int>(edges.size())) {
 			intermed_maxsz *= 2;
 		}
 
@@ -54,8 +59,8 @@ EVLayerGraph::NodeID EVLayerGraph::insert(int level, vec<EInfo>& edges) {
 	// Normalize the edges, and copy them to the checker.
 	std::sort(((EInfo*)edges), ((EInfo*)edges) + edges.size(), edge_leq);
 
-	int jj = 0;
-	int ii;
+	unsigned int jj = 0;
+	unsigned int ii;
 	// Copy the first non-F edge to the intermed node.
 	for (ii = 0; ii < edges.size(); ii++) {
 		if (edges[ii].dest != EVFalse) {
@@ -95,10 +100,10 @@ EVLayerGraph::NodeID EVLayerGraph::insert(int level, vec<EInfo>& edges) {
 
 	std::memcpy(node, intermed, sizeof(NodeInfo) + (((int)intermed->sz) - 1) * (sizeof(EInfo)));
 
-	int nID = nodes.size();
+	const int nID = static_cast<int>(nodes.size());
 	cache[node] = nID;
 	nodes.push_back(node);
-	TravInfo tinfo = {0, 0, 0};
+	const TravInfo tinfo = {0, 0, 0};
 	status.push_back(tinfo);
 
 	return nID;
@@ -107,7 +112,7 @@ EVLayerGraph::NodeID EVLayerGraph::insert(int level, vec<EInfo>& edges) {
 // Set up the traversal information from a given node.
 int EVLayerGraph::traverse(NodeID idx) {
 	vec<int> queue;
-	int qhead = 0;
+	unsigned int qhead = 0;
 
 	status[0].flag = 1;
 	status[0].id = 0;
@@ -120,11 +125,11 @@ int EVLayerGraph::traverse(NodeID idx) {
 	prev = idx;
 
 	while (qhead < queue.size()) {
-		int nodeIdx = queue[qhead];
+		const int nodeIdx = queue[qhead];
 
 		NodeRef node(nodes[nodeIdx]);
 		for (unsigned int ei = 0; ei < node->sz; ei++) {
-			int dest = node->edges[ei].dest;
+			const int dest = node->edges[ei].dest;
 			if (status[dest].flag == 0) {
 				status[dest].flag = 1;
 				queue.push(dest);
@@ -151,20 +156,20 @@ EVLayerGraph::NodeRef EVLayerGraph::allocNode(int sz) {
 
 inline void EVLayerGraph::deallocNode(EVLayerGraph::NodeRef node) { free(node); }
 
-inline void create_edges(EVLayerGraph& graph, vec<EVLayerGraph::EInfo>& edges,
+inline void create_edges(EVLayerGraph& /*graph*/, vec<EVLayerGraph::EInfo>& edges,
 												 const vec<EVLayerGraph::NodeID>& previous_layer, const WDFATrans* T,
-												 int dom, int nstates, int soff) {
+												 int dom, int /*nstates*/, int soff) {
 	edges.clear();
 	for (int xi = 0; xi < dom; xi++) {
-		int tidx = soff + xi;
+		const int tidx = soff + xi;
 		const WDFATrans& trans(T[tidx]);
 		int destination = trans.dest;
 		if (destination > 0)  // a valid transition
 		{
 			destination--;
-			EVLayerGraph::NodeID dest = previous_layer[destination];
+			const EVLayerGraph::NodeID dest = previous_layer[destination];
 			if (dest != EVLayerGraph::EVFalse) {
-				EVLayerGraph::EInfo edge = {xi + 1, trans.weight, previous_layer[destination]};
+				const EVLayerGraph::EInfo edge = {xi + 1, trans.weight, previous_layer[destination]};
 				edges.push(edge);
 			}
 		}
@@ -177,12 +182,12 @@ EVLayerGraph::NodeID wdfa_to_layergraph(EVLayerGraph& graph, int nvars, int dom,
 	int curr = 0;
 	int prev = 1;
 
-	// At the bottem level, only accept states can reach T
+	// At the bottom level, only accept states can reach T
 	for (int si = 0; si < nstates; si++) {
 		layers[curr].push(EVLayerGraph::EVFalse);
 	}
 
-	for (int ai = 0; ai < accepts.size(); ai++) {
+	for (unsigned int ai = 0; ai < accepts.size(); ai++) {
 		layers[curr][accepts[ai] - 1] = EVLayerGraph::EVTrue;
 	}
 
@@ -195,22 +200,22 @@ EVLayerGraph::NodeID wdfa_to_layergraph(EVLayerGraph& graph, int nvars, int dom,
 		layers[curr].clear();
 
 		for (int si = 0; si < nstates; si++) {
-			int soff = si * dom;
+			const int soff = si * dom;
 			create_edges(graph, edges, layers[prev], T, dom, nstates, soff);
 			layers[curr].push(graph.insert(vv, edges));
 		}
 	}
 
-	int soff = (q0 - 1) * dom;
+	const int soff = (q0 - 1) * dom;
 	prev = 1 - prev;
 	create_edges(graph, edges, layers[prev], T, dom, nstates, soff);
-	int root = graph.insert(0, edges);
+	const int root = graph.insert(0, edges);
 	return root;
 }
 
 EVEdge EVNode::operator[](int eidx) const {
-	EVLayerGraph::EInfo edge(g->nodes[idx]->edges[eidx]);
-	return EVEdge(edge.val, edge.weight, EVNode(g, edge.dest));
+	const EVLayerGraph::EInfo edge(g->nodes[idx]->edges[eidx]);
+	return {edge.val, edge.weight, EVNode(g, edge.dest)};
 }
 
 int EVNode::id() const { return g->status[idx].id; }
@@ -229,17 +234,7 @@ unsigned int EVLayerGraph::hashnode::operator()(const NodeRef a1) const {
 
 	hash = ((hash << 5) + hash) + a1->var;
 	hash = ((hash << 5) + hash) + a1->sz;
-#if 0
-    for(unsigned int ii = 0; ii < a1->sz; ii++)
-    {
-        hash = ((hash << 5) + hash) + a1->edges[ii].val;
-        hash = ((hash << 5) + hash) + a1->edges[ii].weight;
-        hash = ((hash << 5) + hash) + a1->edges[ii].dest;
-    }
-    return (hash & 0x7FFFFFFF);
-#else
 	uint32_t ret;
 	MurmurHash3_x86_32(&(a1->edges), sizeof(EInfo) * a1->sz, hash, &ret);
 	return ret;
-#endif
 }

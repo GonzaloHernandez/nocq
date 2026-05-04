@@ -47,7 +47,7 @@ private:
 	const char* _what = nullptr;
 
 public:
-	TypeError() {}
+	TypeError() = default;
 	TypeError(const char* what) : _what(what) {}
 	std::string what() const {
 		if (_what != nullptr) {
@@ -151,7 +151,7 @@ public:
 	int min;
 	int max;
 	std::vector<int> s;
-	SetLit() {}
+	SetLit() = default;
 	SetLit(int min0, int max0) : interval(true), min(min0), max(max0) {}
 	SetLit(std::vector<int> s0) : interval(false), s(std::move(s0)) {}
 	bool empty() const { return ((interval && min > max) || (!interval && s.empty())); }
@@ -207,7 +207,7 @@ public:
 		os << "]";
 	}
 	~Array() override {
-		for (int i = a.size(); (i--) != 0;) {
+		for (auto i = a.size(); (i--) != 0;) {
 			delete a[i];
 		}
 	}
@@ -268,12 +268,12 @@ public:
 	void print(std::ostream& os) override { os << "s(\"" << s << "\")"; }
 };
 
-inline Node::~Node() {}
+inline Node::~Node() = default;
 
 inline void Node::append(Node* newNode) {
 	auto* a = dynamic_cast<Array*>(this);
 	if (a == nullptr) {
-		std::cerr << "type error" << std::endl;
+		std::cerr << "type error" << '\n';
 		std::exit(-1);
 	}
 	a->a.push_back(newNode);
@@ -281,7 +281,7 @@ inline void Node::append(Node* newNode) {
 
 inline bool Node::hasAtom(const std::string& id) {
 	if (auto* a = dynamic_cast<Array*>(this)) {
-		for (int i = a->a.size(); (i--) != 0;) {
+		for (auto i = a->a.size(); (i--) != 0;) {
 			if (Atom* at = dynamic_cast<Atom*>(a->a[i])) {
 				if (at->id == id) {
 					return true;
@@ -312,7 +312,7 @@ inline Call* Node::getCall() {
 
 inline bool Node::hasCall(const std::string& id) {
 	if (auto* a = dynamic_cast<Array*>(this)) {
-		for (int i = a->a.size(); (i--) != 0;) {
+		for (auto i = a->a.size(); (i--) != 0;) {
 			if (Call* at = dynamic_cast<Call*>(a->a[i])) {
 				if (at->id == id) {
 					return true;
@@ -335,7 +335,7 @@ inline bool Node::isInt(int& i) {
 
 inline Call* Node::getCall(const std::string& id) {
 	if (auto* a = dynamic_cast<Array*>(this)) {
-		for (int i = a->a.size(); (i--) != 0;) {
+		for (auto i = a->a.size(); (i--) != 0;) {
 			if (Call* at = dynamic_cast<Call*>(a->a[i])) {
 				if (at->id == id) {
 					return at;
