@@ -50,20 +50,26 @@ public:
         for (size_t i=0; i<g.nvertices;i++) V[i].attach(this, 1 , EVENT_F );
         for (size_t i=0; i<g.nedges;   i++) E[i].attach(this, 1 , EVENT_F );
     }
+
     //-------------------------------------------------------------------------
+    
     int32_t findVertex(int32_t vertex,vec<int32_t>& path) {
         for (size_t i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
+    
     //-------------------------------------------------------------------------
+    
     void clausify(vec<int32_t>& path, vec<BoolView> &B, vec<Lit>& lits) {
         for (size_t i=0; i<path.size()-1; i++) {
             lits.push(B[path[i]].getValLit());
         }
     }
+    
     //-------------------------------------------------------------------------
+    
     bool satisfiedConditions(   vec<int32_t>& pathV, vec<int32_t>& pathE,
                                 vec<int64_t>& pathW, int32_t index) 
     {
@@ -84,7 +90,9 @@ public:
             return false;
         }
     }
+
     //-------------------------------------------------------------------------
+    
     int filter(vec<int32_t>& pathV, vec<int32_t>& pathE, vec<int64_t>& pathW,
         int32_t v, int32_t lastEdge, bool definedEdge) 
     {
@@ -123,7 +131,9 @@ public:
         }
         return CF_STAY;
     }
+
     //-------------------------------------------------------------------------
+    
     bool propagate() override {
         vec<int32_t> pathV;
         vec<int32_t> pathE;
@@ -134,28 +144,83 @@ public:
 
         return true;
     }
+
     //-------------------------------------------------------------------------
+    
     void wakeup(int i, int) override {
         pushInQueue();
     }
+    
     //-------------------------------------------------------------------------
+    
     void clearPropState() override {
         in_queue = false;
     }
 };
 
+//=============================================================================
+
+class NOCBrancher : public Branching {
+private:
+    Game& g;
+    vec<BoolView> V;
+    vec<BoolView> E;
+public:
+    
+    NOCBrancher(Game& g, vec<BoolView>& V, vec<BoolView>& E) 
+        : g(g), V(V), E(E) {}
+
+    //-------------------------------------------------------------------------
+    
+    bool finished() override {
+        for (size_t i=0; i<V.size(); i++) {
+            if (!V[i].isFixed()) return false;
+        }
+        for (size_t i=0; i<E.size(); i++) {
+            if (!E[i].isFixed()) return false;
+        }
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    double getScore(VarBranch vb) override {
+        return 0;
+    }
+
+    //-------------------------------------------------------------------------
+
+    DecInfo* branch() override {
+        if (!V[g.init].isFixed()) {
+            return V[g.init].branch();
+        }
+        for (size_t v=0; v<V.size(); v++) {
+            if (V[v].isFixed()) {
+                for (size_t j=0; j<g.outs[v].size(); j++) {
+                    int32_t e = g.outs[v][j];
+                    if (!E[e].isFixed()) {
+                        return E[e].branch();
+                    }
+                }
+            }
+        }
+        return nullptr;
+    }
+};
 
 //=============================================================================
 
 class NOCModel : public Problem {
 private:
     Game& g;
-    vec<BoolView> V;  
+    vec<BoolView> V;
     vec<BoolView> E;
     vec<WinningCondition*> winConditions;
     int printtype;
     parity_type playerSAT;
 public:
+
+    //-------------------------------------------------------------------------
 
     NOCModel(Game& g, vec<WinningCondition*>& winConditions, 
         int printtype=0, parity_type playerSAT=EVEN) 
@@ -287,8 +352,9 @@ public:
         for (size_t i = g.nvertices; (i--) != 0;) bv[i] = &V[i];
         for (size_t i = g.nedges;    (i--) != 0;) be[i] = &E[i];
         
-        branch(bv, VAR_INORDER, VAL_MIN);
-        branch(be, VAR_INORDER, VAL_MIN);
+        // branch(bv, VAR_INORDER, VAL_MIN);
+        // branch(be, VAR_INORDER, VAL_MIN);
+        engine.branching->add(new NOCBrancher(g,V,E));
         output_vars(bv);
         output_vars(be);
     }

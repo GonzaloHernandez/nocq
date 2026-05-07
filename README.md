@@ -34,7 +34,14 @@ make -j$(nproc)
 ```
 
 ### Windows
-For Windows environments, you can build from source using CMake and Visual Studio. Alternatively, for a quicker setup, a pre-compiled standalone binary is available in the [resources](./resources) folder.
+Use Developer PowerShell (Recommended). Open the Developer PowerShell for VS 2022, navigate to the project folder.
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release -j %NUMBER_OF_PROCESSORS%
+```
 
 ### Docker (Recommended for Reproducibility)
 To ensure all dependencies are correctly configured without modifying your host system, we provide a Dockerfile.  From the root directory of the project, run:
@@ -51,6 +58,11 @@ Run NOCQ using the following syntax:
 ```bash
 ./nocq [options] <arguments>
 ```
+or
+```bash
+docker run --rm nocq-docker [options] <arguments>
+```
+
 ### Input & Game Generation
 
 NOCQ can solve games from files or generate standard benchmarks on the fly:

@@ -557,7 +557,8 @@ Game::Game( game_type       type,
             std::vector<int> ws;
             for (size_t i=0; i < nvertices; i++) { ws.push_back(i); }
             std::shuffle(ws.begin(), ws.end(), g);
-            std::uniform_int_distribution<> rndNedges(vals[2], vals[3]);
+            auto [lb, ub] = std::minmax(vals[2], vals[3]);
+            std::uniform_int_distribution<> rndNedges(lb, ub);
 
             int32_t es = rndNedges(g);
             for (size_t i=0; i<es; i++) {
