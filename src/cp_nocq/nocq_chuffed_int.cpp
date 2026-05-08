@@ -166,6 +166,47 @@ public:
 
 //=============================================================================
 
+class NOCBrancher : public Branching {
+private:
+    Game& g;
+    vec<IntVar*> V;
+    parity_type playerSAT;
+public:
+    
+    NOCBrancher(Game& g, vec<IntVar*>& V, 
+        parity_type playerSAT) 
+    : g(g), V(V), playerSAT(playerSAT) {}
+
+    //-------------------------------------------------------------------------
+    
+    bool finished() override {
+        for (size_t i=0; i<V.size(); i++) {
+            if (!V[i]->isFixed()) return false;
+        }
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    double getScore(VarBranch vb) override {
+        return 0;
+    }
+
+    //-------------------------------------------------------------------------
+
+    DecInfo* branch() override {
+        assert(false && "Brancher for chuffed-int in progress");
+        for (size_t v=0; v<V.size(); v++) {
+            if (g.owners[v]==playerSAT)  { //&& V[v]->isFixed() && V[v]->getVal()>=0) {
+                return V[v]->branch();
+            }
+        }
+        return nullptr;
+    }
+};
+
+//=============================================================================
+
 class NOCModel : public Problem {
 private:
     Game& g;
@@ -239,6 +280,7 @@ public:
         //---------------------------------------------------------------------
 
         branch(V, VAR_INORDER, VAL_MIN);
+        // engine.branching->add(new NOCBrancher(g,V,playerSAT)); //in progress
         output_vars(V);
     }
 

@@ -2,7 +2,7 @@
 
 GAME="rand.gm"
 EXE="./nocq"
-PARAMS="10 5 1 5"
+PARAMS="20 5 1 10"
 
 echo "--- Step 0: Generating Game ---"
 $EXE --rand $PARAMS --export-gm $GAME

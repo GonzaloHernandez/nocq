@@ -165,10 +165,12 @@ private:
     Game& g;
     vec<BoolView> V;
     vec<BoolView> E;
+    parity_type playerSAT;
 public:
     
-    NOCBrancher(Game& g, vec<BoolView>& V, vec<BoolView>& E) 
-        : g(g), V(V), E(E) {}
+    NOCBrancher(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
+        parity_type playerSAT) 
+    : g(g), V(V), E(E), playerSAT(playerSAT) {}
 
     //-------------------------------------------------------------------------
     
@@ -191,11 +193,8 @@ public:
     //-------------------------------------------------------------------------
 
     DecInfo* branch() override {
-        if (!V[g.init].isFixed()) {
-            return V[g.init].branch();
-        }
         for (size_t v=0; v<V.size(); v++) {
-            if (V[v].isFixed()) {
+            if (g.owners[v]==playerSAT && V[v].isFixed()) {
                 for (size_t j=0; j<g.outs[v].size(); j++) {
                     int32_t e = g.outs[v][j];
                     if (!E[e].isFixed()) {
@@ -354,7 +353,7 @@ public:
         
         // branch(bv, VAR_INORDER, VAL_MIN);
         // branch(be, VAR_INORDER, VAL_MIN);
-        engine.branching->add(new NOCBrancher(g,V,E));
+        engine.branching->add(new NOCBrancher(g,V,E,playerSAT));
         output_vars(bv);
         output_vars(be);
     }

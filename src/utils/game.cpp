@@ -352,6 +352,19 @@ Game::Game( game_type       type,
             outs[sources[i]].push(i);
             ins [targets[i]].push(i);
         }
+
+        if (weights.size()==0) {
+            std::random_device rd;
+            std::mt19937 g(rd());
+            std::uniform_int_distribution<> rndWeight(lbound, ubound);
+            for (size_t i=0; i< nedges; i++) {
+                if (lbound == ubound) {
+                    weights.push(lbound);
+                } else {
+                    weights.push(rndWeight(g));
+                }
+            }
+        }
     }
     else if (type == GM) {
         int32_t lastvertex = 0;
