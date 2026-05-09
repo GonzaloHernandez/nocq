@@ -115,7 +115,8 @@ std::array<std::vector<int>,2> Zielonka::search(bool* removed, int level) {
         return win1;
     }
     else {
-        std::unique_ptr<bool[]> removed2 = std::make_unique<bool[]>(g.nvertices);
+        std::unique_ptr<bool[]> removed2 
+            = std::make_unique<bool[]>(g.nvertices);
         std::copy_n(removed, g.nvertices, removed2.get());
         std::vector<int> B(win1[1-player]);
         attractor(1-player, B, removed2.get());

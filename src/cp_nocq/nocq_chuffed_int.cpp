@@ -29,7 +29,7 @@ namespace ChuffedInt {
 
 //=============================================================================
 
-class NoOpponentCycle : public Propagator {
+class NOCPropagator : public Propagator {
 private:
     Game& g;
     vec<IntVar*> V;
@@ -41,27 +41,33 @@ private:
     const int CF_DONE     = 3;
 
 public:
-    //-------------------------------------------------------------------------
-    NoOpponentCycle(Game& g, vec<IntVar*>& V, 
+    
+    NOCPropagator(Game& g, vec<IntVar*>& V, 
         parity_type playerSAT, vec<WinningCondition*> winConditions)
     : g(g), V(V), playerSAT(playerSAT), winConditions(winConditions)
     {
         for (size_t i=0; i<g.nvertices;i++) V[i]->attach(this, 1 , EVENT_F );
     }
+    
     //-------------------------------------------------------------------------
+    
     int32_t findVertex(int vertex,vec<int>& path) {
         for (size_t i=0; i<path.size(); i++) {
             if (path[i] == vertex) return i;
         }
         return -1;
     }
+    
     //-------------------------------------------------------------------------
+    
     void clausify(vec<int32_t>& path, vec<BoolView> &B, vec<Lit>& lits) {
         for (size_t i=0; i<path.size()-1; i++) {
             lits.push(B[path[i]].getValLit());
         }
     }
+    
     //-------------------------------------------------------------------------
+    
     bool satisfiedConditions(   vec<int32_t>& pathV, vec<int32_t>& pathE,
                                 vec<int64_t>& pathW, int32_t index) 
     {
@@ -82,7 +88,9 @@ public:
             return false;
         }
     }
+    
     //-------------------------------------------------------------------------
+    
     int filter(vec<int32_t>& pathV, vec<int32_t>& pathE, vec<int64_t>& pathW,
         int32_t v, int32_t last, int32_t out, bool isFixed) 
     {
@@ -141,7 +149,9 @@ public:
         }
         return CF_STAY;
     }
+    
     //-------------------------------------------------------------------------
+    
     bool propagate() override {
         vec<int32_t> pathV;
         vec<int32_t> pathO;
@@ -154,11 +164,15 @@ public:
 
         return true;
     }
+    
     //-------------------------------------------------------------------------
+    
     void wakeup(int i, int) override {
         pushInQueue();
     }
+    
     //-------------------------------------------------------------------------
+    
     void clearPropState() override {
         in_queue = false;
     }
@@ -195,10 +209,11 @@ public:
     //-------------------------------------------------------------------------
 
     DecInfo* branch() override {
-        assert(false && "Brancher for chuffed-int in progress");
         for (size_t v=0; v<V.size(); v++) {
-            if (g.owners[v]==playerSAT)  { //&& V[v]->isFixed() && V[v]->getVal()>=0) {
-                return V[v]->branch();
+            if (g.owners[v]==playerSAT) {
+                if (!V[v]->isFixed() && V[v]->getMin()>=0) {
+                    return V[v]->branch();
+                }
             }
         }
         return nullptr;
@@ -275,12 +290,12 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        new NoOpponentCycle(g,V,playerSAT,winConditions);
+        new NOCPropagator(g,V,playerSAT,winConditions);
 
         //---------------------------------------------------------------------
 
-        branch(V, VAR_INORDER, VAL_MIN);
-        // engine.branching->add(new NOCBrancher(g,V,playerSAT)); //in progress
+        // branch(V, VAR_INORDER, VAL_MIN);
+        engine.branching->add(new NOCBrancher(g,V,playerSAT)); //in progress
         output_vars(V);
     }
 

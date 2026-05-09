@@ -29,7 +29,7 @@ namespace Chuffed {
 
 //=============================================================================
 
-class NoOpponentCycle : public Propagator {
+class NOCPropagator : public Propagator {
 private:
     Game& g;
     vec<BoolView> V;
@@ -42,8 +42,8 @@ private:
     const int   CF_DONE     = 3;
 
 public:
-    //-------------------------------------------------------------------------
-    NoOpponentCycle(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
+
+    NOCPropagator(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
         parity_type playerSAT, vec<WinningCondition*> winConditions)
     : g(g), V(V), E(E), playerSAT(playerSAT), winConditions(winConditions)
     {
@@ -317,14 +317,16 @@ public:
         }
 
         // --------------------------------------------------------------------
-        // For every active OPPONENT vertice, each outgoing edge must be activated
-        for (size_t v=0; v<g.nvertices; v++) if (g.owners[v]==opponent(playerSAT)) {
-            for (size_t i=0; i<g.outs[v].size(); i++) {
-                int32_t e = g.outs[v][i];
-                vec<Lit> clause;
-                clause.push( V[v].getLit(false) );        
-                clause.push( E[e].getLit(true) );
-                sat.addClause(clause);
+        // Every active OPPONENT vertice, each outgoing edge must be activated
+        for (size_t v=0; v<g.nvertices; v++) {
+            if (g.owners[v]==opponent(playerSAT)) {
+                for (size_t i=0; i<g.outs[v].size(); i++) {
+                    int32_t e = g.outs[v][i];
+                    vec<Lit> clause;
+                    clause.push( V[v].getLit(false) );        
+                    clause.push( E[e].getLit(true) );
+                    sat.addClause(clause);
+                }
             }
         }
 
@@ -342,7 +344,7 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        new NoOpponentCycle(g,V,E,playerSAT,winConditions);
+        new NOCPropagator(g,V,E,playerSAT,winConditions);
 
         //---------------------------------------------------------------------
 

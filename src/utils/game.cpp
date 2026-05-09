@@ -173,6 +173,8 @@ size_t skip_whitespace(const std::string& line, size_t init) {
     return init;
 }
 
+//-----------------------------------------------------------------------------
+
 size_t find_token_end(const std::string& line, size_t init, char delimiter) {
     size_t end = line.find(delimiter, init);
     if (end == std::string::npos) {
@@ -186,6 +188,8 @@ size_t find_token_end(const std::string& line, size_t init, char delimiter) {
     }
     return non_space_end;
 }
+
+//-----------------------------------------------------------------------------
 
 bool Game::parseline_gm(const std::string&  line, 
                         int32_t&            vId,
@@ -1155,6 +1159,7 @@ void GameView::getEdges(vec<int32_t>& edges){
 }
 
 //-----------------------------------------------------------------------------
+
 void GameView::activeAll() {
     for (size_t v=0; v<g.nvertices; v++)   vs[v] = true;
     for (size_t e=0; e<g.nedges; e++)      es[e] = true;

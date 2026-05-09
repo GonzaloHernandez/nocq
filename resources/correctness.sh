@@ -28,7 +28,7 @@ verify_node() {
     local expected=$2
     echo -n "node $node (expected $expected): "
     
-    RESULT=$($EXE --gm $GAME --noc --chuffed --init $node)
+    RESULT=$($EXE --gm $GAME --noc --chuffed-int --init $node)
     
     if [[ $RESULT == *"$node: $expected"* ]]; then
         echo "✅ match"
