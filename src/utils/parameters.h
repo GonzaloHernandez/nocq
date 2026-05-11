@@ -43,7 +43,7 @@ struct options {
     vec<int32_t>    init;
     std::string     gameFilename    = "";
     std::string     exportFilename  = "";
-    int             exportType      = 0;            // 0=not DZN,GM,GMW,DIM
+    game_type       exportType      = DEF;            // DZN,GM,GMW,GAME,DIM
     std::string     method          = "";           // NOC-EVEN,NOC-ODD,SAT
                                                     // ZRA,FRA,SCC
     std::string     solver          = "chuffed";    // chuffed, gecode,
@@ -165,6 +165,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --export-dzn <filename>    : Export game to DZN format\n"
         << "  --export-gm <filename>     : Export game to GM format\n"
         << "  --export-gmw <filename>    : Export game to GM + Weights\n"
+        << "  --export-game <filename>   : Export game to GAME (Chaolupka)\n"
         << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
         << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
         << "  --chuffed                  : CP Solver (Chuffed using BoolVars)\n"
@@ -266,6 +267,11 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--export-gmw")==0) {
             validateArg("--export-gmw <filename>");
             options.exportType = GMW;
+            options.exportFilename = argv[i];                
+        }
+        else if (strcmp(argv[i],"--export-game")==0) {
+            validateArg("--export-game <filename>");
+            options.exportType = GAME;
             options.exportFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--sat-encoding")==0) {

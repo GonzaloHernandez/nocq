@@ -85,14 +85,8 @@ int main(int argc, char *argv[])
         std::cout << "Game creation time : " << launchinggame << std::endl;
     }
 
-    if (options.exportType == DZN) {
-        game->exportFile(DZN, options.exportFilename);
-    }
-    else if (options.exportType == GM) {
-        game->exportFile(GM, options.exportFilename);
-    }
-    else if (options.exportType == GMW) {
-        game->exportFile(GMW, options.exportFilename);
+    if (options.exportType != DEF) {
+        game->exportFile(options.exportType, options.exportFilename);
     }
 
     // Ensure at least one winning condition is selected, default --parity

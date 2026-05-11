@@ -1090,6 +1090,44 @@ void Game::exportFile(game_type type, std::string filename) {
             file << ";" << std::endl;
         }
         break;
+    
+    case GAME:
+        // chanelling
+        vec<int32_t> nocq2chpka(nvertices), chpka2nocq(nvertices);
+        
+        size_t index = 0;
+        for (size_t i = 0; i < nvertices; i++) {
+            if (owners[i] == 0) {
+                nocq2chpka[index] = i;
+                chpka2nocq[i] = index;
+                index++;
+            }
+        }
+
+        size_t partition = index;
+
+        for (size_t i = 0; i < nvertices; i++) {
+            if (owners[i] == 1) {
+                nocq2chpka[i] = index;
+                chpka2nocq[index] = i;
+                index++;
+            }
+        }
+
+        file << nvertices << " " << nedges << " " << partition << std::endl;
+
+        for (size_t i = 0; i < nvertices; i++) {
+            int32_t u = chpka2nocq[i];
+            for (size_t j=0; j<outs[u].size(); j++) {
+                int32_t e = outs[u][j];
+                int32_t v = targets[e];
+                int32_t k = nocq2chpka[v];
+                int64_t weight = weights[e];
+                file << i << " " << k << " " << weight << " \"" << u << "\""
+                    << std::endl;
+            }
+        }
+        break;
     }
 }
 
