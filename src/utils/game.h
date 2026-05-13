@@ -35,9 +35,9 @@
 
 enum parity_type    {EVEN,ODD};                             // 0,1
 enum objective_type {MIN,MAX};                              // 0,1
-enum game_type      {DEF,JURD,RAND,MLADDER,SPRAND,SQNC,DZN,GM,GMW,GAME,DIM};
+enum game_type      {DEF,JURD,RAND,MLADDER,SPRAND,SQNC,     // Game structure
+                    DZN,GM,GMW,CHPKA,DIM};                  // Game file format
 enum parity_comp    {BET,EQU,BEQ};
-
 //-----------------------------------------------------------------------------
 
 parity_type opponent(parity_type PARITY);

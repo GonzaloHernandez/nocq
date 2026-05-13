@@ -1091,15 +1091,15 @@ void Game::exportFile(game_type type, std::string filename) {
         }
         break;
     
-    case GAME:
+    case CHPKA:
         // chanelling
         vec<int32_t> nocq2chpka(nvertices), chpka2nocq(nvertices);
         
         size_t index = 0;
         for (size_t i = 0; i < nvertices; i++) {
             if (owners[i] == 0) {
-                nocq2chpka[index] = i;
-                chpka2nocq[i] = index;
+                    nocq2chpka[i] = index;
+                    chpka2nocq[index] = i;
                 index++;
             }
         }

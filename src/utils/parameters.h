@@ -33,8 +33,7 @@ struct options {
     bool printStatistics    = false; 
     bool printVerbose       = false; 
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
-    game_type  gameType     = DEF;      // DEF,JURD,RAND,MLADDER,SPRAND,SQNC
-                                        // DZN,GM,GMW,DIM
+    game_type  gameType     = DEF;
 
     objective_type  objective       = MAX;          // MAXimize,MINimize
     vec<int32_t>    vals;
@@ -165,7 +164,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --export-dzn <filename>    : Export game to DZN format\n"
         << "  --export-gm <filename>     : Export game to GM format\n"
         << "  --export-gmw <filename>    : Export game to GM + Weights\n"
-        << "  --export-game <filename>   : Export game to GAME (Chaolupka)\n"
+        << "  --export-chpka <filename>  : Export Energy game (Chaolupka)\n"
         << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
         << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
         << "  --chuffed                  : CP Solver (Chuffed using BoolVars)\n"
@@ -269,9 +268,9 @@ bool parseMyOptions(int argc, char *argv[]) {
             options.exportType = GMW;
             options.exportFilename = argv[i];                
         }
-        else if (strcmp(argv[i],"--export-game")==0) {
-            validateArg("--export-game <filename>");
-            options.exportType = GAME;
+        else if (strcmp(argv[i],"--export-chpka")==0) {
+            validateArg("--export-chpka <filename>");
+            options.exportType = CHPKA;
             options.exportFilename = argv[i];                
         }
         else if (strcmp(argv[i],"--sat-encoding")==0) {
@@ -325,10 +324,10 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.method            = "scc"; }
         else if (strcmp(argv[i],"--chuffed")==0)
                                 { options.solver          = "chuffed"; }
-        else if (strcmp(argv[i],"--gecode")==0)
-                                { options.solver          = "gecode"; }
         else if (strcmp(argv[i],"--chuffed-int")==0)
                                 { options.solver          = "chuffed-int"; }
+        else if (strcmp(argv[i],"--gecode")==0)
+                                { options.solver          = "gecode"; }
         else if (strcmp(argv[i],"--print-only-times")==0)
                                 { options.printTime        = -2; }
         else if (strcmp(argv[i],"--print-only-time")==0)

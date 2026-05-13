@@ -195,7 +195,9 @@ public:
     
     bool finished() override {
         for (size_t i=0; i<V.size(); i++) {
-            if (!V[i]->isFixed()) return false;
+            if (g.owners[i] == playerSAT && !V[i]->isFixed()) {
+                return false;
+            }
         }
         return true;
     }
@@ -306,16 +308,13 @@ public:
             std::vector<int32_t> vertices;
             std::vector<int32_t> edges;
             for (size_t v=0; v<V.size(); v++) {
-                if (V[v]->getVal() < 0) continue;
+                if (V[v]->getMin() < 0) continue;
 
                 vertices.push_back(v);
                 if (g.owners[v]==playerSAT) {
-                    for (size_t i=0; i<g.outs[v].size(); i++) {
-                        int32_t e = g.outs[v][i];
-                        if (g.targets[e]==V[v]->getVal()) {
-                            edges.push_back(e);
-                            break;
-                        }
+                    if (V[v]->isFixed()){
+                        int32_t e = g.outs[v][V[v]->getVal()];
+                        edges.push_back(e);
                     }
                 } else {
                     for (size_t i=0; i<g.outs[v].size(); i++) {

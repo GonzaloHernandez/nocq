@@ -286,7 +286,7 @@ public:
     // ------------------------------------------------------------------------
     
     void print() const {
-        std::cout << "{";
+        std::cout << "V={";
         bool first = true;
         for (int32_t v=0; v<g.nvertices; v++) {
             if (V[v].val() == 0) continue;
@@ -294,7 +294,7 @@ public:
             std::cout << v;
             first = false;
         }
-        std::cout << "} {";
+        std::cout << "}\nE={";
         first = true;
         for (int32_t e=0; e<g.nedges; e++) {
             if (E[e].val() == 0) continue;
