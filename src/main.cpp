@@ -84,6 +84,9 @@ int main(int argc, char *argv[])
     if ((options.printTime>1 || options.printVerbose)) {
         std::cout << "Game creation time : " << launchinggame << std::endl;
     }
+    else if (options.printTime<-1) {
+        std::cout << launchinggame << " " << std::flush;
+    }
 
     if (options.exportType != DEF) {
         game->exportFile(options.exportType, options.exportFilename);
@@ -134,47 +137,51 @@ int main(int argc, char *argv[])
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
 
-        if (options.printTime>1) {
+        if (options.printTime>1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
         }
+        else if (options.printTime<-1) {
+            std::cout   << preptime << " " << std::flush;
+        }
+
+        std::streambuf* old_buf = std::cout.rdbuf();
+        std::stringstream ss;
+        std::cout.rdbuf(ss.rdbuf());
 
         startClock(); //.............................................
-        if (options.printSolution || options.printVerbose) {
-            engine.solve(model);
-        }
-        else {
-            std::streambuf* old_buf = std::cout.rdbuf();
-            std::ofstream null_stream("/dev/null");
-            std::cout.rdbuf(null_stream.rdbuf());
-            engine.solve(model);
-            std::cout.rdbuf(old_buf);
-        }
+        engine.solve(model);
         double totaltime = stopClock(); //...........................
+
+        std::cout.rdbuf(old_buf);
+
+        std::string answer = "";
+        if ((options.method == "noc-even" && engine.solutions > 0) ||
+            (options.method != "noc-even" && engine.solutions == 0) ) {
+            answer = "EVEN";
+        } else {
+            answer = "ODD";
+        }
 
         if (options.printTime>1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             std::cout << "Mem used           : " << memUsed() << std::endl;
         }
-
-        if (options.method=="noc-even") {
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout   << game->init << ": " 
-                            << (engine.solutions>0?"EVEN ":"ODD ");
+        else if (options.printTime<0) {
+            std::cout   << totaltime << " " << std::flush;
         }
-        else {
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout   << game->init << ": " 
-                            << (engine.solutions>0?"ODD ":"EVEN ");
+        
+        if (options.printTime == 1) {
+            std::cout   << totaltime << " " << std::flush;
         }
 
-        if (options.printTime<=-2 || options.printVerbose) {
-            std::cout   << preptime << "\t";
+        if (options.printTime>=0 || options.printVerbose) {
+            std::cout   << answer;
         }
 
-        if (options.printTime!=0 || options.printVerbose) {
-            std::cout   << totaltime;
-        }        
-
+        if (options.printSolution || options.printVerbose) {
+            std::string solver_output = ss.str();
+            std::cout << "\n" << solver_output;
+        }
 
         std::cout << std::endl;
 
@@ -200,47 +207,51 @@ int main(int argc, char *argv[])
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
 
-        if (options.printTime>1) {
+        if (options.printTime>1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
         }
+        else if (options.printTime<-1) {
+            std::cout   << preptime << " " << std::flush;
+        }
+
+        std::streambuf* old_buf = std::cout.rdbuf();
+        std::stringstream ss;
+        std::cout.rdbuf(ss.rdbuf());
 
         startClock(); //.............................................
-        if (options.printSolution || options.printVerbose) {
-            engine.solve(model);
-        }
-        else {
-            std::streambuf* old_buf = std::cout.rdbuf();
-            std::ofstream null_stream("/dev/null");
-            std::cout.rdbuf(null_stream.rdbuf());
-            engine.solve(model);
-            std::cout.rdbuf(old_buf);
-        }
+        engine.solve(model);
         double totaltime = stopClock(); //...........................
+
+        std::cout.rdbuf(old_buf);
+
+        std::string answer = "";
+        if ((options.method == "noc-even" && engine.solutions > 0) ||
+            (options.method != "noc-even" && engine.solutions == 0) ) {
+            answer = "EVEN";
+        } else {
+            answer = "ODD";
+        }
 
         if (options.printTime>1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             std::cout << "Mem used           : " << memUsed() << std::endl;
         }
-
-        if (options.method=="noc-even") {
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout   << game->init << ": " 
-                            << (engine.solutions>0?"EVEN ":"ODD ");
+        else if (options.printTime<0) {
+            std::cout   << totaltime << " " << std::flush;
         }
-        else {
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout   << game->init << ": " 
-                            << (engine.solutions>0?"ODD ":"EVEN ");
+        
+        if (options.printTime == 1) {
+            std::cout   << totaltime << " " << std::flush;
         }
 
-        if (options.printTime<=-2 || options.printVerbose) {
-            std::cout   << preptime << "\t";
+        if (options.printTime>=0 || options.printVerbose) {
+            std::cout   << answer;
         }
 
-        if (options.printTime!=0 || options.printVerbose) {
-            std::cout   << totaltime;
-        }        
-
+        if (options.printSolution || options.printVerbose) {
+            std::string solver_output = ss.str();
+            std::cout << "\n" << solver_output;
+        }
 
         std::cout << std::endl;
 
