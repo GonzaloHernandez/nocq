@@ -30,7 +30,7 @@
                 "-fdiagnostics-color=always",
                 "-g",
                 
-                "-DHAS_GECODE",
+                // "-DHAS_GECODE",
 
                 // -- using precompiled util's files
                 "${workspaceFolder}/build/satencoder.o",
@@ -54,10 +54,10 @@
                 "-lchuffed",
                 "-lchuffed_fzn",
                 "-lchuffed",
-                "-lgecodesearch",
-                "-lgecodeint",
-                "-lgecodekernel",
-                "-lgecodesupport",
+                // "-lgecodesearch",
+                // "-lgecodeint",
+                // "-lgecodekernel",
+                // "-lgecodesupport",
                 "-Wl,-Bdynamic"
             ],
             "problemMatcher": [

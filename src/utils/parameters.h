@@ -35,18 +35,21 @@ struct options {
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
     game_type  gameType     = DEF;
 
-    objective_type  objective       = MAX;          // MAXimize,MINimize
+    objective_type  objective       = MAX;              // MAXimize,MINimize
     vec<int32_t>    vals;
     int64_t         lbound          = 0;
     int64_t         ubound          = 0;
     vec<int32_t>    init;
     std::string     gameFilename    = "";
     std::string     exportFilename  = "";
-    game_type       exportType      = DEF;            // DZN,GM,GMW,GAME,DIM
-    std::string     method          = "";           // NOC-EVEN,NOC-ODD,SAT
-                                                    // ZRA,FRA,SCC
-    std::string     solver          = "chuffed";    // chuffed, gecode,
-                                                    // chuffed-int
+    game_type       exportType      = DEF;              // DZN,GM,GMW,GAME,DIM
+    std::string     method          = "noc-even";       // noc-even,noc-odd,sat
+                                                        // zra,fra,scc
+
+    std::string     solver          = "chuffed-bool";   // chuffed-bool
+                                                        // chuffed-int
+                                                        // gecode
+
     bool            flip            = false;
     bool            parityCond      = false;
     bool            energyCond      = false;
@@ -140,43 +143,51 @@ bool parseMyOptions(int argc, char *argv[]) {
     };
     //-------------------------------------------------------------------------
     auto showHelp = [&]() {
-        std::cout << "Usage: " << argv[0] << " [options] <args>\n"
-        << "Options:\n"
-        << "  --dzn <filename>           : DZN file name\n"
-        << "  --gm <filename>            : GM file name\n"
+        std::cout << "Usage: " << argv[0] << " [options]\n"
+        << "\n"
+        << "Game creation:\n"
+        << "  --dzn <filename>           : Load DZN file\n"
+        << "  --gm <filename>            : Load GM file\n"
         << "  --jurd <levels> <blocks>   : Jurdzinski game\n"
         << "  --rand <ns> <ps> <d1> <d2> : Random game\n"
         << "  --mladder <bl>             : ModelcheckerLadder game\n"
         << "  --sprand <vs> <density>    : Random SPRAND game\n"
         << "  --sqnc <size> <type>       : Structured synthetic game\n"
         << "  --weights <w1> <w2>        : Weights range\n"
-        << "  --init <vertex>            : Initial vertex\n"
-        << "  --print-only-time          : Print only solving time\n"
-        << "  --print-only-times         : Print preptime+solving time\n"
-        << "  --print-time               : Print solving time\n"
-        << "  --print-times              : Print all times\n"
+        << "\n"
+        << "Global Settings:\n"
+        << "  --init <vertex>            : Initial vertex (Default=0)\n"
+        << "  --max | --min              : Optimization goal (Default: --max)\n"
+        // << "  --flip                     : Complement the game\n"
+        << "\n"
+        << "Methods & Solver:\n"
+        << "  --noc-even | --noc-odd     : CP-NOC player preference (Default: --noc-even)\n"
+        << "  --chuffed-bool             : Use Chuffed with BoolVars (Default)\n"
+        << "  --chuffed-int              : Use Chuffed with IntVars\n"
+        << "  --gecode                   : Use Gecode solver\n"
+        << "  --fra                      : Solve using FRA algorithm\n"
+        << "  --scc                      : Compute Strongly Connected Components\n"
+        << "\n"
+        << "Conditions:\n"
+        << "  --parity                   : Parity condition (default)\n"
+        << "  --energy [thresh]          : Energy condition (default Threshold=0)\n"
+        << "  --mean-payoff [thresh]     : Mean-Payoff condition (default Threshold=0.0)\n"
+        << "\n"
+        << "Output & Export:\n"
+        << "  --print-time               : Print result + solving time\n"
+        << "  --print-times              : Print result + all times\n"
+        << "  --print-only-time          : Print solving time (no result)\n"
+        << "  --print-only-times         : Print all times (no result)\n"
         << "  --print-game               : Print game\n"
-        << "  --print-solution           : Print solution (All vertices)\n"
+        << "  --print-solution           : Print solution\n"
         << "  --print-statistics         : Print statistics after solving\n"
         << "  --verbose                  : Print everything\n"
-        << "  --max                      : Seek to maximize the priority\n"
-        << "  --min                      : Seek to minimize the priority\n"
         << "  --export-dzn <filename>    : Export game to DZN format\n"
         << "  --export-gm <filename>     : Export game to GM format\n"
         << "  --export-gmw <filename>    : Export game to GM + Weights\n"
         << "  --export-chpka <filename>  : Export Energy game (Chaolupka)\n"
-        << "  --noc-even                 : CP-NOC satisfying player EVEN\n"
-        << "  --noc-odd                  : CP-NOC satisfying player ODD\n"
-        << "  --chuffed                  : CP Solver (Chuffed using BoolVars)\n"
-        << "  --chuffed-int              : CP Solver (Chuffed using IntVars)\n"
-        << "  --gecode                   : CP Solver (Gecode)\n"
         << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
-        << "  --fra                      : Solve using FRA\n"
-        << "  --flip                     : Complement the game\n"
-        << "  --threshold <value>        : Threshold for MeanPayoff\n"
-        << "  --parity                   : Parity condition (default)\n"
-        << "  --energy (value*)          : Energy condition (default Threshold=0)\n"
-        << "  --mean-payoff (value*)     : Mean-Payoff condition (default Threshold=0.0)\n";
+        << "";
         exit(0);
 
     };
@@ -323,7 +334,9 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--scc")==0)
                                 { options.method            = "scc"; }
         else if (strcmp(argv[i],"--chuffed")==0)
-                                { options.solver          = "chuffed"; }
+                                { options.solver          = "chuffed-bool"; }
+        else if (strcmp(argv[i],"--chuffed-bool")==0)
+                                { options.solver          = "chuffed-bool"; }
         else if (strcmp(argv[i],"--chuffed-int")==0)
                                 { options.solver          = "chuffed-int"; }
         else if (strcmp(argv[i],"--gecode")==0)

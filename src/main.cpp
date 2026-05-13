@@ -23,7 +23,7 @@
 #include "utils/tarjan.h"
 #include "utils/zielonka.h"
 #include "utils/satencoder.h"
-#include "cp_nocq/nocq_chuffed.cpp"
+#include "cp_nocq/nocq_chuffed_bool.cpp"
 #include "cp_nocq/nocq_chuffed_int.cpp"
 
 #ifdef HAS_GECODE
@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
     launchdbg();
     so.nof_solutions = 1;
     parseMyOptions(argc, argv);
+
     Game* game = nullptr;
 
     //-------------------------------------------------------------------------
@@ -75,6 +76,14 @@ int main(int argc, char *argv[])
     }
     double launchinggame = stopClock(); //...........................
 
+    if (options.printVerbose) {
+        std::cout << "Initial vertex    : ";
+        for (size_t i=0; i<options.init.size(); i++) {
+            std::cout << options.init[i] << " ";
+        }
+        std::cout << "\n";
+    }
+
     if (options.flip) game->flipGame();
 
     if (options.printGame || options.printVerbose) {
@@ -99,23 +108,36 @@ int main(int argc, char *argv[])
         options.parityCond = true;
     }
 
+    if (options.printVerbose) std::cout << "Winning Conditions : ";
+
     vec<WinningCondition*> winConditions;
     if (options.parityCond) {
         ParityCondition* c = new ParityCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         winConditions.push(c);
+        if (options.printVerbose) std::cout << "+parity ";
     }
     if (options.energyCond) {
         EnergyCondition* c = new EnergyCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         c->setThreshold(options.thresholdEnergy);
         winConditions.push(c);
+        if (options.printVerbose) 
+            std::cout << "+energy (" << options.thresholdEnergy << ") ";
     }
     if (options.meanpayoffCond) {
         MeanPayoffCondition* c = new MeanPayoffCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         c->setThreshold(options.thresholdMPG);
         winConditions.push(c);
+        if (options.printVerbose) 
+            std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
+    }
+    if (options.printVerbose) std::cout << "\n";
+
+    if (options.printVerbose) {
+        std::cout << "Method             : " << options.method << "\n";
+        std::cout << "Algorithm          : " << options.solver << "\n";
     }
 
     //-------------------------------------------------------------------------
@@ -125,13 +147,13 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------
-    // CP-NOC-Chuffed
+    // CP-NOC-ChuffedBool
 
     else if (   options.method.substr(0,3)=="noc" &&
-                options.solver=="chuffed") 
+                options.solver=="chuffed-bool") 
     {
         startClock(); //.............................................
-        Chuffed::NOCModel* model = new Chuffed::NOCModel(
+        ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel(
                             *game, winConditions, 
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD);
@@ -174,6 +196,8 @@ int main(int argc, char *argv[])
         
         if (options.printTime == 1) {
             std::cout   << totaltime << " " << std::flush;
+        } else if (options.printTime == 2 || options.printVerbose) {
+            std::cout << "Result             : ";
         }
 
         if (options.printTime>=0 || options.printVerbose) {
@@ -181,8 +205,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
-            std::string solver_output = ss.str();
-            std::cout << "\n" << solver_output;
+            std::cout << "\n" << ss.str();
         }
 
         std::cout << std::endl;
@@ -195,7 +218,7 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------
-    // CP-NOC-Chuffed-Int
+    // CP-NOC-ChuffedBool-Int
 
     else if (   options.method.substr(0,3)=="noc" &&
                 options.solver=="chuffed-int") 
@@ -244,6 +267,8 @@ int main(int argc, char *argv[])
         
         if (options.printTime == 1) {
             std::cout   << totaltime << " " << std::flush;
+        } else if (options.printTime == 2 || options.printVerbose) {
+            std::cout << "Result             : ";
         }
 
         if (options.printTime>=0 || options.printVerbose) {
@@ -251,8 +276,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
-            std::string solver_output = ss.str();
-            std::cout << "\n" << solver_output;
+            std::cout << "\n" << ss.str();
         }
 
         std::cout << std::endl;
@@ -307,6 +331,8 @@ int main(int argc, char *argv[])
 
         if (options.printTime == 1) {
             std::cout   << totaltime << " " << std::flush;
+        } else if (options.printTime == 2 || options.printVerbose) {
+            std::cout << "Result             : ";
         }
 
         if (options.printTime>=0 || options.printVerbose) {

@@ -25,7 +25,7 @@
 #include "winning_conditions.h"
 #endif
 
-namespace Chuffed {
+namespace ChuffedBool {
 
 //=============================================================================
 
@@ -419,4 +419,4 @@ public:
     }
 };
 
-} // namespace Chuffed
+} // namespace ChuffedBool

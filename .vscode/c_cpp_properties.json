@@ -7,7 +7,7 @@
                 "${env:HOME}/.local/include"
             ],
             "defines": [
-                "HAS_GECODE"
+                // "HAS_GECODE"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",
