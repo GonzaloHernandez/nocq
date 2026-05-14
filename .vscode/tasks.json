@@ -29,8 +29,6 @@
                 "-std=c++17",
                 "-fdiagnostics-color=always",
                 "-g",
-                
-                // "-DHAS_GECODE",
 
                 // -- using precompiled util's files
                 "${workspaceFolder}/build/satencoder.o",
@@ -50,15 +48,19 @@
                 "${workspaceFolder}/build/nocq",
                 "-I${env:HOME}/.local/include",
                 "-L${env:HOME}/.local/lib",
-                "-Wl,-Bstatic",
+
                 "-lchuffed",
                 "-lchuffed_fzn",
                 "-lchuffed",
+
+                // "-DHAS_GECODE",
                 // "-lgecodesearch",
                 // "-lgecodeint",
                 // "-lgecodekernel",
                 // "-lgecodesupport",
-                "-Wl,-Bdynamic"
+                                
+                // "-DHAS_CADICAL",
+                // "-lcadical",
             ],
             "problemMatcher": [
                 "$gcc"

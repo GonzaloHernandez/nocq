@@ -48,7 +48,7 @@ struct options {
 
     std::string     solver          = "chuffed-bool";   // chuffed-bool
                                                         // chuffed-int
-                                                        // gecode
+                                                        // gecode, cadical
 
     bool            flip            = false;
     bool            parityCond      = false;
@@ -153,20 +153,22 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --mladder <bl>             : ModelcheckerLadder game\n"
         << "  --sprand <vs> <density>    : Random SPRAND game\n"
         << "  --sqnc <size> <type>       : Structured synthetic game\n"
-        << "  --weights <w1> <w2>        : Weights range\n"
         << "\n"
         << "Global Settings:\n"
         << "  --init <vertex>            : Initial vertex (Default=0)\n"
         << "  --max | --min              : Optimization goal (Default: --max)\n"
+        << "  --weights <w1> <w2>        : Weights range\n"
         // << "  --flip                     : Complement the game\n"
         << "\n"
-        << "Methods & Solver:\n"
-        << "  --noc-even | --noc-odd     : CP-NOC player preference (Default: --noc-even)\n"
+        << "Methods & Solvers:\n"
+        << "  --noc-even | --noc-odd     : NOC player preference (Default: --noc-even)\n"
         << "  --chuffed-bool             : Use Chuffed with BoolVars (Default)\n"
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
-        << "  --gecode                   : Use Gecode solver\n"
+        << "  --gecode                   : Use Gecode solver (BoolVars)\n"
+        << "  --cadical                  : Use Cadical solver\n"
         << "  --fra                      : Solve using FRA algorithm\n"
         << "  --scc                      : Compute Strongly Connected Components\n"
+        << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
         << "\n"
         << "Conditions:\n"
         << "  --parity                   : Parity condition (default)\n"
@@ -186,7 +188,6 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --export-gm <filename>     : Export game to GM format\n"
         << "  --export-gmw <filename>    : Export game to GM + Weights\n"
         << "  --export-chpka <filename>  : Export Energy game (Chaolupka)\n"
-        << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
         << "";
         exit(0);
 
@@ -286,7 +287,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         }
         else if (strcmp(argv[i],"--sat-encoding")==0) {
             validateArg("--sat-encoding <filename>");
-            options.method = "SAT";
+            options.method = "sat";
             options.exportType = DIM;
             options.exportFilename = argv[i];
         }
@@ -341,6 +342,8 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.solver          = "chuffed-int"; }
         else if (strcmp(argv[i],"--gecode")==0)
                                 { options.solver          = "gecode"; }
+        else if (strcmp(argv[i],"--cadical")==0)
+                                { options.solver          = "cadical"; }
         else if (strcmp(argv[i],"--print-only-times")==0)
                                 { options.printTime        = -2; }
         else if (strcmp(argv[i],"--print-only-time")==0)

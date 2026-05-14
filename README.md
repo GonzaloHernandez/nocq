@@ -1,14 +1,14 @@
-# NOCQ: A Quantitative Parity Game Solver
+# NOCQ: A Constraint-Based Toolchain for Parity Games with Quantitative Conditions
 
-NOCQ is a high-performance C++ tool designed for solving parity games with quantitative conditions. It combines classic graph-based algorithms with modern constraint programming techniques by integrating the **Chuffed** solver.
+NOCQ is a high-performance C++ tool designed for solving parity games with quantitative conditions. It combines classic graph-based algorithms with modern **Constraint Programming (CP)** and **SAT** techniques. By default, models are solved using the *Chuffed* solver, with *Gecode* and *CaDiCaL* also integrated as optional backends.
 
 ## Project Structure
 
 * `src/main.cpp`:   Main entry point and CLI logic.
 * `src/cp_nocq/`:   CP Models and Propagators
-* `src/utils/`:     Core implementations:
+* `src/utils/`:     Core implementations and additional algorithms
 * `thirdparty/`:    External dependencies (includes a local copy of the Chuffed solver).
-* `resources/`:     Script for solving in parallel by flipping the game:
+* `resources/`:     Script for solving in parallel from EVEN and ODD perspective.
 * `examples/`:      DZN and GMW files as examples. 
                     Includes AUD files to edit arenas 
                     [github.com/gonzalohernandez/graphing](https://github.com/GonzaloHernandez/graphing):
@@ -25,25 +25,23 @@ To build NOCQ, you need a Linux environment (tested on Arch Linux) with:
 
 **NOCQ** utilizes a CMake Superbuild system to automatically fetch and compile the Chuffed solver alongside the tool.
 
-### Linux & macOS
-
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
-### Windows
-Use Developer PowerShell (Recommended). Open the Developer PowerShell for VS 2022, navigate to the project folder.
-
 ```bash
 mkdir build
 cd build
-cmake ..
-cmake --build . --config Release -j %NUMBER_OF_PROCESSORS%
+cmake .. [options]
+cmake --build .
 ```
 
-### Docker (Recommended for Reproducibility)
+**Build options**
+
+You can customize the build by passing variables to the cmake command using the -D flag:
+
+- `ENABLE_GECODE`: Include support for the Gecode solver. Default=OFF
+- `ENABLE_CADICAL`: Include support for the Cadical solver. Default=OFF
+- `USE_SYSTEM_CHUFFED`: Use a system-installed version instead of the bundled version. Default=OFF
+- `CMAKE_PREFIX_PATH=<directory>`: Specify custom directories for library searching (e.g., /opt).
+
+### Docker (Cross-Platform)
 To ensure all dependencies are correctly configured without modifying your host system, we provide a Dockerfile.  From the root directory of the project, run:
 
 ```bash
@@ -56,11 +54,11 @@ For more information on containers, visit [Docker.com](https://www.docker.com/).
 Run NOCQ using the following syntax:
 
 ```bash
-./nocq [options] <arguments>
+./nocq [options]
 ```
 or
 ```bash
-docker run --rm nocq-docker [options] <arguments>
+docker run --rm nocq-docker [options]
 ```
 
 ### Input & Game Generation
@@ -85,23 +83,36 @@ The benchmark generators included in this tool are based on established research
 *   **Sprang and Sqnc:** These generators are adapted from the experimental evaluation of shortest-path algorithms.
     *   *Reference:* Cherkassky, B. V., Goldberg, A. V., & Radzik, T. (1996). Shortest paths algorithms: Theory and experimental evaluation. *Mathematical Programming*, 73(2), 129–174.
 
-### Solving Engines & Conditions
+### Global settings
+
+**Parity condition reward:**
+* `--max`: (Default). Winner is determined by the parity of the highest priority occurring infinitely often.
+* `--min`: Winner is determined by the parity of the lowest priority occurring infinitely often.
+<!-- * `--flip`: Priority Inversion. Maps each priority $p$ to $p+1$, effectively swapping the winning regions for Player 0 and Player 1. -->
+**Additional info:**
+* `--weights <w1> <w2>`: Define the range for edge weights from $w_1$ to $w_2$.
+
+### Methods & Solving Engines
 
 **Solvers:**
 * `--noc-even` / `--noc-odd`: Solve for a specific player (EVEN or ODD) using the NOC approach.
-* `--fra`: Solve using the Fordward Recursive Algorithm.
-* `--zra`: Solve using Zielonka's Recursive Algorithm.
-* `--sat-encoding <filename>`: Encode the game into DIMACS format and save it to a file.
-* `--scc`: Decompose the game graph into Strongly Connected Components (SCCs) to optimize solving.
-* `--chuffed`: Use the Chuffed CP solver (default).
+* `--chuffed-bool`: Use the Chuffed CP solver using BoolVars (default).
+* `--chuffed-int`: Use the Chuffed CP solver using IntVars.
 * `--gecode`: Use the Gecode CP solver (if enabled).
+* `--gecode`: Use the Cadical SAT solver (if enabled).
+
+**Other algorithms:**
+
+* `--fra`: algorithmse using the Fordward Recursive Algorithm.
+* `--zra`: Solve using Zielonka's Recursive Algorithm.
+* `--scc`: Decompose the game graph into Strongly Connected Components (SCCs) to optimize solving.
 
 **Conditions:**
 * `--parity`: Parity condition (default).
 * `--energy <*threshold>`: Energy condition with optional <*> threshold by default 0.
 * `--mean-payoff <*threshold>`: Mean-Payoff condition with optional <*> threshold by default 0.0.
 
-### Output & Verbosity
+### Output & Export
 
 **Formatting:**
 * `--verbose`: Print full execution details and progress.
@@ -110,24 +121,17 @@ The benchmark generators included in this tool are based on established research
 * `--print-statistics`: Print performance metrics after solving.
 
 **Timing:**
-* `--print-time`: Print only the solving time.
-* `--print-times`: Print all timing data.
-
-### Transformation & Export
-
-**Parity condition reward:**
-* `--max`: (Default). Winner is determined by the parity of the highest priority occurring infinitely often.
-* `--min`: Winner is determined by the parity of the lowest priority occurring infinitely often.
-* `--flip`: Priority Inversion. Maps each priority $p$ to $p+1$, effectively swapping the winning regions for Player 0 and Player 1.
-
-**Weights:**
-* `--weights <w1> <w2>`: Define the range for edge weights from $w_1$ to $w_2$.
-* `--weights-force <w1> <w2>`: Force the use of the specified weight range $w_1$ to $w_2$.
+* `--print-time`: Print result and the solving time.
+* `--print-times`: Print result and all other timing data.
+* `--print-only-time`: Print the solving time (no result).
+* `--print-only-times`: Print all timing data (no result).
 
 **Exporting:**
 * `--export-dzn <filename>`: Save the current game in DZN format.
 * `--export-gm <filename>`: Save the current game in GM format.
 * `--export-gmw <filename>`: Save the game in GM format, including weight data.
+* `--export-chpka <filename>`: Save the game in Energy format (Chaolupka).
+* `--sat-encoding <filename>`: Encode the game into DIMACS format and save it to a file.
 
 ## Example
 
@@ -147,10 +151,10 @@ From your build directory, you can run the parallel script on a generated random
 sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --noc --print-times
 ```
 
-## Tool Demonstration (NOCQ integration with external Graphing)
+<!-- ## Tool Demonstration (NOCQ integration with external Graphing)
 
 Integration with [Graphing](https://github.com/GonzaloHernandez/graphing) for visualization:
 
 [![NOCQ Demo](resources/NOCQ_Graphing.png)](https://www.youtube.com/watch?v=7A_czF_oWW8)
 
-*Click the image above to watch the demonstration.*
+*Click the image above to watch the demonstration.* -->

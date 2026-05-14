@@ -30,6 +30,10 @@
 #include "cp_nocq/nocq_gecode.cpp"
 #endif
 
+#ifdef HAS_CADICAL
+#include "cp_nocq/nocq_cadical.cpp"
+#endif
+
 //=============================================================================
 
 int main(int argc, char *argv[])
@@ -147,11 +151,9 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------
-    // CP-NOC-ChuffedBool
+    // NOC-Chuffed-Bool
 
-    else if (   options.method.substr(0,3)=="noc" &&
-                options.solver=="chuffed-bool") 
-    {
+    else if(options.method.substr(0,3)=="noc"&&options.solver=="chuffed-bool"){
         startClock(); //.............................................
         ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel(
                             *game, winConditions, 
@@ -218,11 +220,9 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------
-    // CP-NOC-ChuffedBool-Int
+    // NOC-Chuffed-Int
 
-    else if (   options.method.substr(0,3)=="noc" &&
-                options.solver=="chuffed-int") 
-    {
+    else if (options.method.substr(0,3)=="noc"&&options.solver=="chuffed-int"){
         startClock(); //.............................................
         ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
                             *game, winConditions,
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     }
     
     //-------------------------------------------------------------------------
-    // CP-NOC-Gecode
+    // NOC-Gecode
 
     else if (options.method.substr(0,3)=="noc"&&options.solver=="gecode") {
 
@@ -363,6 +363,76 @@ int main(int argc, char *argv[])
     }
 
     //-------------------------------------------------------------------------
+    // NOC-CaDiCaL
+
+    else if (options.method.substr(0,3)=="noc"&&options.solver=="cadical") {
+
+    #ifdef HAS_CADICAL
+        startClock(); //.............................................
+        CaDiCaL::NOCModel* model = new CaDiCaL::NOCModel(
+                            *game, winConditions,
+                            options.method=="noc-even"?EVEN:ODD);
+
+        double preptime = stopClock(); //............................
+
+        if (options.printTime>1 || options.printVerbose) {
+            std::cout << "Init time          : " << preptime << std::endl;
+        }
+        else if (options.printTime<-1) {
+            std::cout   << preptime << " " << std::flush;
+        }
+
+        startClock(); //.............................................
+        bool solution = model->solve();
+        double totaltime = stopClock(); //...........................
+
+        std::string answer = "";
+        if ((options.method == "noc-even" && solution) ||
+            (options.method != "noc-even" && !solution) ) {
+            answer = "EVEN";
+        } else {
+            answer = "ODD";
+        }
+
+        if (options.printTime>1 || options.printVerbose) {
+            std::cout << "Solving time       : " << totaltime << std::endl;
+            // std::cout << "Mem used           : " << "???" << std::endl;
+        } if (options.printTime<0) {
+            std::cout   << totaltime << " " << std::flush;
+        }
+
+        if (options.printTime == 1) {
+            std::cout   << totaltime << " " << std::flush;
+        } else if (options.printTime == 2 || options.printVerbose) {
+            std::cout << "Result             : ";
+        }
+
+        if (options.printTime>=0 || options.printVerbose) {
+            std::cout   << answer;
+        }
+
+        if (options.printSolution || options.printVerbose) {
+            std::cout << std::endl;
+            if (solution) model->print();
+            else std::cout << "UNSATISFIABLE" << std::endl;
+        }
+
+        std::cout << std::endl;
+
+        if (options.printStatistics || options.printVerbose) {
+            model->statistics();
+        }
+
+    #else
+        std::cout << "Error: CaDiCaL support is disabled.\n" 
+                  << "Please rebuild NOCQ using -DENABLE_CADICAL=ON\n";
+                  
+
+    #endif //HAS_CADICAL
+
+    }
+
+    //-------------------------------------------------------------------------
     // SAT Encoding
 
     else if (options.method == "sat") {
@@ -379,7 +449,7 @@ int main(int argc, char *argv[])
         if (options.printTime>=0 || options.printVerbose) {
             std::cout << "Encoding time      : " << encodetime << std::endl;
             std::cout << "Dimacs time        : " << dimacstime << std::endl;
-        } 
+        }
     }
 
     //-------------------------------------------------------------------------
