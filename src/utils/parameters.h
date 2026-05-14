@@ -35,20 +35,20 @@ struct options {
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
     game_type  gameType     = DEF;
 
-    objective_type  objective       = MAX;              // MAXimize,MINimize
+    objective_type  objective       = MAX;      // MAXimize,MINimize
     vec<int32_t>    vals;
     int64_t         lbound          = 0;
     int64_t         ubound          = 0;
     vec<int32_t>    init;
     std::string     gameFilename    = "";
     std::string     exportFilename  = "";
-    game_type       exportType      = DEF;              // DZN,GM,GMW,GAME,DIM
-    std::string     method          = "noc-even";       // noc-even,noc-odd,sat
-                                                        // zra,fra,scc
+    game_type       exportType      = DEF;      // DZN,GM,GMW,GAME,DIM
+    std::string     method          = "";       // noc-even,noc-odd,sat
+                                                // zra,fra,scc
 
-    std::string     solver          = "chuffed-bool";   // chuffed-bool
-                                                        // chuffed-int
-                                                        // gecode, cadical
+    std::string     solver          = "";       // chuffed-bool
+                                                // chuffed-int
+                                                // gecode, cadical
 
     bool            flip            = false;
     bool            parityCond      = false;
@@ -160,15 +160,17 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --weights <w1> <w2>        : Weights range\n"
         // << "  --flip                     : Complement the game\n"
         << "\n"
-        << "Methods & Solvers:\n"
+        << "Methods:\n"
         << "  --noc-even | --noc-odd     : NOC player preference (Default: --noc-even)\n"
+        << "  --fra                      : Solve using FRA algorithm\n"
+        << "  --scc                      : Compute Strongly Connected Components\n"
+        << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
+        << "\n"
+        << "Solvers:\n"
         << "  --chuffed-bool             : Use Chuffed with BoolVars (Default)\n"
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
         << "  --gecode                   : Use Gecode solver (BoolVars)\n"
         << "  --cadical                  : Use Cadical solver\n"
-        << "  --fra                      : Solve using FRA algorithm\n"
-        << "  --scc                      : Compute Strongly Connected Components\n"
-        << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
         << "\n"
         << "Conditions:\n"
         << "  --parity                   : Parity condition (default)\n"

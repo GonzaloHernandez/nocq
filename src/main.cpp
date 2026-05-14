@@ -45,6 +45,23 @@ int main(int argc, char *argv[])
     Game* game = nullptr;
 
     //-------------------------------------------------------------------------
+    // Default options
+
+    if (options.method=="" && options.solver!="") {
+        options.method="noc-even";
+    }
+    if (options.method.substr(0,3)=="noc" && options.solver=="") {
+        options.solver="chuffed-bool";
+    }
+    if (options.parityCond || options.energyCond || options.meanpayoffCond) {
+        if (options.method=="") options.method = "noc-even";
+        if (options.solver=="") options.solver = "chuffed-bool";
+    }
+    if (!(options.parityCond || options.energyCond || options.meanpayoffCond)){
+        options.parityCond = true;
+    }
+
+    //-------------------------------------------------------------------------
 
     std::chrono::high_resolution_clock::time_point clockStorage;
 
@@ -62,11 +79,17 @@ int main(int argc, char *argv[])
     startClock(); //.............................................
     switch (options.gameType) {
         case DZN: case GM:
-            game = new Game(options.gameType, 
-                            options.gameFilename, 
-                            options.init[0],
-                            options.objective,
-                            options.lbound, options.ubound);
+            try {
+                game = new Game(options.gameType, 
+                                options.gameFilename, 
+                                options.init[0],
+                                options.objective,
+                                options.lbound, options.ubound);
+            } catch (const std::invalid_argument& e) {
+                std::cout   << "Error: Could not parse '" 
+                            << options.gameFilename << "'." << std::endl;
+                exit(0);
+            }
             break;
         case JURD: case RAND: case MLADDER: case SPRAND: case SQNC:
             game = new Game(options.gameType, 
@@ -80,8 +103,21 @@ int main(int argc, char *argv[])
     }
     double launchinggame = stopClock(); //...........................
 
+    if (options.printGame || options.printVerbose) {
+        game->printGame();
+        std::cout << "----------\n";
+    }
+
     if (options.printVerbose) {
-        std::cout << "Initial vertex    : ";
+        std::cout   << "Method             : " << options.method << "\n";
+        std::cout   << "Algorithm          : " << options.solver << "\n";
+        std::cout   << "Objective          : " 
+                    << (options.objective?"Maximize":"Minimize") 
+                    << " reward\n";
+    }
+
+    if (options.printVerbose) {
+        std::cout << "Initial vertex     : ";
         for (size_t i=0; i<options.init.size(); i++) {
             std::cout << options.init[i] << " ";
         }
@@ -89,10 +125,6 @@ int main(int argc, char *argv[])
     }
 
     if (options.flip) game->flipGame();
-
-    if (options.printGame || options.printVerbose) {
-        game->printGame();
-    }
 
     if ((options.printTime>1 || options.printVerbose)) {
         std::cout << "Game creation time : " << launchinggame << std::endl;
@@ -103,13 +135,6 @@ int main(int argc, char *argv[])
 
     if (options.exportType != DEF) {
         game->exportFile(options.exportType, options.exportFilename);
-    }
-
-    // Ensure at least one winning condition is selected, default --parity
-    if (!options.parityCond && !options.energyCond && 
-        !options.meanpayoffCond) 
-    {
-        options.parityCond = true;
     }
 
     if (options.printVerbose) std::cout << "Winning Conditions : ";
@@ -138,11 +163,6 @@ int main(int argc, char *argv[])
             std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
     }
     if (options.printVerbose) std::cout << "\n";
-
-    if (options.printVerbose) {
-        std::cout << "Method             : " << options.method << "\n";
-        std::cout << "Algorithm          : " << options.solver << "\n";
-    }
 
     //-------------------------------------------------------------------------
     // For testing purposes
@@ -207,6 +227,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
+            std::cout << "\n----------\n";
             std::cout << "\n" << ss.str();
         }
 
@@ -276,6 +297,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
+            std::cout << "\n----------\n";
             std::cout << "\n" << ss.str();
         }
 
@@ -340,7 +362,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
-            std::cout << std::endl;
+            std::cout << "\n----------\n";
             if (solution) solution->print();
             else std::cout << "UNSATISFIABLE" << std::endl;
         }
@@ -354,7 +376,7 @@ int main(int argc, char *argv[])
         if (solution) delete solution;
 
     #else
-        std::cout << "Error: Gecode support is disabled.\n" 
+        std::cout << "Error: Gecode support is disabled. " 
                   << "Please rebuild NOCQ using -DENABLE_GECODE=ON\n";
                   
 
@@ -412,7 +434,7 @@ int main(int argc, char *argv[])
         }
 
         if (options.printSolution || options.printVerbose) {
-            std::cout << std::endl;
+            std::cout << "\n----------\n";
             if (solution) model->print();
             else std::cout << "UNSATISFIABLE" << std::endl;
         }
@@ -424,7 +446,7 @@ int main(int argc, char *argv[])
         }
 
     #else
-        std::cout << "Error: CaDiCaL support is disabled.\n" 
+        std::cout << "Error: CaDiCaL support is disabled. " 
                   << "Please rebuild NOCQ using -DENABLE_CADICAL=ON\n";
                   
 

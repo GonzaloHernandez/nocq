@@ -1,0 +1,8 @@
+nvertices = 4;
+owners = [0,0,1,0];
+priors = [0,0,0,0];
+nedges = 6;
+sources = [1,2,2,3,3,4];
+targets = [1,3,1,4,1,3];
+weights = [0,0,-12,20,-10,-10];
+sinks = {1}

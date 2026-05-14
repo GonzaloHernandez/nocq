@@ -8,8 +8,8 @@
             "program": "${workspaceFolder}/build/nocq",
             "args": [   
                 // "--gm", "${env:HOME}/gm/recursiveladder-1000.gm",
-                "--dzn", "${workspaceFolder}/build/test.dzn",
-                // "--dzn", "${workspaceFolder}/examples/jurd-2-1.dzn",
+                // "--dzn", "${workspaceFolder}/build/test.dzn",
+                "--gm", "${workspaceFolder}/examples/jurd-2-1.dzn",
                 // "--gm", "${env:HOME}/gm/randomgame-1000-10-1-20-0.gm",
                 // "--jurd","2","1","--max",
                 // "--sprand","5","3",

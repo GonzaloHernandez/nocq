@@ -7,8 +7,8 @@
                 "${env:HOME}/.local/include"
             ],
             "defines": [
-                "HAS_GECODE",
-                "HAS_CADICAL"
+                // "HAS_GECODE",
+                // "HAS_CADICAL"
             ],
             "compilerPath": "/usr/bin/clang",
             "cStandard": "c17",

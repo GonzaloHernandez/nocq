@@ -345,6 +345,14 @@ Game::Game( game_type       type,
         }
         file.close();
 
+        if (nvertices < 1 || nedges < 1 || 
+            owners.size() < nvertices || priors.size() < nvertices ||
+            sources.size() < nedges || targets.size() < nedges)
+        {
+            std::string error =  "Error: Could not parse '" + filename + "'.";
+            throw std::invalid_argument(error);
+        }
+
         bool hasZeros = false;
         for (size_t e=0; e<nedges; e++) {
             if (sources[e]==0) { hasZeros = true; break; }
@@ -449,6 +457,15 @@ Game::Game( game_type       type,
                 nedges++;
             }
         }
+
+        if (nvertices < 1 || nedges < 1 || 
+            owners.size() < nvertices || priors.size() < nvertices ||
+            sources.size() < nedges || targets.size() < nedges)
+        {
+            std::string error =  "Error: Could not parse '" + filename + "'.";
+            throw std::invalid_argument(error);
+        }
+
     }
 
     setInit(init);
