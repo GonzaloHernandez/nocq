@@ -31,11 +31,11 @@ namespace ChuffedBool {
 
 class NOCPropagator : public Propagator {
 private:
-    Game& g;
-    vec<BoolView> V;
-    vec<BoolView> E;
-    parity_type playerSAT;
-    vec<WinningCondition*> winConditions;
+    Game&                   g;
+    vec<BoolView>           V;
+    vec<BoolView>           E;
+    parity_type             playerSAT;
+    vec<WinningCondition*>  winConditions;
 
     const int   CF_STAY     = 1;
     const int   CF_CONFLICT = 2;
@@ -162,10 +162,10 @@ public:
 
 class NOCBrancher : public Branching {
 private:
-    Game& g;
-    vec<BoolView> V;
-    vec<BoolView> E;
-    parity_type playerSAT;
+    Game&           g;
+    vec<BoolView>   V;
+    vec<BoolView>   E;
+    parity_type     playerSAT;
 public:
     
     NOCBrancher(Game& g, vec<BoolView>& V, vec<BoolView>& E, 
@@ -211,20 +211,21 @@ public:
 
 class NOCModel : public Problem {
 private:
-    Game& g;
-    vec<BoolView> V;
-    vec<BoolView> E;
-    vec<WinningCondition*> winConditions;
-    int printtype;
-    parity_type playerSAT;
+    Game&                   g;
+    vec<BoolView>           V;
+    vec<BoolView>           E;
+    vec<WinningCondition*>  winConditions;
+    bool                    heuristicReach;
+    int                     printtype;
+    parity_type             playerSAT;
 public:
 
     //-------------------------------------------------------------------------
 
     NOCModel(Game& g, vec<WinningCondition*>& winConditions, 
-        int printtype=0, parity_type playerSAT=EVEN) 
+        int printtype=0, parity_type playerSAT=EVEN, bool heuristicReach=false) 
     :g(g), winConditions(winConditions), printtype(printtype), 
-        playerSAT(playerSAT)
+        playerSAT(playerSAT), heuristicReach(heuristicReach)
     {
         V.growTo(g.nvertices);
         E.growTo(g.nedges);
@@ -353,9 +354,11 @@ public:
         for (size_t i = g.nvertices; (i--) != 0;) bv[i] = &V[i];
         for (size_t i = g.nedges;    (i--) != 0;) be[i] = &E[i];
         
-        // branch(bv, VAR_INORDER, VAL_MIN);
-        // branch(be, VAR_INORDER, VAL_MIN);
-        engine.branching->add(new NOCBrancher(g,V,E,playerSAT));
+        if (heuristicReach) {
+            engine.branching->add(new NOCBrancher(g,V,E,playerSAT));
+        }
+        branch(bv, VAR_INORDER, VAL_MIN);
+        branch(be, VAR_INORDER, VAL_MIN);
         output_vars(bv);
         output_vars(be);
     }

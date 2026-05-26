@@ -36,9 +36,9 @@ cmake --build .
 
 You can customize the build by passing variables to the cmake command using the -D flag:
 
-- `ENABLE_GECODE`: Include support for the Gecode solver. Default=OFF
-- `ENABLE_CADICAL`: Include support for the Cadical solver. Default=OFF
-- `USE_SYSTEM_CHUFFED`: Use a system-installed version instead of the bundled version. Default=OFF
+- `ENABLE_GECODE`: Include support for the Gecode solver (Requires version >= 6.2). Default=`OFF`
+- `ENABLE_CADICAL`: Include support for the Cadical solver (Requires version >= 2.0). Default=`OFF`
+- `USE_SYSTEM_CHUFFED`: Use a system-installed version instead of the bundled version (Requires version >= 0.13.2). Default=`OFF` (the bundled version will be used)
 - `CMAKE_PREFIX_PATH=<directory>`: Specify custom directories for library searching (e.g., /opt).
 
 ### Docker (Cross-Platform)
@@ -100,6 +100,7 @@ The benchmark generators included in this tool are based on established research
 * `--chuffed-int`: Use the Chuffed CP solver using IntVars.
 * `--gecode`: Use the Gecode CP solver (if enabled).
 * `--gecode`: Use the Cadical SAT solver (if enabled).
+* `--heuristic-reach`: Use Reachability heuristic (combined with Chuffed).
 
 **Other algorithms:**
 

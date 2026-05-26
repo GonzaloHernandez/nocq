@@ -35,20 +35,22 @@ struct options {
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
     game_type  gameType     = DEF;
 
-    objective_type  objective       = MAX;      // MAXimize,MINimize
+    objective_type  objective       = MAX;  // MAXimize,MINimize
     vec<int32_t>    vals;
     int64_t         lbound          = 0;
     int64_t         ubound          = 0;
     vec<int32_t>    init;
     std::string     gameFilename    = "";
     std::string     exportFilename  = "";
-    game_type       exportType      = DEF;      // DZN,GM,GMW,GAME,DIM
-    std::string     method          = "";       // noc-even,noc-odd,sat
-                                                // zra,fra,scc
+    game_type       exportType      = DEF;  // DZN,GM,GMW,GAME,DIM
+    std::string     method          = "";   // noc-even,noc-odd,sat
+                                            // zra,fra,scc
 
-    std::string     solver          = "";       // chuffed-bool
-                                                // chuffed-int
-                                                // gecode, cadical
+    std::string     solver          = "";   // chuffed-bool
+                                            // chuffed-int
+                                            // gecode, cadical
+
+    std::string     heuristic       = "";   // reach
 
     bool            flip            = false;
     bool            parityCond      = false;
@@ -171,6 +173,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
         << "  --gecode                   : Use Gecode solver (BoolVars)\n"
         << "  --cadical                  : Use Cadical solver\n"
+        << "  --heuristic-reach          : Use Reachability heuristic\n"
         << "\n"
         << "Conditions:\n"
         << "  --parity                   : Parity condition (default)\n"
@@ -337,35 +340,38 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--scc")==0)
                                 { options.method            = "scc"; }
         else if (strcmp(argv[i],"--chuffed")==0)
-                                { options.solver          = "chuffed-bool"; }
+                                { options.solver            = "chuffed-bool"; }
         else if (strcmp(argv[i],"--chuffed-bool")==0)
-                                { options.solver          = "chuffed-bool"; }
+                                { options.solver            = "chuffed-bool"; }
         else if (strcmp(argv[i],"--chuffed-int")==0)
-                                { options.solver          = "chuffed-int"; }
+                                { options.solver            = "chuffed-int"; }
         else if (strcmp(argv[i],"--gecode")==0)
-                                { options.solver          = "gecode"; }
+                                { options.solver            = "gecode"; }
         else if (strcmp(argv[i],"--cadical")==0)
-                                { options.solver          = "cadical"; }
+                                { options.solver            = "cadical"; }
+        else if (strcmp(argv[i],"--heuristic-reach")==0)
+                                { options.heuristic         = "reach"; }
+
         else if (strcmp(argv[i],"--print-only-times")==0)
-                                { options.printTime        = -2; }
+                                { options.printTime         = -2; }
         else if (strcmp(argv[i],"--print-only-time")==0)
-                                { options.printTime        = -1; }
+                                { options.printTime         = -1; }
         else if (strcmp(argv[i],"--print-time")==0)
-                                { options.printTime        = 1; }
+                                { options.printTime         = 1; }
         else if (strcmp(argv[i],"--print-times")==0)
-                                { options.printTime        = 2; }
+                                { options.printTime         = 2; }
         else if (strcmp(argv[i],"--print-game")==0)
-                                { options.printGame        = true; }
+                                { options.printGame         = true; }
         else if (strcmp(argv[i],"--print-solution")==0)
-                                { options.printSolution    = true; }
+                                { options.printSolution     = true; }
         else if (strcmp(argv[i],"--print-statistics")==0)
-                                { options.printStatistics  = true; }
+                                { options.printStatistics   = true; }
         else if (strcmp(argv[i],"--verbose")==0)
-                                { options.printVerbose     = true; }
+                                { options.printVerbose      = true; }
         else if (strcmp(argv[i],"--flip")==0)
                                 { options.flip              = true;}
         else if (strcmp(argv[i],"--parity")==0)
-                                { options.parityCond       = true; }
+                                { options.parityCond        = true; }
 
         else if (strcmp(argv[i],"--help")==0) {
             showHelp();

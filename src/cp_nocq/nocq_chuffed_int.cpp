@@ -31,10 +31,10 @@ namespace ChuffedInt {
 
 class NOCPropagator : public Propagator {
 private:
-    Game& g;
-    vec<IntVar*> V;
-    parity_type playerSAT;
-    vec<WinningCondition*> winConditions;
+    Game&                   g;
+    vec<IntVar*>            V;
+    parity_type             playerSAT;
+    vec<WinningCondition*>  winConditions;
 
     const int CF_STAY     = 1;
     const int CF_CONFLICT = 2;
@@ -182,9 +182,9 @@ public:
 
 class NOCBrancher : public Branching {
 private:
-    Game& g;
-    vec<IntVar*> V;
-    parity_type playerSAT;
+    Game&           g;
+    vec<IntVar*>    V;
+    parity_type     playerSAT;
 public:
     
     NOCBrancher(Game& g, vec<IntVar*>& V, 
@@ -226,17 +226,18 @@ public:
 
 class NOCModel : public Problem {
 private:
-    Game& g;
-    vec<IntVar*> V;
+    Game&                   g;
+    vec<IntVar*>            V;
     vec<WinningCondition*>& winConditions;
-    int printtype;
-    parity_type playerSAT;
+    bool                    heuristicReach;
+    int                     printtype;
+    parity_type             playerSAT;
 public:
 
     NOCModel(Game& g, vec<WinningCondition*>& winConditions, 
-        int printtype=0, parity_type playerSAT=EVEN) 
+        int printtype=0, parity_type playerSAT=EVEN, bool heuristicReach=false) 
     :g(g), winConditions(winConditions), printtype(printtype), 
-        playerSAT(playerSAT)
+        playerSAT(playerSAT), heuristicReach(heuristicReach)
     {
         V.growTo(g.nvertices);
         setupConstraints();
@@ -295,9 +296,10 @@ public:
         new NOCPropagator(g,V,playerSAT,winConditions);
 
         //---------------------------------------------------------------------
-
-        // branch(V, VAR_INORDER, VAL_MIN);
-        engine.branching->add(new NOCBrancher(g,V,playerSAT)); //in progress
+        if (heuristicReach) {
+            engine.branching->add(new NOCBrancher(g,V,playerSAT)); //in progress
+        }
+        branch(V, VAR_INORDER, VAL_MIN);
         output_vars(V);
     }
 

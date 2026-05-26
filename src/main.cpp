@@ -178,7 +178,8 @@ int main(int argc, char *argv[])
         ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel(
                             *game, winConditions, 
                             (options.printSolution || options.printVerbose),
-                            options.method=="noc-even"?EVEN:ODD);
+                            options.method=="noc-even"?EVEN:ODD,
+                            options.heuristic=="reach");
 
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
@@ -248,7 +249,8 @@ int main(int argc, char *argv[])
         ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
                             *game, winConditions,
                             (options.printSolution || options.printVerbose),
-                            options.method=="noc-even"?EVEN:ODD);
+                            options.method=="noc-even"?EVEN:ODD,
+                            options.heuristic=="reach");
 
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
@@ -468,10 +470,33 @@ int main(int argc, char *argv[])
         encoder.dimacs(cnf,options.exportFilename);
         double dimacstime = stopClock(); //..........................
 
-        if (options.printTime>=0 || options.printVerbose) {
+        std::string answer = "DONE";
+
+        if (options.printTime>1 || options.printVerbose) {
             std::cout << "Encoding time      : " << encodetime << std::endl;
-            std::cout << "Dimacs time        : " << dimacstime << std::endl;
         }
+        else if (options.printTime<0) {
+            std::cout   << encodetime << " " << std::flush;
+        }
+
+        if (options.printTime>1 || options.printVerbose) {
+            std::cout << "Saving DIMACS time : " << dimacstime << std::endl;
+        }
+        else if (options.printTime<-1) {
+            std::cout   << dimacstime << " " << std::flush;
+        }
+
+        if (options.printTime == 1) {
+            std::cout   << encodetime << " " << std::flush;
+        } else if (options.printTime == 2 || options.printVerbose) {
+            std::cout << "Result             : ";
+        }
+
+        if (options.printTime>=0 || options.printVerbose) {
+            std::cout   << answer;
+        }
+
+        std::cout << std::endl;
     }
 
     //-------------------------------------------------------------------------
@@ -496,7 +521,6 @@ int main(int argc, char *argv[])
 
         if (options.printTime>1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
-            // std::cout << "Mem used           : " << memUsed() << std::endl;
         }
         else if (options.printTime<0) {
             std::cout   << totaltime << " " << std::flush;
@@ -541,17 +565,44 @@ int main(int argc, char *argv[])
             options.init.growTo(game->nvertices);
             for (int32_t v=0; v<game->nvertices; v++) options.init[v]=v;
         }
+
+        double preptime = 0;
+        if (options.printTime>1 || options.printVerbose) {
+            std::cout << "Init time          : " << preptime << std::endl;
+        }
+        else if (options.printTime<-1) {
+            std::cout   << preptime << " " << std::flush;
+        }
+
         for (size_t i=0; i<options.init.size(); i++) {
             int32_t v = options.init[i];
+
             startClock(); //.............................................
             auto play = getPlay(*game, v, true);
             double totaltime = stopClock(); //...........................
 
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout << v << ": " << (play==EVEN?"EVEN ":"ODD "); 
+            std::string answer;
+            if (play==EVEN) {
+                answer = "EVEN";
+            } else {
+                answer = "ODD";
+            }
 
-            if (options.printTime!=0 || options.printVerbose) {
-                std::cout   << totaltime;
+            if (options.printTime>1 || options.printVerbose) {
+                std::cout << "Solving time       : " << totaltime << std::endl;
+            }
+            else if (options.printTime<0) {
+                std::cout   << totaltime << " " << std::flush;
+            }
+
+            if (options.printTime == 1) {
+                std::cout   << totaltime << " " << std::flush;
+            } else if (options.printTime == 2 || options.printVerbose) {
+                std::cout << "Result             : ";
+            }
+
+            if (options.printTime>=0 || options.printVerbose) {
+                std::cout   << answer;
             }
 
             std::cout << std::endl;
