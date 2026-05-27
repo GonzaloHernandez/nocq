@@ -145,7 +145,9 @@ bool parseMyOptions(int argc, char *argv[]) {
     };
     //-------------------------------------------------------------------------
     auto showHelp = [&]() {
-        std::cout << "Usage: " << argv[0] << " [options]\n"
+        std::cout << "NOCQ: A Constraint-Based Toolchain "
+        << "for Parity Games with Quantitative Conditions.\n"
+        << "Usage: " << argv[0] << " [options]\n"
         << "\n"
         << "Game creation:\n"
         << "  --dzn <filename>           : Load DZN file\n"
@@ -173,7 +175,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
         << "  --gecode                   : Use Gecode solver (BoolVars)\n"
         << "  --cadical                  : Use Cadical solver\n"
-        << "  --heuristic-reach          : Use Reachability heuristic\n"
+        << "  --heuristic-reach          : Use Reachability heuristic (combined with Chuffed)\n"
         << "\n"
         << "Conditions:\n"
         << "  --parity                   : Parity condition (default)\n"
@@ -193,9 +195,19 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --export-gm <filename>     : Export game to GM format\n"
         << "  --export-gmw <filename>    : Export game to GM + Weights\n"
         << "  --export-chpka <filename>  : Export Energy game (Chaolupka)\n"
+        << "  --version                  : Print NOCQ version\n"
+        << "  --help                     : Print this information\n"
         << "";
         exit(0);
 
+    };
+    //-------------------------------------------------------------------------
+    auto showVersion = [&]() {
+        std::cout << "Version "
+        << NOCQ_VERSION.major << "." 
+        << NOCQ_VERSION.minor << "." 
+        << NOCQ_VERSION.patch << "\n" 
+        << "";
     };
     //-------------------------------------------------------------------------
     if (argc==1) showHelp();
@@ -375,6 +387,9 @@ bool parseMyOptions(int argc, char *argv[]) {
 
         else if (strcmp(argv[i],"--help")==0) {
             showHelp();
+        }
+        else if (strcmp(argv[i],"--version")==0||strcmp(argv[i],"--ver")==0) {
+            showVersion();
         }
         else {
             std::cerr << "ERROR: Unknown option: " << argv[i] << std::endl;

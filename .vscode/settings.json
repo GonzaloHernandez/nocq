@@ -104,6 +104,5 @@
         "-DUSE_SYSTEM_CHUFFED=ON",
         "-DENABLE_GECODE=OFF",
         "-DENABLE_CADICAL=OFF",
-        "DCMAKE_PREFIX_PATH=/home/chalo/.local"
     ]
 }

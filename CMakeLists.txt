@@ -3,15 +3,15 @@ project(NOCQ LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Ensure CMake looks in your local folder if it exists
+# Ensure CMake looks in the local folder if it exists
 list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local")
 
 # ----------------------------------------------------------------------
-# 1. USER OPTIONS (All together at the top)
+# 1. USER OPTIONS
 # ----------------------------------------------------------------------
-option(USE_SYSTEM_CHUFFED "Use system-installed Chuffed instead of bundled version" OFF)
-option(ENABLE_GECODE      "Enable Gecode solver support" OFF)
-option(ENABLE_CADICAL     "Enable CaDiCaL support"       OFF)
+option(USE_SYSTEM_CHUFFED "Use system-installed Chuffed instead of bundled version (Requires version >= 0.13.2)" OFF)
+option(ENABLE_GECODE      "Enable Gecode solver support (Requires version >= 6.2)"  OFF)
+option(ENABLE_CADICAL     "Enable CaDiCaL support (Requires version >= 2.0)"        OFF)
 
 # ----------------------------------------------------------------------
 # 2. SOURCE DEFINITION & EXECUTABLE
@@ -27,7 +27,6 @@ set(SOURCES
 
 add_executable(nocq ${SOURCES})
 
-# Required for threading support used by solvers
 find_package(Threads REQUIRED)
 
 # ----------------------------------------------------------------------

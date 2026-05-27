@@ -17,7 +17,6 @@
  *-----------------------------------------------------------------------------
  */
 #include "utils/dbg.h"
-#include "utils/parameters.h"
 #include "utils/fra.h"
 #include "utils/game.h"
 #include "utils/tarjan.h"
@@ -33,6 +32,15 @@
 #ifdef HAS_CADICAL
 #include "cp_nocq/nocq_cadical.cpp"
 #endif
+
+//=============================================================================
+
+struct Version {
+    int16_t major, minor, patch;
+};
+constexpr Version NOCQ_VERSION{1, 1, 0};
+
+#include "utils/parameters.h"
 
 //=============================================================================
 

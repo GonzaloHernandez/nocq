@@ -5,13 +5,13 @@ NOCQ is a high-performance C++ tool designed for solving parity games with quant
 ## Project Structure
 
 * `src/main.cpp`:   Main entry point and CLI logic.
-* `src/cp_nocq/`:   CP Models and Propagators
-* `src/utils/`:     Core implementations and additional algorithms
+* `src/cp_nocq/`:   CP Models and Propagators.
+* `src/utils/`:     Core implementations and additional algorithms.
 * `thirdparty/`:    External dependencies (includes a local copy of the Chuffed solver).
 * `resources/`:     Script for solving in parallel from EVEN and ODD perspective.
 * `examples/`:      DZN and GMW files as examples. 
-                    Includes AUD files to edit arenas 
-                    [github.com/gonzalohernandez/graphing](https://github.com/GonzaloHernandez/graphing):
+                    Includes AUD files to edit arenas (Requires 
+                    [Graphing](https://github.com/GonzaloHernandez/graphing)).
 
 ## Prerequisites
 
@@ -152,10 +152,12 @@ From your build directory, you can run the parallel script on a generated random
 sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --noc --print-times
 ```
 
-<!-- ## Tool Demonstration (NOCQ integration with external Graphing)
+<!-- 
+## Tool Demonstration (NOCQ integration with external Graphing)
 
 Integration with [Graphing](https://github.com/GonzaloHernandez/graphing) for visualization:
 
 [![NOCQ Demo](resources/NOCQ_Graphing.png)](https://www.youtube.com/watch?v=7A_czF_oWW8)
 
-*Click the image above to watch the demonstration.* -->
+*Click the image above to watch the demonstration.* 
+-->
