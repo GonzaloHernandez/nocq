@@ -38,7 +38,7 @@
 struct Version {
     int16_t major, minor, patch;
 };
-constexpr Version NOCQ_VERSION{1, 1, 0};
+constexpr Version NOCQ_VERSION{1, 1, 1};
 
 #include "utils/parameters.h"
 

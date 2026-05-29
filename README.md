@@ -45,7 +45,7 @@ You can customize the build by passing variables to the cmake command using the 
 To ensure all dependencies are correctly configured without modifying your host system, we provide a Dockerfile.  From the root directory of the project, run:
 
 ```bash
-docker build -t nocq-docker .
+docker build -t nocq .
 ```
 For more information on containers, visit [Docker.com](https://www.docker.com/).
 
@@ -58,7 +58,7 @@ Run NOCQ using the following syntax:
 ```
 or
 ```bash
-docker run --rm nocq-docker [options]
+docker run --rm -it nocq [options]
 ```
 
 ### Input & Game Generation
@@ -149,7 +149,7 @@ To exploit the problem duality of parity games, we provide a utility script that
 From your build directory, you can run the parallel script on a generated random game:  
 
 ```bash
-sh ../resources/nocq-parallel.sh --rand 1000 20 1 5 --noc --print-times
+sh ../resources/nocq-parallel.sh --jurd 100 10 --noc --print-times
 ```
 
 <!-- 
