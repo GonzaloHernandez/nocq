@@ -61,14 +61,17 @@ int main(int argc, char *argv[])
     if (options.method.substr(0,3)=="noc" && options.solver=="") {
         options.solver="chuffed-bool";
     }
-    if (options.parityCond || options.energyCond || options.meanpayoffCond) {
+    if (options.parityCond || options.buchiCond ||
+        options.energyCond || options.meanpayoffCond) 
+    {
         if (options.method=="") options.method = "noc-even";
         if (options.solver=="") options.solver = "chuffed-bool";
     }
-    if (!(options.parityCond || options.energyCond || options.meanpayoffCond)){
+    if (!(options.parityCond || options.buchiCond ||
+        options.energyCond || options.meanpayoffCond))
+    {
         options.parityCond = true;
     }
-
     //-------------------------------------------------------------------------
 
     std::chrono::high_resolution_clock::time_point clockStorage;
@@ -151,24 +154,36 @@ int main(int argc, char *argv[])
     if (options.parityCond) {
         ParityCondition* c = new ParityCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
-        winConditions.push(c);
         if (options.printVerbose) std::cout << "+parity ";
+        winConditions.push(c);
+    }
+    if (options.buchiCond) {
+        BuchiCondition* c = new BuchiCondition(*game,
+                                    options.method=="noc-even"?EVEN:ODD);
+        if (options.printVerbose) std::cout << "+buchi {";
+        for(size_t i=0; i<options.setBuchi.size(); i++) {
+            c->pushVertexInB(options.setBuchi[i]);
+            if (options.printVerbose) 
+                std::cout << (i>0?",":"") << options.setBuchi[i];
+        }
+        if (options.printVerbose) std::cout << "}";
+        winConditions.push(c);
     }
     if (options.energyCond) {
         EnergyCondition* c = new EnergyCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         c->setThreshold(options.thresholdEnergy);
-        winConditions.push(c);
         if (options.printVerbose) 
             std::cout << "+energy (" << options.thresholdEnergy << ") ";
+        winConditions.push(c);
     }
     if (options.meanpayoffCond) {
         MeanPayoffCondition* c = new MeanPayoffCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         c->setThreshold(options.thresholdMPG);
-        winConditions.push(c);
         if (options.printVerbose) 
             std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
+        winConditions.push(c);
     }
     if (options.printVerbose) std::cout << "\n";
 

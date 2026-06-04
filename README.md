@@ -1,5 +1,3 @@
-# NOCQ: A Constraint-Based Toolchain for Parity Games with Quantitative Conditions
-
 NOCQ is a high-performance C++ tool designed for solving parity games with quantitative conditions. It combines classic graph-based algorithms with modern **Constraint Programming (CP)** and **SAT** techniques. By default, models are solved using the *Chuffed* solver, with *Gecode* and *CaDiCaL* also integrated as optional backends.
 
 ## Project Structure
@@ -102,16 +100,16 @@ The benchmark generators included in this tool are based on established research
 * `--gecode`: Use the Cadical SAT solver (if enabled).
 * `--heuristic-reach`: Use Reachability heuristic (combined with Chuffed).
 
+**Winning Conditions:**
+* `--parity`: Parity condition (default).
+* `--energy <*threshold>`: Energy condition with optional <*> threshold by default 0.
+* `--mean-payoff <*threshold>`: Mean-Payoff condition with optional <*> threshold by default 0.0.
+
 **Other algorithms:**
 
 * `--fra`: algorithmse using the Fordward Recursive Algorithm.
 * `--zra`: Solve using Zielonka's Recursive Algorithm.
 * `--scc`: Decompose the game graph into Strongly Connected Components (SCCs) to optimize solving.
-
-**Conditions:**
-* `--parity`: Parity condition (default).
-* `--energy <*threshold>`: Energy condition with optional <*> threshold by default 0.
-* `--mean-payoff <*threshold>`: Mean-Payoff condition with optional <*> threshold by default 0.0.
 
 ### Output & Export
 
@@ -152,12 +150,10 @@ From your build directory, you can run the parallel script on a generated random
 sh ../resources/nocq-parallel.sh --jurd 100 10 --noc --print-times
 ```
 
-<!-- 
-## Tool Demonstration (NOCQ integration with external Graphing)
+<!-- ## Tool Demonstration (NOCQ integration with external Graphing)
 
 Integration with [Graphing](https://github.com/GonzaloHernandez/graphing) for visualization:
 
 [![NOCQ Demo](resources/NOCQ_Graphing.png)](https://www.youtube.com/watch?v=7A_czF_oWW8)
 
-*Click the image above to watch the demonstration.* 
--->
+*Click the image above to watch the demonstration.* -->

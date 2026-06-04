@@ -117,4 +117,126 @@ public:
     }
 };
 
+//===========================================================================
+
+class BuchiCondition : public WinningCondition {
+    using WinningCondition::WinningCondition;
+private:
+    vec<int32_t> B;
+public:
+
+    void pushVertexInB(int32_t v) {
+        B.push(v);
+    }
+
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
+                    int32_t cycleIndex ) override 
+    {
+        for (int32_t i=cycleIndex+1; i<pathV.size(); i++) {
+            for (int32_t j=0; j<B.size(); j++) {
+                if (pathV[i] == B[j]) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+};
+
+//===========================================================================
+
+class CoBuchiCondition : public WinningCondition {
+    using WinningCondition::WinningCondition;
+private:
+    vec<int32_t> B;
+public:
+
+    void pushVertexInB(int32_t v) {
+        B.push(v);
+    }
+
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
+                    int32_t cycleIndex ) override 
+    {
+        for (int32_t i=cycleIndex+1; i<pathV.size(); i++) {
+            for (int32_t j=0; j<B.size(); j++) {
+                if (pathV[i] == B[j]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+};
+
+//===========================================================================
+
+struct RabinPair {
+    vec<int32_t> B;
+    vec<int32_t> F;
+};
+
+class RabinCondition : public WinningCondition {
+    using WinningCondition::WinningCondition;
+private:
+    vec<RabinPair> C;
+public:
+
+    void pushRabinPair() {
+        C.push();
+    }
+
+    void updateRabinPairB(size_t i, int32_t v) {
+        C[i].B.push(v);
+    }
+    void updateRabinPairF(size_t i, int32_t v) {
+        C[i].F.push(v);
+    }
+
+    bool satisfy(   vec<int32_t>& pathV,
+                    vec<int32_t>& pathE,
+                    vec<int64_t>& pathW,
+                    int32_t cycleIndex ) override 
+    {
+        for (size_t pairIdx = 0; pairIdx < C.size(); pairIdx++) {
+            bool isB = false;
+            bool isF = false;
+
+            for (int32_t pathIdx = cycleIndex+1; pathIdx < pathV.size(); pathIdx++) {
+                int32_t currentState = pathV[pathIdx];
+
+                if (!isB) {
+                    for (size_t j = 0; j < C[pairIdx].B.size(); j++) {
+                        if (currentState == C[pairIdx].B[j]) {
+                            isB = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isF) {
+                    for (size_t j = 0; j < C[pairIdx].F.size(); j++) {
+                        if (currentState == C[pairIdx].F[j]) {
+                            isF = true;
+                            break; // Found an F state, we can stop checking F for this pair
+                        }
+                    }
+                }
+
+                if (isB) break;
+            }
+
+            if (!isB && isF) return true;
+        }
+        
+        return false;
+    }
+
+
+};
+
 #endif // WINNING_CONDITIONS_H

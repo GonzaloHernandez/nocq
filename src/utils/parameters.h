@@ -54,8 +54,10 @@ struct options {
 
     bool            flip            = false;
     bool            parityCond      = false;
+    bool            buchiCond       = false;
     bool            energyCond      = false;
     bool            meanpayoffCond  = false;
+    vec<int32_t>    setBuchi;
     int64_t         thresholdEnergy = 0;
     double          thresholdMPG    = 0.0;
 } options;
@@ -179,6 +181,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "\n"
         << "Conditions:\n"
         << "  --parity                   : Parity condition (default)\n"
+        << "  --buchi <vertices>         : Buchi condition \n"
         << "  --energy [thresh]          : Energy condition (default Threshold=0)\n"
         << "  --mean-payoff [thresh]     : Mean-Payoff condition (default Threshold=0.0)\n"
         << "\n"
@@ -384,7 +387,24 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.flip              = true;}
         else if (strcmp(argv[i],"--parity")==0)
                                 { options.parityCond        = true; }
+        else if (strcmp(argv[i],"--buchi")==0) {
+            validateArg("--buchi <vertices>");
+            options.buchiCond = true;
 
+            options.setBuchi.clear();
+            std::string s = argv[i];
+            std::stringstream ss(s);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                size_t init = item.find_first_not_of(" \t");
+                size_t end = item.find_last_not_of(" \t");
+                if (init == std::string::npos || end == std::string::npos) {
+                    std::cerr << "ERROR: Invalid values for [--buchi]\n";
+                    return false;
+                }
+                options.setBuchi.push(std::stoi(item));
+            }
+        }
         else if (strcmp(argv[i],"--help")==0) {
             showHelp();
         }
