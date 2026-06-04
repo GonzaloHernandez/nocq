@@ -95,6 +95,7 @@ Game::Game( game_type       type,
         switch (type) {
             case DZN:   filename.append("dzn"); break;
             case GM:    filename.append("gm");  break;
+            case HOA:   filename.append("hoa"); break;
         }
     }
     std::ifstream file(filename);
@@ -105,26 +106,25 @@ Game::Game( game_type       type,
 
     std::string line;
 
-    if (type == DZN) {
-        try {
-            parseDZN(*this,file,lbound,ubound);
-        }
-        catch(const std::exception& e) {
-            std::string error =  "Error: Could not parse '" + filename + "'.";
-            throw std::invalid_argument(error);
-        }
-    }
-    else if (type == GM) {
-        try {
-            parseGM(*this,file,lbound,ubound);
-        }
-        catch(const std::exception& e) {
-            std::string error =  "Error: Could not parse '" + filename + "'.";
-            throw std::invalid_argument(error);
+    try {
+        switch (type) {
+            case DZN:
+                parseDZN(*this,file,lbound,ubound);
+                setInit(init);
+                break;
+            case GM:
+                parseGM(*this,file,lbound,ubound);
+                setInit(init);
+                break;
+            case HOA:
+                parseHOA(*this,file,lbound,ubound);
+                break;
         }
     }
-
-    setInit(init);
+    catch(const std::exception& e) {
+        std::string error =  "Error: Could not parse '" + filename + "'.";
+        throw std::invalid_argument(error);
+    }
 }
 
 void Game::fixZeros() {

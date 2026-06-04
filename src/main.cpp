@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 
     startClock(); //.............................................
     switch (options.gameType) {
-        case DZN: case GM:
+        case DZN: case GM: case HOA:
             try {
                 game = new Game(options.gameType, 
                                 options.gameFilename, 

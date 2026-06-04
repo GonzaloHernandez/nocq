@@ -303,6 +303,8 @@ void parseDZN(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
     }
 }
 
+//-----------------------------------------------------------------------------
+
 void parseGM(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
     std::string line;
 
@@ -390,6 +392,122 @@ void parseGM(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
         g.sources.size() < g.nedges || g.targets.size() < g.nedges)
     {
         throw std::invalid_argument("");
+    }
+
+}
+
+//-----------------------------------------------------------------------------
+
+void parseHOA(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
+    std::string line;
+
+    int32_t current_vId = -1;
+    int64_t current_priority = 0;
+    bool inside_body = false;
+    int32_t max_controllable_ap = -1;
+    vec<bool> is_controllable;
+
+    std::random_device rd;
+    std::mt19937 rand(rd());
+    std::uniform_int_distribution<> rndWeight(lbound, ubound);
+
+    while (getline(file, line)) {
+        if (line.empty()) continue;
+        size_t first_non_space = line.find_first_not_of(" \t\r\n");
+        if (first_non_space == std::string::npos) continue;
+        line = line.substr(first_non_space);
+
+        if (!inside_body) {
+            if (line.find("--BODY--") != std::string::npos) {
+                inside_body = true;
+                g.owners.growTo(g.nvertices);
+                g.priors.growTo(g.nvertices);
+                g.outs.growTo(g.nvertices);
+                g.ins.growTo(g.nvertices);
+            }
+            else if (line.find("States:") != std::string::npos) {
+                g.nvertices = stoi(line.substr(line.find(":") + 1));
+            }
+            else if (line.find("Start:") != std::string::npos) {
+                g.init = stoi(line.substr(line.find(":") + 1));
+            }
+            else if (line.find("acc-name:") != std::string::npos) {
+                if (line.find("parity") == std::string::npos ||
+                    line.find("max") == std::string::npos ||
+                    line.find("even") == std::string::npos) {
+                    throw std::invalid_argument("Error: HOA file must be 'parity max even'.");
+                }
+            }
+            else if (line.find("AP:") == 0) {
+                int32_t total_aps = stoi(line.substr(line.find(":") + 1));
+                is_controllable.growTo(total_aps);
+                for (int32_t i = 0; i < total_aps; i++) is_controllable[i] = false;
+            }
+            else if (line.find("controllable-AP:") != std::string::npos) {
+                std::stringstream ss(line.substr(line.find(":") + 1));
+                int32_t ap_idx;
+                while (ss >> ap_idx) {
+                    if (ap_idx < is_controllable.size()) {
+                        is_controllable[ap_idx] = true;
+                    }
+                }
+            }
+            else if (line.find("properties:") != std::string::npos) {
+                if (line.find("deterministic") == std::string::npos ||
+                    line.find("complete") == std::string::npos ||
+                    line.find("colored") == std::string::npos) {
+                    throw std::invalid_argument("Error: HOA file must be 'deterministic complete colored'.");
+                }
+            }
+            continue;
+        }
+
+        if (line.find("--END--") != std::string::npos) break;
+
+        if (line.find("State:") == 0) {
+            std::stringstream ss(line);
+            std::string dummy;
+            ss >> dummy >> current_vId;
+
+            size_t brace_open = line.find('{');
+            size_t brace_close = line.find('}');
+            if (brace_open != std::string::npos && brace_close != std::string::npos) {
+                current_priority = stoll(line.substr(brace_open + 1, brace_close - brace_open - 1));
+            } else {
+                current_priority = 0;
+            }
+            g.priors[current_vId] = current_priority;
+            continue;
+        }
+
+        size_t guard_close = line.find(']');
+        if (guard_close != std::string::npos) {
+            std::string guard_str = line.substr(0, guard_close + 1);
+            int32_t target_vId = stoi(line.substr(guard_close + 1));
+
+            if (guard_str != "[t]") {
+                size_t first_digit_pos = guard_str.find_first_of("0123456789");
+                if (first_digit_pos != std::string::npos) {
+                    int32_t first_ap = stoi(guard_str.substr(first_digit_pos));
+
+                    // Look up directly if Player 0 owns this AP
+                    if (first_ap < is_controllable.size() && is_controllable[first_ap]) {
+                        g.owners[current_vId] = 0; // Player 0
+                    } else {
+                        g.owners[current_vId] = 1; // Player 1
+                    }
+                }
+            } else {
+                g.owners[current_vId] = 0; 
+            }
+
+            g.sources.push(current_vId);
+            g.targets.push(target_vId);
+            g.outs[current_vId].push(g.nedges);
+            g.ins[target_vId].push(g.nedges);
+            g.weights.push((lbound == ubound) ? lbound : rndWeight(rand));
+            g.nedges++;
+        }
     }
 
 }

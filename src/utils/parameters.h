@@ -154,6 +154,7 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "Game creation:\n"
         << "  --dzn <filename>           : Load DZN file\n"
         << "  --gm <filename>            : Load GM file\n"
+        << "  --hoa <filename>           : Load HOA file\n"
         << "  --jurd <levels> <blocks>   : Jurdzinski game\n"
         << "  --rand <ns> <ps> <d1> <d2> : Random game\n"
         << "  --mladder <bl>             : ModelcheckerLadder game\n"
@@ -266,6 +267,11 @@ bool parseMyOptions(int argc, char *argv[]) {
         else if (strcmp(argv[i],"--gm")==0) {
             options.gameType = GM;
             validateArg("--gm <filename>");
+            options.gameFilename = argv[i];                
+        }        
+        else if (strcmp(argv[i],"--hoa")==0) {
+            options.gameType = HOA;
+            validateArg("--hoa <filename>");
             options.gameFilename = argv[i];                
         }        
         else if (strcmp(argv[i],"--init")==0) {
