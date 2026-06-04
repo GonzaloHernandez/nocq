@@ -176,10 +176,9 @@ public:
 //===========================================================================
 
 struct RabinPair {
-    vec<int32_t> B;
-    vec<int32_t> F;
+    vec<int32_t> B,F;
 };
-
+//---------------------------------------------------------------------------
 class RabinCondition : public WinningCondition {
     using WinningCondition::WinningCondition;
 private:
@@ -193,6 +192,7 @@ public:
     void updateRabinPairB(size_t i, int32_t v) {
         C[i].B.push(v);
     }
+    
     void updateRabinPairF(size_t i, int32_t v) {
         C[i].F.push(v);
     }
@@ -202,16 +202,16 @@ public:
                     vec<int64_t>& pathW,
                     int32_t cycleIndex ) override 
     {
-        for (size_t pairIdx = 0; pairIdx < C.size(); pairIdx++) {
+        for (size_t p = 0; p < C.size(); p++) {
             bool isB = false;
             bool isF = false;
 
-            for (int32_t pathIdx = cycleIndex+1; pathIdx < pathV.size(); pathIdx++) {
-                int32_t currentState = pathV[pathIdx];
+            for (int32_t i = cycleIndex+1; i < pathV.size(); i++) {
+                int32_t currentState = pathV[i];
 
                 if (!isB) {
-                    for (size_t j = 0; j < C[pairIdx].B.size(); j++) {
-                        if (currentState == C[pairIdx].B[j]) {
+                    for (size_t j = 0; j < C[p].B.size(); j++) {
+                        if (currentState == C[p].B[j]) {
                             isB = true;
                             break;
                         }
@@ -219,10 +219,10 @@ public:
                 }
 
                 if (!isF) {
-                    for (size_t j = 0; j < C[pairIdx].F.size(); j++) {
-                        if (currentState == C[pairIdx].F[j]) {
+                    for (size_t j = 0; j < C[p].F.size(); j++) {
+                        if (currentState == C[p].F[j]) {
                             isF = true;
-                            break; // Found an F state, we can stop checking F for this pair
+                            break;
                         }
                     }
                 }

@@ -38,6 +38,7 @@ enum objective_type {MIN,MAX};                              // 0,1
 enum game_type      {DEF,JURD,RAND,MLADDER,SPRAND,SQNC,     // Game structure
                     DZN,GM,GMW,CHPKA,DIM};                  // Game file format
 enum parity_comp    {BET,EQU,BEQ};
+
 //-----------------------------------------------------------------------------
 
 parity_type opponent(parity_type PARITY);
@@ -66,18 +67,6 @@ public:
     //-------------------------------------------------------------------------
 
     void fixZeros();
-    void parseline_dzn (const std::string& line,vec<int8_t >& myvec);
-    void parseline_dzn (const std::string& line,vec<int32_t>& myvec);
-    void parseline_dzn (const std::string& line,vec<int64_t>& myvec);
-    void parseline_dzn (const std::string& line,vec<float  >& myvec);
-
-    bool parseline_gm  (const std::string& line,
-                        int32_t&        vId,
-                        int64_t&        vPriority,
-                        int8_t&         vOwner,
-                        vec<int32_t>&   vOuts,
-                        std::string&    vComment,
-                        vec<int64_t>&   outsWeights);
 
     //-------------------------------------------------------------------------
 

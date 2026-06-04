@@ -27,6 +27,7 @@
 #include <chrono> 
 
 #include "game.h"
+#include "gameparser.h"
 
 //-----------------------------------------------------------------------------
 
@@ -34,123 +35,6 @@ parity_type opponent(parity_type PARITY) {
     if (PARITY==EVEN) return ODD; return EVEN;
 }
 
-//-----------------------------------------------------------------------------
-
-void Game::fixZeros() {
-    for (size_t i=0; i<sources.size(); i++) {
-        sources[i]--;
-        targets[i]--;
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void Game::parseline_dzn(const std::string& line, vec<int8_t>& myvec) {
-    size_t start = line.find('[');
-    size_t end = line.find(']');
-    
-    if (start != std::string::npos && end != std::string::npos && end > start) {
-        std::string values = line.substr(start + 1, end - start - 1);
-        std::stringstream ss(values);
-        std::string value;
-
-        while (std::getline(ss, value, ',')) {
-            try {
-                if (!value.empty()) {
-                    myvec.push(std::stoi(value));
-                }
-            } catch (...) {
-                // Skip values that aren't numbers (like extra spaces)
-            }
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void Game::parseline_dzn(const std::string& line, vec<int32_t>& myvec) {
-    size_t start = line.find('[');
-    size_t end = line.find(']');
-    
-    if (start != std::string::npos && end != std::string::npos && end > start) {
-        std::string values = line.substr(start + 1, end - start - 1);
-        std::stringstream ss(values);
-        std::string value;
-
-        while (std::getline(ss, value, ',')) {
-            try {
-                if (!value.empty()) {
-                    myvec.push(std::stoi(value));
-                }
-            } catch (...) {
-                // Skip values that aren't numbers (like extra spaces)
-            }
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
-
-void Game::parseline_dzn(const std::string& line, vec<int64_t>& myvec) {
-    size_t start = line.find('[');
-    size_t end = line.find(']');
-    
-    if (start != std::string::npos && end != std::string::npos && end > start) {
-        std::string values = line.substr(start + 1, end - start - 1);
-        std::stringstream ss(values);
-        std::string value;
-
-        while (std::getline(ss, value, ',')) {
-            try {
-                if (!value.empty()) {
-                    myvec.push(std::stoll(value));
-                }
-            } catch (...) {
-                // Skip values that aren't numbers (like extra spaces)
-            }
-        }
-    }
-}
-
-//---------------------------------------------------------------------------
-
-void Game::parseline_dzn(const std::string& line, vec<float>& myvec) {
-    size_t start = line.find('[');
-    size_t end = line.find(']');
-    
-    if (start != std::string::npos && end != std::string::npos && end > start) {
-        std::string values = line.substr(start + 1, end - start - 1);
-        std::stringstream ss(values);
-        std::string segment;
-
-        while (std::getline(ss, segment, ',')) {
-            try {
-                segment.erase(0, segment.find_first_not_of(" \t\r\n"));
-                segment.erase(segment.find_last_not_of(" \t\r\n") + 1);
-
-                if (segment.empty()) continue;
-
-                size_t slashPos = segment.find('/');
-                if (slashPos != std::string::npos) {
-                    // It's a fraction: split into numerator and denominator
-                    float num = std::stof(segment.substr(0, slashPos));
-                    float den = std::stof(segment.substr(slashPos + 1));
-                    
-                    if (den != 0.0f) {
-                        myvec.push(num / den);
-                    } else {
-                        // Handle division by zero if necessary
-                    }
-                } else {
-                    // It's a standard float
-                    myvec.push(std::stof(segment));
-                }
-            } catch (...) {
-                // Skip values that aren't numbers (like extra spaces)
-            }
-        }
-    }
-}
 
 //-----------------------------------------------------------------------------
 
@@ -166,111 +50,7 @@ void Game::parseline_dzn(const std::string& line, vec<float>& myvec) {
 #include <algorithm>
 #include <cctype>
 
-size_t skip_whitespace(const std::string& line, size_t init) {
-    while (init < line.size() && std::isspace(line[init])) {
-        init++;
-    }
-    return init;
-}
-
 //-----------------------------------------------------------------------------
-
-size_t find_token_end(const std::string& line, size_t init, char delimiter) {
-    size_t end = line.find(delimiter, init);
-    if (end == std::string::npos) {
-        end = line.size();
-    }
-    size_t non_space_end = init;
-    for (size_t i = init; i < end; ++i) {
-        if (!std::isspace(line[i])) {
-            non_space_end = i + 1;
-        }
-    }
-    return non_space_end;
-}
-
-//-----------------------------------------------------------------------------
-
-bool Game::parseline_gm(const std::string&  line, 
-                        int32_t&            vId,
-                        int64_t&            vPriority,
-                        int8_t&             vOwner,
-                        vec<int32_t>&       vOuts,
-                        std::string&        vComment,
-                        vec<int64_t>&       oWeights)
-{
-    vOuts.clear();
-    oWeights.clear();
-    vComment.clear();
-
-    size_t current = 0;
-
-    // --- Helper Lambda for Comma-Separated Lists ---
-    auto parse_csv_block = [&](auto& target_vec) {
-        current = skip_whitespace(line, current);
-        size_t end_of_block = line.find_first_of(" ;\"", current);
-        if (end_of_block == std::string::npos) end_of_block = line.size();
-
-        std::string block = line.substr(current, end_of_block - current);
-        std::stringstream ss(block);
-        std::string item;
-        
-        // Identify the internal type T (int8_t, int32_t, int64_t, or float)
-        using T = std::decay_t<decltype(target_vec[0])>;
-
-        while (std::getline(ss, item, ',')) {
-            if (!item.empty()) {
-                if constexpr (std::is_floating_point_v<T>) {
-                    target_vec.push(std::stof(item)); // Chuffed vec uses .push()
-                } else {
-                    // stoll is safe for all integer types; we cast it to T
-                    target_vec.push(static_cast<T>(std::stoll(item)));
-                }
-            }
-        }
-        current = end_of_block;
-    };
-
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    size_t next = find_token_end(line, current, ' ');
-    vId = std::stoi(line.substr(current, next - current));
-    current = next;
-
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    next = find_token_end(line, current, ' ');
-    vPriority = std::stoll(line.substr(current, next - current));
-    current = next;
-
-    current = skip_whitespace(line, current);
-    if (current >= line.size()) return false;
-    next = find_token_end(line, current, ' ');
-    vOwner = std::stoi(line.substr(current, next - current));
-    current = next;
-
-    // --- Extract Target Edges (First CSV block) ---
-    std::vector<int32_t> temp_targets;
-    parse_csv_block(vOuts);
-    // for(auto t : temp_targets) outs.push(t);
-
-    current = skip_whitespace(line, current);
-    if (current < line.size() && line[current] == '"') {
-        current++;
-        size_t comment_end = line.find('"', current);
-        if (comment_end != std::string::npos) {
-            vComment = line.substr(current, comment_end - current);
-        }
-        current = comment_end+1;
-    }
-
-    // --- Extract Weights (Second CSV block) ---
-    current = skip_whitespace(line, current);
-    parse_csv_block(oWeights);
-    return true;
-}
-
-//---------------------------------------------------------------------------
 // Default game
 
 Game::Game( vec<int8_t>&    owners,
@@ -326,149 +106,32 @@ Game::Game( game_type       type,
     std::string line;
 
     if (type == DZN) {
-        while (getline(file, line)) {
-            if (line.find("nvertices") != std::string::npos) {
-                nvertices = stoi(line.substr(line.find("=") + 1));
-            } else if (line.find("nedges") != std::string::npos) {
-                nedges = stoi(line.substr(line.find("=") + 1));
-            } else if (line.find("owners") != std::string::npos) {
-                parseline_dzn(line,owners);
-            } else if (line.find("priors") != std::string::npos) {
-                parseline_dzn(line,priors);
-            } else if (line.find("sources") != std::string::npos) {
-                parseline_dzn(line,sources);
-            } else if (line.find("targets") != std::string::npos) {
-                parseline_dzn(line,targets);
-            } else if (line.find("weights") != std::string::npos) {
-                parseline_dzn(line,weights);
-            }
+        try {
+            parseDZN(*this,file,lbound,ubound);
         }
-        file.close();
-
-        if (nvertices < 1 || nedges < 1 || 
-            owners.size() < nvertices || priors.size() < nvertices ||
-            sources.size() < nedges || targets.size() < nedges)
-        {
+        catch(const std::exception& e) {
             std::string error =  "Error: Could not parse '" + filename + "'.";
             throw std::invalid_argument(error);
-        }
-
-        bool hasZeros = false;
-        for (size_t e=0; e<nedges; e++) {
-            if (sources[e]==0) { hasZeros = true; break; }
-        }
-        if (!hasZeros) fixZeros();
-        outs.growTo(nvertices);
-        ins .growTo(nvertices);
-        for(int32_t i=0; i<nedges; i++) {
-            outs[sources[i]].push(i);
-            ins [targets[i]].push(i);
-        }
-
-        if (weights.size()==0) {
-            std::random_device rd;
-            std::mt19937 g(rd());
-            std::uniform_int_distribution<> rndWeight(lbound, ubound);
-            for (size_t i=0; i< nedges; i++) {
-                if (lbound == ubound) {
-                    weights.push(lbound);
-                } else {
-                    weights.push(rndWeight(g));
-                }
-            }
         }
     }
     else if (type == GM) {
-        int32_t lastvertex = 0;
-        vec<int32_t>        tverts;
-        vec<vec<int32_t>>   tedges;
-        vec<vec<int64_t>>     tweights;
-        int32_t counter = 0;
-
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::uniform_int_distribution<> rndWeight(lbound, ubound);
-
-        while (getline(file, line)) {
-            if (line.empty()) continue;
-            if (line.find("parity") != std::string::npos) {
-                lastvertex = stoi(line.substr(line.find(" ")));
-                tverts.growTo(lastvertex + 1);
-            } else if (line.find("init") != std::string::npos) {
-                init = stoi(line.substr(line.find(" ")));
-            } else {
-                int32_t         vId;
-                int64_t         vPriority;
-                int8_t          vOwner;
-                vec<int32_t>    vOuts;
-                std::string     vComment;
-                vec<int64_t>      oWeights;
-                
-                bool ok = parseline_gm( line, vId, vPriority, vOwner,
-                                        vOuts, vComment, oWeights );
-
-                if (!ok) continue;
-
-                if ((oWeights.size() < vOuts.size())) {
-                    size_t missing;
-                    missing = vOuts.size() - oWeights.size();
-                    
-                    for (size_t i = 0; i < missing; ++i) {
-                        if (lbound == ubound) {
-                            oWeights.push(lbound);
-                        } else {
-                            oWeights.push(rndWeight(g));
-                        }
-                    }
-                }
-                else if (oWeights.size() > outs.size()) {
-                    oWeights.growTo(outs.size());
-                }
-
-                owners.push(vOwner);
-                priors.push(vPriority);
-                tedges.push();
-                tweights.push();
-                tverts[vId] = counter;
-                for(size_t i=0; i<vOuts.size(); i++) {
-                    tedges.last().push(vOuts[i]);
-                    tweights.last().push(oWeights[i]);
-                }
-                
-                counter++;
-            }
+        try {
+            parseGM(*this,file,lbound,ubound);
         }
-        file.close();
-
-        nvertices = counter;
-        outs.growTo(nvertices);
-        ins.growTo(nvertices);
-
-        nedges = 0;
-        for (size_t v = 0; v < nvertices; v++) {
-            for (size_t t = 0; t < tedges[v].size(); t++) {
-                int32_t w = tverts[tedges[v][t]];
-                
-                sources.push(v);
-                targets.push(w);
-                weights.push(tweights[v][t]);                
-                outs[v].push(nedges);
-                ins[w].push(nedges);
-                nedges++;
-            }
-        }
-
-        if (nvertices < 1 || nedges < 1 || 
-            owners.size() < nvertices || priors.size() < nvertices ||
-            sources.size() < nedges || targets.size() < nedges)
-        {
+        catch(const std::exception& e) {
             std::string error =  "Error: Could not parse '" + filename + "'.";
             throw std::invalid_argument(error);
         }
-
     }
 
     setInit(init);
+}
+
+void Game::fixZeros() {
+    for (size_t i=0; i<sources.size(); i++) {
+        sources[i]--;
+        targets[i]--;
+    }
 }
 
 //-----------------------------------------------------------------------------
