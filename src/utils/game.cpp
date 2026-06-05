@@ -35,7 +35,6 @@ parity_type opponent(parity_type PARITY) {
     if (PARITY==EVEN) return ODD; return EVEN;
 }
 
-
 //-----------------------------------------------------------------------------
 
 #include <cstdio>  
@@ -127,13 +126,6 @@ Game::Game( game_type       type,
     }
 }
 
-void Game::fixZeros() {
-    for (size_t i=0; i<sources.size(); i++) {
-        sources[i]--;
-        targets[i]--;
-    }
-}
-
 //-----------------------------------------------------------------------------
 // Jurdzinski/Random/Mladder game/SPRAND-Randx
 
@@ -154,11 +146,11 @@ Game::Game( game_type       type,
         std::random_device rd;
         std::mt19937 g(rd());
         std::uniform_int_distribution<> rndWeight(lbound,ubound);
-        int32_t es = 1;
+        int32_t es = 0;
         int32_t os = 0;
         
         for (size_t l=1; l<levels; l++) {
-            os = ((blocks*3)+1)*(levels-1)+1;
+            os = ((blocks*3)+1)*(levels-1);
             for (size_t b=0; b<blocks; b++) {
                 owners.push(1);
                 owners.push(0);
@@ -215,7 +207,6 @@ Game::Game( game_type       type,
         owners.push(0);
         priors.push((levels-l)*2);
 
-        fixZeros();
         outs.growTo(nvertices);
         ins .growTo(nvertices);
         for (size_t i=0; i<nedges; i++) {
