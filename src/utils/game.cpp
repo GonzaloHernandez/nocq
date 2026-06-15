@@ -854,6 +854,7 @@ GameView::GameView(Game& g) : g(g) {
 //-----------------------------------------------------------------------------
 
 void GameView::getVertices(vec<int32_t>& vertices) {
+    vertices.clear();
     for (size_t v=0; v<g.nvertices; v++) {
         if (vs[v]) vertices.push(v);
     }
@@ -862,6 +863,7 @@ void GameView::getVertices(vec<int32_t>& vertices) {
 //-----------------------------------------------------------------------------
 
 void GameView::getEdges(vec<int32_t>& edges){
+    edges.clear();
     for (size_t e=0; e<g.nedges; e++) {
         if (es[e]) edges.push(e);
     }
@@ -884,6 +886,7 @@ void GameView::deactiveAll() {
 //-----------------------------------------------------------------------------
 
 void GameView::getOuts(vec<int32_t>& edges, int32_t v) {
+    edges.clear();
     for (size_t i=0; i<g.outs[v].size(); i++) {
         int32_t e = g.outs[v][i];
         int32_t w = g.targets[e];
@@ -894,10 +897,11 @@ void GameView::getOuts(vec<int32_t>& edges, int32_t v) {
 //-----------------------------------------------------------------------------
 
 void GameView::getIns(vec<int32_t>& edges,int32_t w) {
+    edges.clear();
     for (size_t i=0; i<g.ins[w].size(); i++) {
         int32_t e = g.ins[w][i];
-        int32_t w = g.sources[e];
-        if (es[e] && vs[w]) edges.push(e);
+        int32_t u = g.sources[e];
+        if (es[e] && vs[u]) edges.push(e);
     }
 }
 

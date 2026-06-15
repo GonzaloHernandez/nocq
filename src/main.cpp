@@ -637,19 +637,28 @@ int main(int argc, char *argv[])
 
     else if (options.method=="scc") { 
         GameView view(*game);
-        TarjanSCC tscc(*game,view);
-        auto sccs = tscc.solve();
+        TarjanSCC tscc(*game, view);
+        
+        vec<vec<int32_t>*> sccs; // Adjusted to int32_t
+        tscc.solve(sccs);
+        
         int counter = 0;
-        for (auto& scc : sccs) {
+        for (unsigned int i = 0; i < sccs.size(); i++) {
+            vec<int32_t>& scc = *(sccs[i]); // Adjusted to int32_t
+            
             std::cout << "{";
-            for (int i = 0; i < scc.size(); i++) {
-                std::cout << scc[i];
-                if (i<scc.size()-1) std::cout << ",";
+            for (unsigned int j = 0; j < scc.size(); j++) {
+                std::cout << scc[j];
+                if (j < scc.size() - 1) std::cout << ",";
             }
             std::cout << "}" << std::endl;
             counter += 1;
         }
         std::cout << "Total SCCs: " << counter << std::endl;
+
+        for (unsigned int i = 0; i < sccs.size(); i++) {
+            delete sccs[i];
+        }
     }
 
     //-------------------------------------------------------------------------

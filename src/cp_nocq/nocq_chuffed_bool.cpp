@@ -25,7 +25,172 @@
 #include "winning_conditions.h"
 #endif
 
+#ifndef TARJAN_H
+#include "utils/tarjan.h"
+#endif
+
 namespace ChuffedBool {
+
+
+class NOCCheckerSCC : public Propagator {
+private:
+    Game& g;
+    vec<BoolView> V;
+    vec<BoolView> E;
+    parity_type playerSAT;
+
+public:
+    //-----------------------------------------------------------------------
+    NOCCheckerSCC(Game& g, vec<BoolView>& V, vec<BoolView>& E, parity_type playerSAT) 
+    : g(g), V(V), E(E), playerSAT(playerSAT)
+    {
+        for (unsigned int i = 0; i < g.owners.size(); i++)  V[i].attach(this, 1, EVENT_F);
+        for (unsigned int i = 0; i < g.sources.size(); i++) E[i].attach(this, 1, EVENT_F);
+    }
+
+    //-----------------------------------------------------------------------
+    // Returns the best vertices by reference using vec<>
+    void getBestColors(const vec<int32_t>& subgraph, vec<int32_t>& best_vertices) {
+        best_vertices.clear();
+        if (subgraph.size() == 0) return;
+
+        best_vertices.push(subgraph[0]);
+
+        for (unsigned int i = 1; i < subgraph.size(); i++) {
+            int32_t v = subgraph[i];
+            int32_t best = best_vertices[0];
+
+            if (g.isBetter(g.priors[v], g.priors[best])) {
+                best_vertices.clear();
+                best_vertices.push(v);
+            } else if (g.priors[v] == g.priors[best]) {
+                best_vertices.push(v);
+            }
+        }
+    }
+
+    //-----------------------------------------------------------------------
+    bool backtrack() 
+    {
+        vec<Lit> lits;
+        lits.push(); // First slot reserved for explanation placeholder
+        for (unsigned int i = 1; i < g.nvertices; i++)   lits.push(V[i].getValLit());
+        for (unsigned int i = 0; i < g.nedges; i++)      lits.push(E[i].getValLit());
+        Clause* reason = Reason_new(lits);
+        V[0].setVal(V[0].isFalse(), reason);
+        return false;
+    }
+
+    //-----------------------------------------------------------------------
+    bool propagate() override {
+
+        GameView view(g);
+
+        for (unsigned int i = 0; i < g.nvertices; i++) {
+            if (!V[i].isFixed()) return true;
+            view.vs[i] = (V[i].isTrue());
+        }
+        for (unsigned int i = 0; i < g.nedges; i++) {
+            if (!E[i].isFixed()) return true;
+            view.es[i] = (E[i].isTrue());
+        }
+
+        vec<vec<int32_t>*> stack;
+
+        TarjanSCC initial_tar(g, view);
+        initial_tar.solve(stack);
+
+        // Pre-allocate a lookup table for O(1) membership checks instead of unordered_set
+        vec<bool> is_best_color;
+        is_best_color.growTo(g.nvertices, false);
+
+        while (stack.size() > 0) {
+            vec<int32_t>* sc_ptr = stack.last();
+            stack.pop();
+            vec<int32_t>& sc = *sc_ptr;
+
+            if (sc.size() == 1) {
+                int32_t v = sc[0];
+                for (unsigned int i = 0; i < g.outs[v].size(); i++) {
+                    int32_t e = g.outs[v][i];
+                    if (E[e].isFalse()) continue;
+                    int32_t w = g.targets[e];
+                    if (v == w && g.priors[v] % 2 == opponent(playerSAT)) {
+                        delete sc_ptr;
+                        for (unsigned int k = 0; k < stack.size(); k++) delete stack[k];
+                        return backtrack();
+                    }
+                }
+                delete sc_ptr;
+                continue;
+            }
+
+            // Find best colors natively using vec
+            vec<int32_t> bestVertices;
+            getBestColors(sc, bestVertices);
+
+            int32_t v0 = bestVertices[0];
+            if (g.priors[v0] % 2 == opponent(playerSAT)) {
+                delete sc_ptr;
+                for (unsigned int k = 0; k < stack.size(); k++) delete stack[k];
+                return backtrack();
+            }
+
+            // Mark membership on our fast lookup table
+            for (unsigned int i = 0; i < bestVertices.size(); i++) {
+                is_best_color[bestVertices[i]] = true;
+            }
+
+            // Sub-filtering processing phase
+            view.deactiveAll();
+            for (unsigned int i = 0; i < sc.size(); i++) {
+                int32_t v = sc[i];
+                if (!is_best_color[v]) {
+                    view.vs[v] = true;
+                }
+            }
+            for (unsigned int i = 0; i < sc.size(); i++) {
+                int32_t v = sc[i];
+                if (!is_best_color[v]) {
+                    for (unsigned int j = 0; j < g.outs[v].size(); j++) { 
+                        int32_t e = g.outs[v][j];
+                        int32_t w = g.targets[e];
+                        if (E[e].isTrue() && view.vs[w]) {
+                            view.es[e] = true;
+                        }
+                    }
+                }
+            }
+
+            // Clear lookup flags back to false for the next iterations
+            for (unsigned int i = 0; i < bestVertices.size(); i++) {
+                is_best_color[bestVertices[i]] = false;
+            }
+
+            // Run sub-decomposition on the updated graph view
+            TarjanSCC sub_tar(g, view);
+            vec<vec<int32_t>*> sub_sccs;
+            sub_tar.solve(sub_sccs);
+
+            for (unsigned int i = 0; i < sub_sccs.size(); i++) {
+                stack.push(sub_sccs[i]);
+            }
+
+            delete sc_ptr;
+        }
+        return true;
+    }
+
+    //-----------------------------------------------------------------------
+    void wakeup(int i, int) override {
+        pushInQueue();
+    }
+
+    //-----------------------------------------------------------------------
+    void clearPropState() override {
+        in_queue = false;
+    }
+};
 
 //=============================================================================
 
@@ -345,7 +510,8 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        new NOCPropagator(g,V,E,playerSAT,winConditions);
+        // new NOCPropagator(g,V,E,playerSAT,winConditions);
+        new NOCCheckerSCC(g,V,E,playerSAT);
 
         //---------------------------------------------------------------------
 

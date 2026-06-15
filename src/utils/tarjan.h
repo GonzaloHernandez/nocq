@@ -23,26 +23,23 @@
 #include "game.h"
 #endif
 
-#include <vector>
-
 class TarjanSCC {
 private:
     Game& g;
     GameView& view;
-    std::vector<int>    indices;
-    std::vector<int>    lowlink;
-    std::vector<bool>   onstack;
-    std::vector<int>     stack;
-    std::vector<std::vector<int>>   sccs;
-    int index = 0;
+    vec<int32_t>  indices; 
+    vec<int32_t>  lowlink;
+    vec<bool>     onstack;
+    vec<int32_t>  stack;
+    int32_t index = 0;
 public:
-    TarjanSCC(Game& g,GameView& view);
+    TarjanSCC(Game& g, GameView& view);
     
-    std::vector<std::vector<int>> solveRAW();
-    void searchRAW(int v);
+    void solveRAW(vec<vec<int32_t>*>& out_sccs);
+    void searchRAW(int32_t v, vec<vec<int32_t>*>& out_sccs);
 
-    std::vector<std::vector<int>> solve();
-    void search(int v);
+    void solve(vec<vec<int32_t>*>& out_sccs);
+    void search(int32_t v, vec<vec<int32_t>*>& out_sccs);
 };
 
 #endif // TARJAN_H

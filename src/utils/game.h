@@ -112,7 +112,7 @@ public:
     void getVertices(vec<int32_t>& vs);
     void getEdges   (vec<int32_t>& es);
     void getOuts    (vec<int32_t>& es, int32_t v);
-    void getIns     (vec<int32_t>& es,int32_t w);
+    void getIns     (vec<int32_t>& es, int32_t w);
     std::string viewCurrent();
 
     void activeAll();

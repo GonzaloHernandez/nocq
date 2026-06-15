@@ -102,7 +102,7 @@
     },
     "cmake.configureArgs": [
         "-DUSE_SYSTEM_CHUFFED=ON",
-        "-DENABLE_GECODE=OFF",
+        "-DENABLE_GECODE=ON",
         "-DENABLE_CADICAL=OFF",
     ]
 }

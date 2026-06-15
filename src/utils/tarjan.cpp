@@ -19,99 +19,119 @@
 #include "tarjan.h"
 #include <vector>
 
-TarjanSCC::TarjanSCC(Game& g,GameView& view) 
-:   g(g), view(view),
-    indices(g.nvertices,-1), lowlink(g.nvertices,-1), onstack(g.nvertices,false) 
+TarjanSCC::TarjanSCC(Game& g, GameView& view) 
+:   g(g), view(view) 
 {        
+    indices.growTo(g.nvertices, -1);
+    lowlink.growTo(g.nvertices, -1);
+    onstack.growTo(g.nvertices, false);
 }
 
 //-----------------------------------------------------------------------------
 
-std::vector<std::vector<int>> TarjanSCC::solveRAW() {
-    for (int v=0; v<g.nvertices; v++) {
-        if (indices[v] ==-1) {
-            searchRAW(v);
+void TarjanSCC::solveRAW(vec<vec<int32_t>*>& out_sccs) {
+    out_sccs.clear();
+    index = 0;
+    stack.clear();
+    for (unsigned int v = 0; v < g.nvertices; v++) {
+        indices[v] = -1;
+        lowlink[v] = -1;
+        onstack[v] = false;
+    }
+
+    for (unsigned int v = 0; v < g.nvertices; v++) {
+        if (indices[v] == -1) {
+            searchRAW(v, out_sccs);
         }
     }
-    return sccs;
 }
 
 //-----------------------------------------------------------------------------
 
-void TarjanSCC::searchRAW(int v) {
+void TarjanSCC::searchRAW(int32_t v, vec<vec<int32_t>*>& out_sccs) {
     indices[v] = lowlink[v] = index;
     index++;
-    stack.emplace_back(v);
+    stack.push(v);
     onstack[v] = true;
 
-    for (size_t i=0; i<g.outs[v].size(); i++) {
-        size_t e = g.ins[v][i];
-        int w = g.targets[e];
+    for (unsigned int i = 0; i < g.outs[v].size(); i++) {
+        unsigned int e = g.outs[v][i];
+        int32_t w = g.targets[e]; // Matches your vertex type
         if (indices[w] == -1) {
-            searchRAW(w);
+            searchRAW(w, out_sccs);
             lowlink[v] = std::min(lowlink[v], lowlink[w]);
         }
         else if (onstack[w]) {
-            lowlink[v] = std::min(lowlink[v], lowlink[w]);
+            lowlink[v] = std::min(lowlink[v], indices[w]);
         }
     }
+
     if (lowlink[v] == indices[v]) {
-        std::vector<int> scc;
-        while (true){
-            int w = stack.back();
-            stack.pop_back();
+        vec<int32_t>* scc = new vec<int32_t>();
+        while (true) {
+            int32_t w = stack.last();
+            stack.pop();
             onstack[w] = false;
-            scc.push_back(w);
-            if (w==v) break;
+            scc->push(w);
+            if (w == v) break;
         }
-        sccs.push_back(scc);            
+        out_sccs.push(scc);            
     }
 }
 
 //-----------------------------------------------------------------------------
 
-std::vector<std::vector<int>> TarjanSCC::solve() {
+void TarjanSCC::solve(vec<vec<int32_t>*>& out_sccs) {
+    out_sccs.clear();
+    index = 0;
+    stack.clear();
+    for (unsigned int v = 0; v < g.nvertices; v++) {
+        indices[v] = -1;
+        lowlink[v] = -1;
+        onstack[v] = false;
+    }
+
     vec<int32_t> vs;
     view.getVertices(vs);
-    for (size_t i=0; i<vs.size(); i++) {
+    for (unsigned int i = 0; i < vs.size(); i++) {
         int32_t v = vs[i];
-        if (indices[v] ==-1) {
-            search(v);
+        if (indices[v] == -1) {
+            search(v, out_sccs);
         }
     }
-    return sccs;
 }
 
 //-----------------------------------------------------------------------------
 
-void TarjanSCC::search(int v) {
+void TarjanSCC::search(int32_t v, vec<vec<int32_t>*>& out_sccs) {
     indices[v] = lowlink[v] = index;
     index++;
-    stack.emplace_back(v);
+    stack.push(v);
     onstack[v] = true;
 
     vec<int32_t> es;
-    view.getOuts(es,v);
-    for (size_t i=0; i<es.size(); i++) {
-        int32_t  e = es[i];
-        int w = g.targets[e];
+    view.getOuts(es, v);
+    for (unsigned int i = 0; i < es.size(); i++) {
+        int32_t e = es[i];
+        int32_t w = g.targets[e]; // Matches your vertex type
         if (indices[w] == -1) {
-            search(w);
-            lowlink[v] = lowlink[v]<lowlink[w]?lowlink[v]:lowlink[w];
+            search(w, out_sccs);
+            lowlink[v] = lowlink[v] < lowlink[w] ? lowlink[v] : lowlink[w];
         }
         else if (onstack[w]) {
-            lowlink[v] = lowlink[v]<lowlink[w]?lowlink[v]:lowlink[w];
+            lowlink[v] = lowlink[v] < indices[w] ? lowlink[v] : indices[w];
         }
     }
+
     if (lowlink[v] == indices[v]) {
-        std::vector<int> scc;
-        while (true){
-            int w = stack.back();
-            stack.pop_back();
+        vec<int32_t>* scc = new vec<int32_t>();
+        while (true) {
+            int32_t w = stack.last();
+            stack.pop();
             onstack[w] = false;
-            scc.push_back(w);
-            if (w==v) break;
+            scc->push(w);
+            if (w == v) break;
         }
-        sccs.push_back(scc);            
+        out_sccs.push(scc);            
     }
 }
