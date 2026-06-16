@@ -1,5 +1,5 @@
-path="/home/chalo/Cloud/games/equivchecking"
-# Games
+path="/home/chalo/games/equivchecking"
+
 files=(
     # equivchecking-parity-1000-9999k
     'Buffer_Onebit_(datasize=3_capacity=1_windowsize=1)eq=branching-bisim.gm'
@@ -63,18 +63,16 @@ inits=(
 
 csv_file="05_large_results_equivalncech.csv"
 csv_log="05_large_raw_equivalncech.csv"
-n=3
+maxtime=75
+n=36
 
-# Write the CSV Header line at the very beginning
 echo "time,solved" > "$csv_file"
 echo "Oink(PP),Oink(PP+),Oink(PAR),ZRA,NOCQ" > "$csv_log"
 
-# Print status header to terminal
 echo "------------------------------------------------" >&2
 echo "Starting benchmarks... Output saving to $csv_file" >&2
 echo "------------------------------------------------" >&2
 
-# Initialize our statistical tracking variables
 oink_pp_count=0
 oink_pp_time=0.0
 
@@ -101,15 +99,10 @@ for ((i=0; i<n; i++)); do
     # ====================================================================
     # OINK Priority Promotion SECTION
     # ====================================================================
-    docker run --rm -v ${path}:/mnt solver oink "/mnt/$file" --pp > /tmp/oink_$i.txt 2>&1 &
+    timeout $maxtime docker run --rm -t --init -v ${path}:/mnt solver oink "/mnt/$file" --pp > /tmp/oink_$i.txt 2>&1 &
     pid_oink=$!
 
-    sleep 60 &
-    pid_timeout_oink=$!
-    
-    wait -n
-    kill $pid_oink $pid_timeout_oink 2>/dev/null
-    wait $pid_oink $pid_timeout_oink 2>/dev/null 
+    wait $pid_oink 2>/dev/null
 
     r_oink=$(grep "total solving time:" /tmp/oink_$i.txt 2>/dev/null | awk '{print $6}')
     rm -f /tmp/oink_$i.txt
@@ -121,7 +114,6 @@ for ((i=0; i<n; i++)); do
         echo "   --> Warning: Output unknown or Time out!" >&2
     fi
 
-    # Update Statistics
     if [ "$parity_result" != "TIMEOUT" ]; then
         oink_pp_count=$((oink_pp_count + 1))
         oink_pp_time=$(awk "BEGIN {print $oink_pp_time + $parity_result}")
@@ -132,17 +124,12 @@ for ((i=0; i<n; i++)); do
     printf "%s," "$parity_result" >> "$csv_log"
  
     # ====================================================================
-    # OINK Priority Promotion (+) SECTION
+    # OINK Priority Promotion(+) SECTION
     # ====================================================================
-    docker run --rm -v "${path}":/mnt solver oink "/mnt/$file" --ppp > /tmp/oink_$i.txt 2>&1 &
+    timeout $maxtime docker run --rm -t --init -v "${path}":/mnt solver oink "/mnt/$file" --ppp > /tmp/oink_$i.txt 2>&1 &
     pid_oink=$!
 
-    sleep 60 &
-    pid_timeout_oink=$!
-    
-    wait -n
-    kill $pid_oink $pid_timeout_oink 2>/dev/null
-    wait $pid_oink $pid_timeout_oink 2>/dev/null 
+    wait $pid_oink 2>/dev/null 
 
     r_oink=$(grep "total solving time:" /tmp/oink_$i.txt 2>/dev/null | awk '{print $6}')
     rm -f /tmp/oink_$i.txt
@@ -154,7 +141,6 @@ for ((i=0; i<n; i++)); do
         echo "   --> Warning: Output unknown or Time out!" >&2
     fi
 
-    # Update Statistics
     if [ "$parity_result" != "TIMEOUT" ]; then
         oink_ppp_count=$((oink_ppp_count + 1))
         oink_ppp_time=$(awk "BEGIN {print $oink_ppp_time + $parity_result}")
@@ -167,15 +153,9 @@ for ((i=0; i<n; i++)); do
     # ====================================================================
     # OINK Parys' improvements SECTION
     # ====================================================================
-    docker run --rm -v "${path}":/mnt solver oink "/mnt/$file" --zlkpp-std > /tmp/oink_$i.txt 2>&1 &
+    timeout $maxtime docker run --rm -t --init -v "${path}":/mnt solver oink "/mnt/$file" --zlkpp-std > /tmp/oink_$i.txt 2>&1 &
     pid_oink=$!
-
-    sleep 60 &
-    pid_timeout_oink=$!
-    
-    wait -n
-    kill $pid_oink $pid_timeout_oink 2>/dev/null
-    wait $pid_oink $pid_timeout_oink 2>/dev/null 
+    wait $pid_oink 2>/dev/null 
 
     r_oink=$(grep "total solving time:" /tmp/oink_$i.txt 2>/dev/null | awk '{print $6}')
     rm -f /tmp/oink_$i.txt
@@ -187,7 +167,6 @@ for ((i=0; i<n; i++)); do
         echo "   --> Warning: Output unknown or Time out!" >&2
     fi
 
-    # Update Statistics
     if [ "$parity_result" != "TIMEOUT" ]; then
         oink_par_count=$((oink_par_count + 1))
         oink_par_time=$(awk "BEGIN {print $oink_par_time + $parity_result}")
@@ -200,16 +179,10 @@ for ((i=0; i<n; i++)); do
     # ====================================================================
     # ZRA SECTION
     # ====================================================================
-    docker run --rm -v "${path}":/mnt nocq --gm "/mnt/$file" --zra --print-only-time --init "$init" > /tmp/parity_$i.txt 2>/dev/null &
+    timeout $maxtime docker run --rm -t --init -v "${path}":/mnt nocq --gm "/mnt/$file" --zra --print-only-time --init "$init" > /tmp/parity_$i.txt 2>/dev/null &
     pid_zra=$!
 
-    sleep 60 &
-    pid_timeout_zra=$!
-    
-    # Wait until either the solver or the sleep timer exits
-    wait -n
-    kill $pid_zra $pid_timeout_zra 2>/dev/null
-    wait $pid_zra $pid_timeout_zra 2>/dev/null 
+    wait $pid_zra 2>/dev/null
 
     r_zra=$(cat /tmp/parity_$i.txt 2>/dev/null | xargs)
     rm -f /tmp/parity_$i.txt
@@ -234,19 +207,15 @@ for ((i=0; i<n; i++)); do
     # ====================================================================
     # NOCQ SECTION (Parallel EVEN vs ODD Race)
     # ====================================================================
-    docker run --rm -v "${path}":/mnt nocq --gm "/mnt/$file" --noc-even --parity --print-only-time --init "$init" > /tmp/parity_even_$i.txt 2>/dev/null &
+    timeout $maxtime docker run --rm -t --init -v "${path}":/mnt nocq --gm "/mnt/$file" --noc-even --parity --print-only-time --init "$init" > /tmp/parity_even_$i.txt 2>/dev/null &
     pid_even=$!
     
-    docker run --rm -v "${path}":/mnt nocq --gm "/mnt/$file" --noc-odd --parity --print-only-time --init "$init" > /tmp/parity_odd_$i.txt 2>/dev/null &
+    timeout $maxtime docker run --rm -t --init -v "${path}":/mnt nocq --gm "/mnt/$file" --noc-odd --parity --print-only-time --init "$init" > /tmp/parity_odd_$i.txt 2>/dev/null &
     pid_odd=$!
 
-    sleep 60 &
-    pid_timeout_nocq=$!
-
-    # Wait for the first of the three parallel paths to complete
     wait -n
-    kill $pid_even $pid_odd $pid_timeout_nocq 2>/dev/null
-    wait $pid_even $pid_odd $pid_timeout_nocq 2>/dev/null 
+    kill $pid_even $pid_odd 2>/dev/null
+    wait $pid_even $pid_odd 2>/dev/null 
 
     r_even=$(cat /tmp/parity_even_$i.txt 2>/dev/null)
     r_odd=$(cat /tmp/parity_odd_$i.txt 2>/dev/null)
@@ -261,7 +230,6 @@ for ((i=0; i<n; i++)); do
         echo "   --> Warning: NOCQ timed out!" >&2
     fi
 
-    # Update Statistics
     if [ "$parity_result" != "TIMEOUT" ]; then
         nocq_count=$((nocq_count + 1))
         nocq_time=$(awk "BEGIN {print $nocq_time + $parity_result}")
@@ -269,7 +237,6 @@ for ((i=0; i<n; i++)); do
         nocq_time=$(awk "BEGIN {print $nocq_time + 120}") # Added closing bracket }
     fi
 
-    # Log results on the same row, then append newline
     echo "$parity_result" >> "$csv_log"
 
 done
@@ -281,8 +248,6 @@ echo "------------------------------------------------" >&2
 echo "Done! All results written to $csv_file" >&2
 echo "The raw data written to $csv_log" >&2
 echo "------------------------------------------------" >&2
-
-# ZRA Summary Output
 
 if [ $oink_pp_count -gt 0 ]; then
     avg_time=$(awk "BEGIN {print $oink_pp_time / $oink_pp_count}")
@@ -312,7 +277,6 @@ else
     echo "ZRA,$((n * 120)),${zra_count}/${n}" >> "$csv_file"
 fi
 
-# NOCQ Summary Output
 if [ $nocq_count -gt 0 ]; then
     avg_time=$(awk "BEGIN {print $nocq_time / $nocq_count}")
     echo "NOCQ,${avg_time},${nocq_count}/${n}" >> "$csv_file"

@@ -33,6 +33,7 @@ struct options {
     bool printStatistics    = false; 
     bool printVerbose       = false; 
     int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
+    bool totalTime          = false;
     game_type  gameType     = DEF;
 
     objective_type  objective       = MAX;  // MAXimize,MINimize
@@ -381,6 +382,9 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.printTime         = 1; }
         else if (strcmp(argv[i],"--print-times")==0)
                                 { options.printTime         = 2; }
+        else if (strcmp(argv[i],"--print-only-totaltime")==0)
+                                {   options.printTime       = -1;
+                                    options.totalTime       = true; }
         else if (strcmp(argv[i],"--print-game")==0)
                                 { options.printGame         = true; }
         else if (strcmp(argv[i],"--print-solution")==0)

@@ -510,8 +510,8 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        // new NOCPropagator(g,V,E,playerSAT,winConditions);
-        new NOCCheckerSCC(g,V,E,playerSAT);
+        new NOCPropagator(g,V,E,playerSAT,winConditions);
+        // new NOCCheckerSCC(g,V,E,playerSAT);
 
         //---------------------------------------------------------------------
 

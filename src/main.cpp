@@ -237,7 +237,10 @@ int main(int argc, char *argv[])
             // std::cout << "Mem used           : " << memUsed() << std::endl;
         }
         else if (options.printTime<0) {
-            std::cout   << totaltime << " " << std::flush;
+            if (options.totalTime)
+                std::cout   << preptime+totaltime << " " << std::flush;
+            else
+                std::cout   << totaltime << " " << std::flush;
         }
         
         if (options.printTime == 1) {

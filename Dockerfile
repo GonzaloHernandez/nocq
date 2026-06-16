@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     bison \
     flex \
     zlib1g-dev \
-    libgecode-dev \
+    # libgecode-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -17,7 +17,7 @@ WORKDIR /app
 COPY . .
 
 RUN mkdir build && cd build && \
-    cmake -DENABLE_GECODE=ON .. && \
+    cmake -DENABLE_GECODE=OFF .. && \
     make -j$(nproc)
 
 ENTRYPOINT ["./build/nocq"]

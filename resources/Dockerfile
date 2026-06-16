@@ -22,3 +22,5 @@ COPY oink .
 RUN chmod +x cadical kissat minisat oink
 
 CMD ["/bin/bash"]
+
+# docker build -f Dockerfile -t solver ~/Cloud/engines/
