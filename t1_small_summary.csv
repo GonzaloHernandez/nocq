@@ -1,0 +1,2 @@
+Algorithm,EquivcheckingTime,EquivcheckingSolved,ModelcheckingTime,ModelcheckingSolved,PGSolverTime,PGSolverSolved,RandomGTime,RandomGSolved
+nocq(Ours),3.90502,32/33,2.32849,56/57,0.03266,23/23,5.01089,24/25

@@ -2,49 +2,49 @@
 
 path = "/home/chalo/games/equivchecking"
 
-# files = [
-#     'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=strong-bisim.gm',
-#     'Par_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'Par_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
-#     'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
-#     'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=branching-bisim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=branching-sim.gm',
-#     'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=weak-bisim.gm'
-# ]
+files_small = [
+    'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=strong-bisim.gm',
+    'Par_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'Par_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'ABP(BW)_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'ABP_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'CABP_Par_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'ABP(BW)_CABP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'SWP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'CABP_SWP_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'SWP_SWP_(datasize=3_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=weak-bisim.gm',
+    'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-bisim.gm',
+    'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=branching-sim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=branching-bisim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=branching-sim.gm',
+    'Buffer_Onebit_(datasize=2_capacity=2_windowsize=1)eq=weak-bisim.gm'
+]
 
-# inits = [
-#     81906, 102043, 29198, 55522, 75186, 50561, 2002, 66099, 82996, 61050, 14849, 53799,
-#     55796, 54531, 98617, 4511, 80581, 49632, 76077, 58236, 61216, 61744, 37535, 86785,
-#     98342, 43854, 840, 26835, 25240, 99256, 50992, 79542, 11644
-# ]
+inits_small = [
+    81906, 102043, 29198, 55522, 75186, 50561, 2002, 66099, 82996, 61050, 14849, 53799,
+    55796, 54531, 98617, 4511, 80581, 49632, 76077, 58236, 61216, 61744, 37535, 86785,
+    98342, 43854, 840, 26835, 25240, 99256, 50992, 79542, 11644
+]
 
-files = [
+files_large = [
     'Buffer_Onebit_(datasize=3_capacity=1_windowsize=1)eq=branching-bisim.gm',
     'Buffer_Onebit_(datasize=3_capacity=1_windowsize=1)eq=branching-sim.gm',
     'Buffer_Onebit_(datasize=3_capacity=1_windowsize=1)eq=weak-bisim.gm',
@@ -83,7 +83,7 @@ files = [
     'Hesselink_(Specification)_Hesselink_(Implementation)_(datasize=2)eq=branching-sim.gm'
 ]
 
-inits = [
+inits_large = [
     1899212,1005347,25342,1108320,
     585804,1794680,104100,430147,
     1488761,850480,1691030,1022194,

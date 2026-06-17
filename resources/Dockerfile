@@ -18,8 +18,10 @@ COPY cadical .
 COPY kissat .
 COPY minisat .
 COPY oink .
+COPY nocq .
 
-RUN chmod +x cadical kissat minisat oink
+# Grant executable permissions to all binaries, including nocq
+RUN chmod +x cadical kissat minisat oink nocq
 
 CMD ["/bin/bash"]
 
