@@ -7,13 +7,16 @@ import time
 # ====================================================================
 # MASTER SELECTION PARAMETER
 # ====================================================================
-TABLE_MODE = "Table1" 
+# Choose your target execution profile:
+#   "Table1" -> Evaluates small games (Prefix: t1_, Soft Cutoff: 60s, Max Wall: 120s)
+#   "Table2" -> Evaluates large games (Prefix: t2_, Soft Cutoff: 60s, Max Wall: 75s)
+TABLE_MODE = "Table2" 
 
 # ====================================================================
 # AUTOMATIC PROFILE ROUTING CONFIGURATION
 # ====================================================================
 PAPER_TIMEOUT_THRESHOLD = 60.0
-MAXTIME = 120  # Unified 120s execution ceiling for all benchmarks
+MAXTIME = 120
 
 if TABLE_MODE == "Table1":
     file_prefix = "t1_small_"
@@ -26,9 +29,10 @@ elif TABLE_MODE == "Table2":
     target_init_array = "inits_large"
     print(">>> PROFILE CONFIGURATION: Booting Table 2 Engine (Large Games) <<<", file=sys.stderr)
 else:
-    print(f"[!] Critical Error: Unknown TABLE_MODE '{TABLE_MODE}'.", file=sys.stderr)
+    print(f"[!] Critical Error: Unknown TABLE_MODE '{TABLE_MODE}'. Choose 'Table1' or 'Table2'.", file=sys.stderr)
     sys.exit(1)
 
+# Dynamic Output File Name Allocation based on selected parameter
 summary_csv = f"{file_prefix}summary.csv"
 log_files = {
     'equiv':  f"{file_prefix}equivchecking.csv",
@@ -41,7 +45,7 @@ domains_setup = [
     {'key': 'equiv',  'module_name': 'games_equivchecking',  'desc': 'Equivalence Checking'},
     {'key': 'model',  'module_name': 'games_modelchecking',  'desc': 'Model Checking'},
     {'key': 'pgsol',  'module_name': 'games_pgsolver',       'desc': 'PGSolver'},
-    {'key': 'random', f'module_name': 'games_random',         'desc': 'RandomG'}
+    {'key': 'random', 'module_name': 'games_random',         'desc': 'RandomG'}
 ]
 
 summary_matrix_cache = {}
@@ -67,7 +71,7 @@ for path_log in log_files.values():
             pass 
 
 # ====================================================================
-# UTILITY PARSING FUNCTIONS
+# UTILITY EXECUTION PIPELINE
 # ====================================================================
 def run_solver_instance(base_path, image, command_args):
     """Executes standard CLI process tracking. Returns raw stdout or TIMEOUT."""
@@ -79,7 +83,7 @@ def run_solver_instance(base_path, image, command_args):
         return "TIMEOUT"
 
 def parse_oink_time(stdout_text):
-    """Parses Oink internal execution prints safely."""
+    """Parses Oink internal execution prints safely regardless of text alignment."""
     if stdout_text == "TIMEOUT" or not stdout_text:
         return None
     for line in stdout_text.splitlines():
@@ -90,31 +94,24 @@ def parse_oink_time(stdout_text):
                 raw_val = parts[idx - 1]
             else:
                 raw_val = parts[-2]
-            return float(raw_val.strip(","))
-    return None
-
-def parse_cadical_time(stdout_text):
-    """Parses CaDiCaL internal execution process time directly from stdout lines."""
-    if stdout_text == "TIMEOUT" or not stdout_text:
-        return None
-    for line in stdout_text.splitlines():
-        if "total process time since initialization" in line:
-            parts = line.split()
-            # Grabs second-to-last element (matching awk layout behavior)
-            try: return float(parts[-2])
-            except (ValueError, IndexError): return None
+            
+            raw_val = raw_val.strip(",")
+            try:
+                return float(raw_val)
+            except ValueError:
+                return None
     return None
 
 # ====================================================================
 # ALGORITHMS CONFIGURATION SUITE
 # ====================================================================
+# Comment out any rows you aren't currently testing to customize execution batches
 algorithms_pool = [
-    # {'name': 'Oink(PP)',      'type': 'oink',        'flag': '--pp'},
+    {'name': 'Oink(PP)',      'type': 'oink',        'flag': '--pp'},
     # {'name': 'Oink(PP+)',     'type': 'oink',        'flag': '--ppp'},
     # {'name': 'Oink(PAR)',     'type': 'oink',        'flag': '--zlkpp-std'},
-    # {'name': 'ZRA(ImpAttr)',  'type': 'zra',         'flag': '--zra'},
-    # {'name': 'nocq(Ours)',    'type': 'nocq_race',   'flag': None},
-    {'name': 'CaDiCaL',       'type': 'sat_cadical', 'flag': None}
+    {'name': 'ZRA(ImpAttr)',  'type': 'zra',         'flag': '--zra'},
+    {'name': 'nocq(Ours)',    'type': 'nocq_race',   'flag': None}  
 ]
 
 # ====================================================================
@@ -140,18 +137,19 @@ for algo in algorithms_pool:
             g_module = __import__(domain['module_name'])
             base_path = g_module.path
             
+            # DYNAMIC ARRAY EXTRACTION via configuration routers
             files_list = getattr(g_module, target_file_array, [])
             inits_list = getattr(g_module, target_init_array, [])
             
             total = len(files_list)
             
             if total == 0:
-                print(f"  [Info] No games defined for configuration array '{target_file_array}'. Skipping.")
+                print(f"  [Info] No games defined for configuration array '{target_file_array}' inside {domain['module_name']}.py. Skipping.")
                 summary_matrix_cache[algo['name']][key] = {'time': '', 'solved': ''}
                 rewrite_summary_csv_live()
                 continue
 
-            # LIVE LOGGING: Write the algorithm prefix
+            # LIVE LOGGING: Write the algorithm prefix at the start of the log row
             with open(log_files[key], "a") as f:
                 f.write(f"{algo['name']}")
 
@@ -164,7 +162,7 @@ for algo in algorithms_pool:
                 # ------------------------------------------------------------
                 # PATH A: SEQUENTIAL RUNNERS (Oink & ZRA)
                 # ------------------------------------------------------------
-                if algo['type'] in ['oink', 'zra']:
+                if algo['type'] != 'nocq_race':
                     if algo['type'] == 'oink':
                         args = ["oink", f"/mnt/{filename}", algo['flag']]
                     else:
@@ -180,17 +178,16 @@ for algo in algorithms_pool:
                             except ValueError: parsed_time = None
 
                 # ------------------------------------------------------------
-                # PATH B: ASYNCHRONOUS PARALLEL RACE ENGINE (nocq Ours Updated Flags)
+                # PATH B: ASYNCHRONOUS PARALLEL RACE ENGINE (nocq Ours)
                 # ------------------------------------------------------------
-                elif algo['type'] == 'nocq_race':
+                else:
                     c_name_even = f"nocq_race_even_{idx}"
                     c_name_odd  = f"nocq_race_odd_{idx}"
 
-                    # Updated flags to match your request: --print-only-totaltime
                     cmd_even = ["docker", "run", "--rm", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
                                 "nocq", "--gm", f"/mnt/{filename}", "--noc-even", "--parity", "--print-only-totaltime", "--init", init_val]
-                    cmd_odd = ["docker", "run", "--rm", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
-                               "nocq", "--gm", f"/mnt/{filename}", "--noc-odd", "--parity", "--print-only-totaltime", "--init", init_val]
+                    cmd_odd  = ["docker", "run", "--rm", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
+                                "nocq", "--gm", f"/mnt/{filename}", "--noc-odd", "--parity", "--print-only-totaltime", "--init", init_val]
                     
                     p_even = None
                     p_odd = None
@@ -215,36 +212,13 @@ for algo in algorithms_pool:
                             if proc and proc.poll() is None:
                                 try: proc.terminate()
                                 except: pass
+                        
                         for c_name in [c_name_even, c_name_odd]:
                             subprocess.run(["docker", "kill", c_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     
                     if race_stdout:
                         try: parsed_time = float(race_stdout.strip())
                         except ValueError: parsed_time = None
-
-                # ------------------------------------------------------------
-                # PATH C: TWO-STEP CADICAL SAT PIPELINE
-                # ------------------------------------------------------------
-                elif algo['type'] == 'sat_cadical':
-                    dimacs_filename = f"{filename}_{idx}.cnf"
-                    
-                    # Step 1: Encode the Parity Game to DIMACS CNF via nocq inside Docker
-                    encode_args = ["nocq", "--gm", f"/mnt/{filename}", "--init", init_val, "--sat-encoding", f"/mnt/{dimacs_filename}"]
-                    encode_output = run_solver_instance(base_path, "solver", encode_args)
-                    
-                    if encode_output == "TIMEOUT":
-                        parsed_time = None
-                    else:
-                        # Step 2: Run CaDiCaL on the newly generated CNF target
-                        solve_args = ["cadical", f"/mnt/{dimacs_filename}"]
-                        raw_output = run_solver_instance(base_path, "solver", solve_args)
-                        parsed_time = parse_cadical_time(raw_output)
-                    
-                    # Clean up the temporary CNF file from your host machine directory immediately
-                    local_cnf_path = os.path.join(base_path, dimacs_filename)
-                    if os.path.exists(local_cnf_path):
-                        try: os.remove(local_cnf_path)
-                        except: pass
 
                 # ------------------------------------------------------------
                 # DUAL-TIMEOUT LOGICAL ENFORCEMENT & SHIELDING
@@ -263,13 +237,15 @@ for algo in algorithms_pool:
                     time_sum += 120.0
                     print(" PHYSICAL TIMEOUT / CRASHED")
                 
-                # LIVE LOGGING: Append data point
+                # LIVE LOGGING: Append data point to raw logs instantly
                 with open(log_files[key], "a") as f:
                     f.write(f", {result_string}")
 
+            # LIVE LOGGING: Close out the row line
             with open(log_files[key], "a") as f:
                 f.write("\n")
 
+            # DOMAIN COMPLETE: Compute metric entries for summary sheet updates
             if solved > 0:
                 avg_time = time_sum / solved
                 time_str = f"{avg_time:.5f}"
@@ -277,6 +253,7 @@ for algo in algorithms_pool:
                 time_str = f"{time_sum:.5f}" if total > 0 else ""
             solved_str = f"{solved}/{total}" if total > 0 else ""
             
+            # Cache block metrics and overwrite summary CSV layout live
             summary_matrix_cache[algo['name']][key] = {'time': time_str, 'solved': solved_str}
             rewrite_summary_csv_live()
 
