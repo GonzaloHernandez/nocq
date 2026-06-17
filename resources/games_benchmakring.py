@@ -41,7 +41,7 @@ domains_setup = [
     {'key': 'equiv',  'module_name': 'games_equivchecking',  'desc': 'Equivalence Checking'},
     {'key': 'model',  'module_name': 'games_modelchecking',  'desc': 'Model Checking'},
     {'key': 'pgsol',  'module_name': 'games_pgsolver',       'desc': 'PGSolver'},
-    {'key': 'random', f'module_name': 'games_random',         'desc': 'RandomG'}
+    {'key': 'random', 'module_name': 'games_random',         'desc': 'RandomG'}
 ]
 
 summary_matrix_cache = {}
@@ -93,28 +93,42 @@ def parse_oink_time(stdout_text):
             return float(raw_val.strip(","))
     return None
 
-def parse_cadical_time(stdout_text):
-    """Parses CaDiCaL internal execution process time directly from stdout lines."""
+def parse_sat_solver_time(stdout_text, solver_type):
+    """Parses execution time from CaDiCaL, Kissat, or Minisat stdout match matrices."""
     if stdout_text == "TIMEOUT" or not stdout_text:
         return None
+    
     for line in stdout_text.splitlines():
-        if "total process time since initialization" in line:
+        if solver_type == "cadical" and "total process time since initialization" in line:
             parts = line.split()
-            # Grabs second-to-last element (matching awk layout behavior)
             try: return float(parts[-2])
             except (ValueError, IndexError): return None
+            
+        elif solver_type == "kissat" and "process-time:" in line:
+            parts = line.split()
+            try: return float(parts[-2])
+            except (ValueError, IndexError): return None
+            
+        elif solver_type == "minisat" and "CPU time" in line:
+            parts = line.split()
+            try: return float(parts[-2])
+            except (ValueError, IndexError): return None
+            
     return None
 
 # ====================================================================
 # ALGORITHMS CONFIGURATION SUITE
 # ====================================================================
+# Comment out any rows you aren't currently testing to focus execution
 algorithms_pool = [
     # {'name': 'Oink(PP)',      'type': 'oink',        'flag': '--pp'},
     # {'name': 'Oink(PP+)',     'type': 'oink',        'flag': '--ppp'},
     # {'name': 'Oink(PAR)',     'type': 'oink',        'flag': '--zlkpp-std'},
     # {'name': 'ZRA(ImpAttr)',  'type': 'zra',         'flag': '--zra'},
     # {'name': 'nocq(Ours)',    'type': 'nocq_race',   'flag': None},
-    {'name': 'CaDiCaL',       'type': 'sat_cadical', 'flag': None}
+    {'name': 'CaDiCaL',       'type': 'sat_pipeline', 'flag': 'cadical'}, 
+    {'name': 'Kissat',        'type': 'sat_pipeline', 'flag': 'kissat'}, 
+    {'name': 'Minisat',       'type': 'sat_pipeline', 'flag': 'minisat'}
 ]
 
 # ====================================================================
@@ -151,7 +165,7 @@ for algo in algorithms_pool:
                 rewrite_summary_csv_live()
                 continue
 
-            # LIVE LOGGING: Write the algorithm prefix
+            # LIVE LOGGING: Write the algorithm prefix at the start of the log row
             with open(log_files[key], "a") as f:
                 f.write(f"{algo['name']}")
 
@@ -180,13 +194,12 @@ for algo in algorithms_pool:
                             except ValueError: parsed_time = None
 
                 # ------------------------------------------------------------
-                # PATH B: ASYNCHRONOUS PARALLEL RACE ENGINE (nocq Ours Updated Flags)
+                # PATH B: ASYNCHRONOUS PARALLEL RACE ENGINE (nocq Ours)
                 # ------------------------------------------------------------
                 elif algo['type'] == 'nocq_race':
                     c_name_even = f"nocq_race_even_{idx}"
                     c_name_odd  = f"nocq_race_odd_{idx}"
 
-                    # Updated flags to match your request: --print-only-totaltime
                     cmd_even = ["docker", "run", "--rm", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
                                 "nocq", "--gm", f"/mnt/{filename}", "--noc-even", "--parity", "--print-only-totaltime", "--init", init_val]
                     cmd_odd = ["docker", "run", "--rm", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
@@ -223,24 +236,24 @@ for algo in algorithms_pool:
                         except ValueError: parsed_time = None
 
                 # ------------------------------------------------------------
-                # PATH C: TWO-STEP CADICAL SAT PIPELINE
+                # PATH C: TWO-STEP UNIFIED SAT SOLVER PIPELINE (CaDiCaL, Kissat, Minisat)
                 # ------------------------------------------------------------
-                elif algo['type'] == 'sat_cadical':
+                elif algo['type'] == 'sat_pipeline':
                     dimacs_filename = f"{filename}_{idx}.cnf"
                     
-                    # Step 1: Encode the Parity Game to DIMACS CNF via nocq inside Docker
+                    # Step 1: Same dynamic DIMACS CNF compilation for all solvers via nocq
                     encode_args = ["nocq", "--gm", f"/mnt/{filename}", "--init", init_val, "--sat-encoding", f"/mnt/{dimacs_filename}"]
                     encode_output = run_solver_instance(base_path, "solver", encode_args)
                     
                     if encode_output == "TIMEOUT":
                         parsed_time = None
                     else:
-                        # Step 2: Run CaDiCaL on the newly generated CNF target
-                        solve_args = ["cadical", f"/mnt/{dimacs_filename}"]
+                        # Step 2: Dynamically route command based on backend name flag
+                        solve_args = [algo['flag'], f"/mnt/{dimacs_filename}"]
                         raw_output = run_solver_instance(base_path, "solver", solve_args)
-                        parsed_time = parse_cadical_time(raw_output)
+                        parsed_time = parse_sat_solver_time(raw_output, algo['flag'])
                     
-                    # Clean up the temporary CNF file from your host machine directory immediately
+                    # Disk Clean-up: Purge intermediate heavy .cnf asset instantly
                     local_cnf_path = os.path.join(base_path, dimacs_filename)
                     if os.path.exists(local_cnf_path):
                         try: os.remove(local_cnf_path)
