@@ -1,6 +1,6 @@
 # benchmark_data.py
-
-path = "/home/chalo/games/pgsolver"
+import os
+path = os.path.abspath("games/pgsolver")
 
 files_small = [
     'cliquegame-100.gm',

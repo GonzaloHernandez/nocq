@@ -1,6 +1,6 @@
 # benchmark_data.py
-
-path = "/home/chalo/games/modelchecking"
+import os
+path = os.path.abspath("games/modelchecking")
 
 files_small = [
     'Lift_(Correct)nlifts=4_liveness_1_1.gm',

@@ -71,7 +71,7 @@ for path_log in log_files.values():
 # ====================================================================
 def run_solver_instance(base_path, image, command_args):
     """Executes standard CLI process tracking. Returns raw stdout or TIMEOUT."""
-    cmd = ["docker", "run", "--rm", "-t", "--init", "-v", f"{base_path}:/mnt", image] + command_args
+    cmd = ["docker", "run", "--rm", "--platform", "linux/amd64", "-t", "--init", "-v", f"{base_path}:/mnt", image] + command_args
     try:
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=MAXTIME)
         return res.stdout
@@ -121,11 +121,11 @@ def parse_sat_solver_time(stdout_text, solver_type):
 # ====================================================================
 # Comment out any rows you aren't currently testing to focus execution
 algorithms_pool = [
-    # {'name': 'Oink(PP)',      'type': 'oink',        'flag': '--pp'},
-    # {'name': 'Oink(PP+)',     'type': 'oink',        'flag': '--ppp'},
-    # {'name': 'Oink(PAR)',     'type': 'oink',        'flag': '--zlkpp-std'},
-    # {'name': 'ZRA(ImpAttr)',  'type': 'zra',         'flag': '--zra'},
-    # {'name': 'nocq(Ours)',    'type': 'nocq_race',   'flag': None},
+    {'name': 'Oink(PP)',      'type': 'oink',        'flag': '--pp'},
+    {'name': 'Oink(PP+)',     'type': 'oink',        'flag': '--ppp'},
+    {'name': 'Oink(PAR)',     'type': 'oink',        'flag': '--zlkpp-std'},
+    {'name': 'ZRA(ImpAttr)',  'type': 'zra',         'flag': '--zra'},
+    {'name': 'nocq(Ours)',    'type': 'nocq_race',   'flag': None},
     {'name': 'CaDiCaL',       'type': 'sat_pipeline', 'flag': 'cadical'}, 
     {'name': 'Kissat',        'type': 'sat_pipeline', 'flag': 'kissat'}, 
     {'name': 'Minisat',       'type': 'sat_pipeline', 'flag': 'minisat'}
@@ -200,9 +200,9 @@ for algo in algorithms_pool:
                     c_name_even = f"nocq_race_even_{idx}"
                     c_name_odd  = f"nocq_race_odd_{idx}"
 
-                    cmd_even = ["docker", "run", "--rm", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
+                    cmd_even = ["docker", "run", "--rm", "--platform", "linux/amd64", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
                                 "nocq", "--gm", f"/mnt/{filename}", "--noc-even", "--parity", "--print-only-totaltime", "--init", init_val]
-                    cmd_odd = ["docker", "run", "--rm", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
+                    cmd_odd = ["docker", "run", "--rm", "--platform", "linux/amd64", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
                                "nocq", "--gm", f"/mnt/{filename}", "--noc-odd", "--parity", "--print-only-totaltime", "--init", init_val]
                     
                     p_even = None
@@ -268,13 +268,13 @@ for algo in algorithms_pool:
                         result_string = str(parsed_time)
                         time_sum += parsed_time
                         solved += 1
-                        print(f" Done ({parsed_time}s)")
+                        print(f" Done")
                     else:
                         time_sum += 120.0
-                        print(f" LOGICAL TIMEOUT ({parsed_time}s reported, > {PAPER_TIMEOUT_THRESHOLD}s cutoff)")
+                        print(f" LOGICAL TIMEOUT")
                 else:
                     time_sum += 120.0
-                    print(" PHYSICAL TIMEOUT / CRASHED")
+                    print(" PHYSICAL TIMEOUT")
                 
                 # LIVE LOGGING: Append data point
                 with open(log_files[key], "a") as f:

@@ -11,12 +11,12 @@ PAPER_TIMEOUT_THRESHOLD = 60.0
 MAXTIME = 120  # Explicit 120s ceiling for all tracking steps
 
 # Table 3 explicit structures
-summary_csv = "t3_multi_summary.csv"
+summary_csv = "t3_all_summary.csv"
 log_files = {
-    'equiv':  "t3_multi_equivchecking.csv",
-    'model':  "t3_multi_modelchecking.csv",
-    'pgsol':  "t3_multi_pgsolver.csv",
-    'random': "t3_multi_random.csv"
+    'equiv':  "t3_all_equivchecking.csv",
+    'model':  "t3_all_modelchecking.csv",
+    'pgsol':  "t3_all_pgsolver.csv",
+    'random': "t3_all_random.csv"
 }
 
 domains_setup = [
@@ -125,7 +125,7 @@ for algo in algorithms_pool:
                 th_mean = str(mean_list[idx]) if idx < len(mean_list) else "0"
 
                 # Build variable flags dynamically matching row type
-                flag_args = ["--chuffed", "--init", init_val, "--print-only-totaltime"]
+                flag_args = ["--chuffed", "--init", init_val, "--print-only-time"]
                 
                 if algo['type'] == 'parity':
                     flag_args += ["--parity"]
@@ -148,9 +148,9 @@ for algo in algorithms_pool:
                 c_name_even = f"t3_race_even_{idx}"
                 c_name_odd  = f"t3_race_odd_{idx}"
 
-                cmd_even = ["docker", "run", "--rm", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
+                cmd_even = ["docker", "run", "--rm", "--platform", "linux/amd64", "--name", c_name_even, "--init", "-v", f"{base_path}:/mnt", "solver", 
                             "nocq", "--gm", f"/mnt/{filename}", "--noc-even"] + flag_args
-                cmd_odd  = ["docker", "run", "--rm", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
+                cmd_odd  = ["docker", "run", "--rm", "--platform", "linux/amd64", "--name", c_name_odd, "--init", "-v", f"{base_path}:/mnt", "solver", 
                             "nocq", "--gm", f"/mnt/{filename}", "--noc-odd"] + flag_args
                 
                 p_even = None
@@ -195,13 +195,13 @@ for algo in algorithms_pool:
                         result_string = str(parsed_time)
                         time_sum += parsed_time
                         solved += 1
-                        print(f" Done ({parsed_time}s)")
+                        print(f" Done")
                     else:
                         time_sum += 120.0
-                        print(f" LOGICAL TIMEOUT ({parsed_time}s reported)")
+                        print(f" LOGICAL TIMEOUT")
                 else:
                     time_sum += 120.0
-                    print(" PHYSICAL TIMEOUT / CRASHED")
+                    print(" PHYSICAL TIMEOUT")
                 
                 # LIVE LOGGING: Append data point directly to open row string
                 with open(log_files[key], "a") as f:

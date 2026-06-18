@@ -1,6 +1,6 @@
 # benchmark_data.py
-
-path = "/home/chalo/games/equivchecking"
+import os
+path = os.path.abspath("games/equivchecking")
 
 files_small = [
     'CABP_SWP_(datasize=4_capacity=1_windowsize=1)eq=strong-bisim.gm',

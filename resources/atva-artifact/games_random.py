@@ -1,6 +1,6 @@
 # benchmark_data.py
-
-path = "/home/chalo/games/random"
+import os
+path = os.path.abspath("games/random")
 
 files_small = [
     'randomgame-1000-10-1-20-0.gm',
