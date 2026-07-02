@@ -298,13 +298,74 @@ public:
     }
 
     //-------------------------------------------------------------------------
+
+    enum DFSColor { WHITE = 0, GRAY = 1, BLACK = 2 };
+
+    int filterMemo(vec<int32_t>& pathV, vec<int32_t>& pathE, vec<int64_t>& pathW,
+        int32_t v, int32_t lastEdge, bool definedEdge, vec<DFSColor>& flags)
+    {
+        if (flags[v] == BLACK) {
+            return CF_STAY;
+        }
+
+        if (flags[v] == GRAY) {
+            int32_t index = findVertex(v, pathV);
+            if (!satisfiedConditions(pathV, pathE, pathW, index)) {
+                vec<Lit> lits;
+                lits.push();
+                clausify(pathE, E, lits);
+                Clause* reason = Reason_new(lits);
+                if (!E[lastEdge].setVal(false, reason)) {
+                    return CF_CONFLICT;
+                }
+            }
+            return CF_STAY;
+        }
+
+        // flags[v] == WHITE
+        if (definedEdge) {
+            flags[v] = GRAY;
+            pathV.push(v);
+
+            for (size_t i = 0; i < g.outs[v].size(); i++) {
+                int32_t e = g.outs[v][i];
+                if (E[e].isFalse()) continue;
+
+                int w = g.targets[e];
+                int64_t acum = pathW.size() ? g.weights[e] + pathW.last()
+                                            : g.weights[e];
+                pathE.push(e);
+                pathW.push(acum);
+                int status = filterMemo(pathV, pathE, pathW, 
+                                        w, e, E[e].isTrue(), flags);
+                pathW.pop();
+                pathE.pop();
+
+                if (status == CF_CONFLICT) {
+                    pathV.pop();
+                    flags[v] = WHITE;
+                    return status;
+                }
+            }
+
+            pathV.pop();
+            flags[v] = BLACK;
+        }
+
+        return CF_STAY;
+    }
+
+    //-------------------------------------------------------------------------
     
     bool propagate() override {
         vec<int32_t> pathV;
         vec<int32_t> pathE;
         vec<int64_t> pathW;
 
-        if (filter(pathV,pathE,pathW,g.init,-1,true) == CF_CONFLICT)
+        // if (filter(pathV,pathE,pathW,g.init,-1,true) == CF_CONFLICT)
+        //     return false;
+        vec<DFSColor> flags(g.nvertices, WHITE);
+        if (filterMemo(pathV,pathE,pathW,g.init,-1,true,flags) == CF_CONFLICT)
             return false;
 
         return true;
