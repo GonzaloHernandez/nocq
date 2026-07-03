@@ -31,7 +31,6 @@
 
 namespace ChuffedBool {
 
-
 class NOCCheckerSCC : public Propagator {
 private:
     Game& g;
@@ -178,6 +177,101 @@ public:
 
             delete sc_ptr;
         }
+        return true;
+    }
+
+    //-----------------------------------------------------------------------
+    void wakeup(int i, int) override {
+        pushInQueue();
+    }
+
+    //-----------------------------------------------------------------------
+    void clearPropState() override {
+        in_queue = false;
+    }
+};
+
+//=============================================================================
+
+class NOCCheckerBellmanFord : public Propagator {
+private:
+    Game& g;
+    vec<BoolView> V;
+    vec<BoolView> E;
+    parity_type playerSAT;
+
+public:
+    //-----------------------------------------------------------------------
+    NOCCheckerBellmanFord(Game& g, vec<BoolView>& V, vec<BoolView>& E, parity_type playerSAT) 
+    : g(g), V(V), E(E), playerSAT(playerSAT)
+    {
+        for (unsigned int i = 0; i < g.owners.size(); i++)  V[i].attach(this, 1, EVENT_F);
+        for (unsigned int i = 0; i < g.sources.size(); i++) E[i].attach(this, 1, EVENT_F);
+    }
+
+    //-----------------------------------------------------------------------
+    bool backtrack() 
+    {
+        vec<Lit> lits;
+        lits.push(); // First slot reserved for explanation placeholder
+        for (unsigned int i = 1; i < g.nvertices; i++)   lits.push(V[i].getValLit());
+        for (unsigned int i = 0; i < g.nedges; i++)      lits.push(E[i].getValLit());
+        Clause* reason = Reason_new(lits);
+        V[0].setVal(V[0].isFalse(), reason);
+        return false;
+    }
+
+    //-----------------------------------------------------------------------
+    bool propagate() override {
+        GameView view(g);
+        vec<int32_t>    vs;
+        vec<int32_t>    es;
+
+        for (unsigned int i = 0; i < g.nvertices; i++) {
+            if (!V[i].isFixed()) return true;
+            view.vs[i] = (V[i].isTrue());
+            vs.push(i);
+        }
+        for (unsigned int i = 0; i < g.nedges; i++) {
+            if (!E[i].isFixed()) return true;
+            view.es[i] = (E[i].isTrue());
+            es.push(i);
+        }
+
+        int32_t nvertices   = vs.size();
+        int32_t nedges      = es.size();
+
+        vec<int32_t> d(g.nvertices,0);
+        vec<int32_t> pred(g.nvertices,-1);
+
+        for (size_t i; i<nvertices-1; i++) {
+            for (size_t j; j<nvertices; j++) { 
+                int32_t u = vs[j];
+                vec<int32_t> outs;
+                view.getOuts(outs,u);
+                for (size_t k=0; k<outs.size(); k++) {
+                    int32_t e = outs[k];
+                    int32_t v = g.targets[e];
+                    if (d[u] + g.weights[e] < d[v]) {
+                        d[v] = d[u] + g.weights[e];
+                        pred[v] = u;
+                    }
+                }
+            }
+        }
+        for (size_t j; j<nvertices; j++) { 
+            int32_t u = vs[j];
+            vec<int32_t> outs;
+            view.getOuts(outs,u);
+            for (size_t k=0; k<outs.size(); k++) {
+                int32_t e = outs[k];
+                int32_t v = g.targets[e];
+                if (d[u] + g.weights[e] < d[v]) {
+                    return backtrack();
+                }
+            }
+        }
+
         return true;
     }
 
@@ -571,8 +665,9 @@ public:
 
         // --------------------------------------------------------------------
         // Every infinite OPPONENT play must be avoided regarding codition.
-        new NOCPropagator(g,V,E,playerSAT,winConditions);
+        // new NOCPropagator(g,V,E,playerSAT,winConditions);
         // new NOCCheckerSCC(g,V,E,playerSAT);
+        new NOCCheckerBellmanFord(g,V,E,playerSAT);
 
         //---------------------------------------------------------------------
 
