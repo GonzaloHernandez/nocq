@@ -52,12 +52,20 @@ struct options {
                                             // gecode, cadical
 
     std::string     heuristic       = "";   // reach
+    bool            propEager       = true;
+    bool            propMemo        = false;
+    bool            propChecker     = false;
 
     bool            flip            = false;
+
+    bool            reachCond       = false;
+    bool            safetyCond      = false;
     bool            parityCond      = false;
     bool            buchiCond       = false;
     bool            energyCond      = false;
     bool            meanpayoffCond  = false;
+    vec<int32_t>    setReach;
+    vec<int32_t>    setSafety;
     vec<int32_t>    setBuchi;
     int64_t         thresholdEnergy = 0;
     double          thresholdMPG    = 0.0;
@@ -179,9 +187,14 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
         << "  --gecode                   : Use Gecode solver (BoolVars)\n"
         << "  --cadical                  : Use Cadical solver\n"
+        << "  --prop-eager               : Use the propagator Eager\n"
+        << "  --prop-memo                : Use the propagator Memo\n"
+        << "  --prop-checker             : Use the propagator Checker\n"
         << "  --heuristic-reach          : Use Reachability heuristic (combined with Chuffed)\n"
         << "\n"
         << "Conditions:\n"
+        << "  --reach <vertices>         : Reachability condition \n"
+        << "  --safety <vertices>        : Safety condition \n"
         << "  --parity                   : Parity condition (default)\n"
         << "  --buchi <vertices>         : Buchi condition \n"
         << "  --energy [thresh]          : Energy condition (default Threshold=0)\n"
@@ -371,6 +384,14 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.solver            = "gecode"; }
         else if (strcmp(argv[i],"--cadical")==0)
                                 { options.solver            = "cadical"; }
+
+        else if (strcmp(argv[i],"--prop-eager")==0)
+                                { options.propEager         = true; }
+        else if (strcmp(argv[i],"--prop-memo")==0)
+                                {   options.propMemo        = true; 
+                                    options.propChecker     = true; }
+        else if (strcmp(argv[i],"--prop-checker")==0)
+                                { options.propChecker        = true; }
         else if (strcmp(argv[i],"--heuristic-reach")==0)
                                 { options.heuristic         = "reach"; }
 
@@ -397,6 +418,42 @@ bool parseMyOptions(int argc, char *argv[]) {
                                 { options.flip              = true;}
         else if (strcmp(argv[i],"--parity")==0)
                                 { options.parityCond        = true; }
+        else if (strcmp(argv[i],"--reach")==0) {
+            validateArg("--reach <vertices>");
+            options.reachCond = true;
+
+            options.setReach.clear();
+            std::string s = argv[i];
+            std::stringstream ss(s);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                size_t init = item.find_first_not_of(" \t");
+                size_t end = item.find_last_not_of(" \t");
+                if (init == std::string::npos || end == std::string::npos) {
+                    std::cerr << "ERROR: Invalid values for [--reach]\n";
+                    return false;
+                }
+                options.setReach.push(std::stoi(item));
+            }
+        }
+        else if (strcmp(argv[i],"--safety")==0) {
+            validateArg("--safety <vertices>");
+            options.safetyCond = true;
+
+            options.setSafety.clear();
+            std::string s = argv[i];
+            std::stringstream ss(s);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                size_t init = item.find_first_not_of(" \t");
+                size_t end = item.find_last_not_of(" \t");
+                if (init == std::string::npos || end == std::string::npos) {
+                    std::cerr << "ERROR: Invalid values for [--safety]\n";
+                    return false;
+                }
+                options.setSafety.push(std::stoi(item));
+            }
+        }
         else if (strcmp(argv[i],"--buchi")==0) {
             validateArg("--buchi <vertices>");
             options.buchiCond = true;

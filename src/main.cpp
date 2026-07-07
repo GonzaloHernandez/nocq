@@ -61,14 +61,16 @@ int main(int argc, char *argv[])
     if (options.method.substr(0,3)=="noc" && options.solver=="") {
         options.solver="chuffed-bool";
     }
-    if (options.parityCond || options.buchiCond ||
+    if (options.reachCond  || options.safetyCond ||
+        options.parityCond || options.buchiCond  ||
         options.energyCond || options.meanpayoffCond) 
     {
         if (options.method=="") options.method = "noc-even";
         if (options.solver=="") options.solver = "chuffed-bool";
     }
-    if (!(options.parityCond || options.buchiCond ||
-        options.energyCond || options.meanpayoffCond))
+    if (!(  options.reachCond  || options.safetyCond ||
+            options.parityCond || options.buchiCond ||
+            options.energyCond || options.meanpayoffCond))
     {
         options.parityCond = true;
     }
@@ -125,6 +127,11 @@ int main(int argc, char *argv[])
         std::cout   << "Objective          : " 
                     << (options.objective?"Maximize":"Minimize") 
                     << " reward\n";
+        std::cout   << "Propagators        : " 
+                    << (options.propEager?"+Eager ":"") 
+                    << (options.propMemo?"+Memo ":"") 
+                    << (options.propChecker?"+Checker ":"")
+                    << "\n";
     }
 
     if (options.printVerbose) {
@@ -150,12 +157,40 @@ int main(int argc, char *argv[])
 
     if (options.printVerbose) std::cout << "Winning Conditions : ";
 
-    vec<WinningCondition*> winConditions;
+    //-------------------------------------------------------------------------
+
+    vec<WinningCondition*> spWinConditions;
+    if (options.reachCond) {
+        ReachCondition* c = new ReachCondition(*game,
+                                   options.method=="noc-even"?EVEN:ODD);
+        if (options.printVerbose) std::cout << "+reachability {";
+        for(size_t i=0; i<options.setReach.size(); i++) {
+            c->pushVertexInT(options.setReach[i]);
+            if (options.printVerbose) 
+                std::cout << (i>0?",":"") << options.setReach[i];
+        }
+        if (options.printVerbose) std::cout << "}";
+        spWinConditions.push(c);
+    }
+    if (options.safetyCond) {
+        SafetyCondition* c = new SafetyCondition(*game,
+                                   options.method=="noc-even"?EVEN:ODD);
+        if (options.printVerbose) std::cout << "+safety {";
+        for(size_t i=0; i<options.setSafety.size(); i++) {
+            c->pushVertexInU(options.setSafety[i]);
+            if (options.printVerbose) 
+                std::cout << (i>0?",":"") << options.setSafety[i];
+        }
+        if (options.printVerbose) std::cout << "}";
+        spWinConditions.push(c);
+    }
+
+    vec<WinningCondition*> qlWinConditions;
     if (options.parityCond) {
         ParityCondition* c = new ParityCondition(*game,
-                                    options.method=="noc-even"?EVEN:ODD);
+                                   options.method=="noc-even"?EVEN:ODD);
         if (options.printVerbose) std::cout << "+parity ";
-        winConditions.push(c);
+        qlWinConditions.push(c);
     }
     if (options.buchiCond) {
         BuchiCondition* c = new BuchiCondition(*game,
@@ -167,15 +202,17 @@ int main(int argc, char *argv[])
                 std::cout << (i>0?",":"") << options.setBuchi[i];
         }
         if (options.printVerbose) std::cout << "}";
-        winConditions.push(c);
+        qlWinConditions.push(c);
     }
+
+    vec<WinningCondition*> qtWinConditions;
     if (options.energyCond) {
         EnergyCondition* c = new EnergyCondition(*game,
                                     options.method=="noc-even"?EVEN:ODD);
         c->setThreshold(options.thresholdEnergy);
         if (options.printVerbose) 
             std::cout << "+energy (" << options.thresholdEnergy << ") ";
-        winConditions.push(c);
+        qtWinConditions.push(c);
     }
     if (options.meanpayoffCond) {
         MeanPayoffCondition* c = new MeanPayoffCondition(*game,
@@ -183,7 +220,7 @@ int main(int argc, char *argv[])
         c->setThreshold(options.thresholdMPG);
         if (options.printVerbose) 
             std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
-        winConditions.push(c);
+        qtWinConditions.push(c);
     }
     if (options.printVerbose) std::cout << "\n";
 
@@ -198,11 +235,14 @@ int main(int argc, char *argv[])
 
     else if(options.method.substr(0,3)=="noc"&&options.solver=="chuffed-bool"){
         startClock(); //.............................................
-        ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel(
-                            *game, winConditions, 
+        ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel( *game, 
+                            spWinConditions, qlWinConditions, qtWinConditions, 
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD,
-                            options.heuristic=="reach");
+                            options.heuristic=="reach",
+                            options.propEager,
+                            options.propMemo,
+                            options.propChecker);
 
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
@@ -273,7 +313,7 @@ int main(int argc, char *argv[])
     else if (options.method.substr(0,3)=="noc"&&options.solver=="chuffed-int"){
         startClock(); //.............................................
         ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
-                            *game, winConditions,
+                            *game, qlWinConditions,
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD,
                             options.heuristic=="reach");
@@ -346,7 +386,7 @@ int main(int argc, char *argv[])
     #ifdef HAS_GECODE
         startClock(); //.............................................
         Gecode::NocModel* model = new Gecode::NocModel(
-                            *game, winConditions,
+                            *game, qlWinConditions,
                             options.method=="noc-even"?EVEN:ODD);
 
         double preptime = stopClock(); //............................
@@ -561,7 +601,9 @@ int main(int argc, char *argv[])
             auto it = std::find(win[0].begin(), win[0].end(), v0);
 
             if (options.printTime>=0 || options.printVerbose)
-                std::cout << v0 << ": " << (it != win[0].end()?"EVEN ":"ODD ");
+                std::cout 
+                    // << v0 << ": " 
+                    << (it != win[0].end()?"EVEN ":"ODD ");
             
             std::cout << std::endl;        
         }

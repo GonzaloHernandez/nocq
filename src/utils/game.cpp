@@ -887,6 +887,7 @@ void GameView::deactiveAll() {
 
 void GameView::getOuts(vec<int32_t>& edges, int32_t v) {
     edges.clear();
+    if (!vs[v]) return;
     for (size_t i=0; i<g.outs[v].size(); i++) {
         int32_t e = g.outs[v][i];
         int32_t w = g.targets[e];
@@ -898,6 +899,7 @@ void GameView::getOuts(vec<int32_t>& edges, int32_t v) {
 
 void GameView::getIns(vec<int32_t>& edges,int32_t w) {
     edges.clear();
+    if (!vs[w]) return;
     for (size_t i=0; i<g.ins[w].size(); i++) {
         int32_t e = g.ins[w][i];
         int32_t u = g.sources[e];
