@@ -13,7 +13,7 @@
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
  * one at https://mozilla.org/MPL/2.0/.
- * 
+ *
  *-----------------------------------------------------------------------------
  */
 #ifndef PARAMETERS_H
@@ -28,135 +28,141 @@
 //-----------------------------------------------------------------------------
 
 struct options {
-    bool printGame          = false; 
-    bool printSolution      = false; 
-    bool printStatistics    = false; 
-    bool printVerbose       = false; 
-    int  printTime          = 0;        // 0=Default 1=Solving Time 2=All-times
-    bool totalTime          = false;
-    game_type  gameType     = DEF;
+  bool printGame = false;
+  bool printSolution = false;
+  bool printStatistics = false;
+  bool printVerbose = false;
+  int printTime = 0; // 0=Default 1=Solving Time 2=All-times
+  bool totalTime = false;
+  game_type gameType = DEF;
 
-    objective_type  objective       = MAX;  // MAXimize,MINimize
-    vec<int32_t>    vals;
-    int64_t         lbound          = 0;
-    int64_t         ubound          = 0;
-    vec<int32_t>    init;
-    std::string     gameFilename    = "";
-    std::string     exportFilename  = "";
-    game_type       exportType      = DEF;  // DZN,GM,GMW,GAME,DIM
-    std::string     method          = "";   // noc-even,noc-odd,sat
-                                            // zra,fra,scc
+  objective_type objective = MAX; // MAXimize,MINimize
+  vec<int32_t> vals;
+  int64_t lbound = 0;
+  int64_t ubound = 0;
+  vec<int32_t> init;
+  std::string gameFilename = "";
+  std::string exportFilename = "";
+  game_type exportType = DEF; // DZN,GM,GMW,GAME,DIM
+  std::string method = "";    // noc-even,noc-odd,sat
+                              // zra,fra,scc
 
-    std::string     solver          = "";   // chuffed-bool
-                                            // chuffed-int
-                                            // gecode, cadical
+  std::string solver = ""; // chuffed-bool
+                           // chuffed-int
+                           // gecode, cadical
 
-    std::string     heuristic       = "";   // reach
-    bool            propEager       = true;
-    bool            propMemo        = false;
-    bool            propChecker     = false;
+  std::string heuristic = ""; // reach
+  bool propEager = true;
+  bool propMemo = false;
+  bool propChecker = false;
 
-    bool            flip            = false;
+  bool flip = false;
 
-    bool            reachCond       = false;
-    bool            safetyCond      = false;
-    bool            parityCond      = false;
-    bool            buchiCond       = false;
-    bool            energyCond      = false;
-    bool            meanpayoffCond  = false;
-    vec<int32_t>    setReach;
-    vec<int32_t>    setSafety;
-    vec<int32_t>    setBuchi;
-    int64_t         thresholdEnergy = 0;
-    double          thresholdMPG    = 0.0;
+  bool reachCond = false;
+  bool safetyCond = false;
+  bool parityCond = false;
+  bool buchiCond = false;
+  bool energyCond = false;
+  bool meanpayoffCond = false;
+  vec<range> setReach;
+  vec<range> setSafety;
+  vec<range> setBuchi;
+  int64_t thresholdEnergy = 0;
+  double thresholdMPG = 0.0;
 } options;
 
 //-----------------------------------------------------------------------------
 
 bool parseMyOptions(int argc, char *argv[]) {
-    options.init.push(0);
-    int i=1;
-    //-------------------------------------------------------------------------
-    auto validateArg = [&](const char* flagName) -> char* {
-        i++; // Move to the next argument
-        if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
-            std::cerr << "ERROR: Value for [" << flagName << "] is missing\n";
-            exit(0);
-        }
-        return argv[i];
-    };
-    //-------------------------------------------------------------------------
-    auto parseInteger = [&](const char* str, int64_t min, int64_t max) -> int {
-        char* endptr;
-        errno = 0;
-        int64_t val = std::strtoll(str, &endptr, 10);
+  options.init.push(0);
+  int i = 1;
+  //-------------------------------------------------------------------------
+  auto validateArg = [&](const char *flagName) -> char * {
+    i++; // Move to the next argument
+    if (i >= argc || (strlen(argv[i]) > 1 && strncmp(argv[i], "--", 2) == 0)) {
+      std::cerr << "ERROR: Value for [" << flagName << "] is missing\n";
+      exit(0);
+    }
+    return argv[i];
+  };
+  //-------------------------------------------------------------------------
+  auto parseInteger = [&](const char *str, int64_t min,
+                          int64_t max) -> int64_t {
+    char *endptr;
+    errno = 0;
+    int64_t val = std::strtoll(str, &endptr, 10);
 
-        if (errno == ERANGE || val < min || val > max) {
-            std::cerr   << "ERROR: Value [" << str << "] out of range (" 
-                        << min << "-" << max << ")\n";
-            exit(1);
-        }
-        if (*endptr != '\0') {
-            std::cerr<< "ERROR: Value [" << str << "] is not a valid number\n";
-            exit(1);
-        }
-        return (int64_t)val;
-    };
-    //-------------------------------------------------------------------------
-    auto parseFloat = [&](const char* str, float min, float max) -> float {
-        char* endptr;
-        errno = 0;
-        float val = std::strtof(str, &endptr);
-        if (errno == ERANGE) {
-            std::cerr << "ERROR: Value [" << str << "] out of floating-point range\n";
-            exit(1);
-        }
-        
-        if (val < min || val > max) {
-            std::cerr << "ERROR: Value [" << str << "] out of bounds (" 
-                    << min << "-" << max << ")\n";
-            exit(1);
-        }
-        if (*endptr != '\0') {
-            const char* check = endptr;
-            while (std::isspace(*check)) check++;
-            if (*check != '\0') {
-                std::cerr << "ERROR: Value [" << str << "] contains invalid characters\n";
-                exit(1);
-            }
-        }        
-        return val;
-    };
-    //-------------------------------------------------------------------------
-    auto parseDouble = [&](const char* str, double min, double max) -> double {
-        char* endptr;
-        errno = 0;
-        double val = std::strtod(str, &endptr); 
-        
-        if (errno == ERANGE) {
-            std::cerr << "ERROR: Value [" << str << "] out of range\n";
-            exit(1);
-        }
-        
-        if (val < min || val > max) {
-            std::cerr << "ERROR: Value [" << str << "] out of bounds (" 
-                    << min << "-" << max << ")\n";
-            exit(1);
-        }
+    if (errno == ERANGE || val < min || val > max) {
+      std::cerr << "ERROR: Value [" << str << "] out of range (" << min << "-"
+                << max << ")\n";
+      exit(1);
+    }
+    if (*endptr != '\0') {
+      std::cerr << "ERROR: Value [" << str << "] is not a valid number\n";
+      exit(1);
+    }
+    return (int64_t)val;
+  };
+  //-------------------------------------------------------------------------
+  auto parseFloat = [&](const char *str, float min, float max) -> float {
+    char *endptr;
+    errno = 0;
+    float val = std::strtof(str, &endptr);
+    if (errno == ERANGE) {
+      std::cerr << "ERROR: Value [" << str << "] out of floating-point range\n";
+      exit(1);
+    }
 
-        if (*endptr != '\0') {
-            const char* check = endptr;
-            while (std::isspace(static_cast<unsigned char>(*check))) check++;
-            if (*check != '\0') {
-                std::cerr << "ERROR: Value [" << str << "] contains invalid characters\n";
-                exit(1);
-            }
-        }        
-        return val;
-    };
-    //-------------------------------------------------------------------------
-    auto showHelp = [&]() {
-        std::cout << "NOCQ: A Constraint-Based Toolchain "
+    if (val < min || val > max) {
+      std::cerr << "ERROR: Value [" << str << "] out of bounds (" << min << "-"
+                << max << ")\n";
+      exit(1);
+    }
+    if (*endptr != '\0') {
+      const char *check = endptr;
+      while (std::isspace(*check))
+        check++;
+      if (*check != '\0') {
+        std::cerr << "ERROR: Value [" << str
+                  << "] contains invalid characters\n";
+        exit(1);
+      }
+    }
+    return val;
+  };
+  //-------------------------------------------------------------------------
+  auto parseDouble = [&](const char *str, double min, double max) -> double {
+    char *endptr;
+    errno = 0;
+    double val = std::strtod(str, &endptr);
+
+    if (errno == ERANGE) {
+      std::cerr << "ERROR: Value [" << str << "] out of range\n";
+      exit(1);
+    }
+
+    if (val < min || val > max) {
+      std::cerr << "ERROR: Value [" << str << "] out of bounds (" << min << "-"
+                << max << ")\n";
+      exit(1);
+    }
+
+    if (*endptr != '\0') {
+      const char *check = endptr;
+      while (std::isspace(static_cast<unsigned char>(*check)))
+        check++;
+      if (*check != '\0') {
+        std::cerr << "ERROR: Value [" << str
+                  << "] contains invalid characters\n";
+        exit(1);
+      }
+    }
+    return val;
+  };
+  //-------------------------------------------------------------------------
+  auto showHelp = [&]() {
+    std::cout
+        << "NOCQ: A Constraint-Based Toolchain "
         << "for Parity Games with Quantitative Conditions.\n"
         << "Usage: " << argv[0] << " [options]\n"
         << "\n"
@@ -177,28 +183,34 @@ bool parseMyOptions(int argc, char *argv[]) {
         // << "  --flip                     : Complement the game\n"
         << "\n"
         << "Methods:\n"
-        << "  --noc-even | --noc-odd     : NOC player preference (Default: --noc-even)\n"
+        << "  --noc-even | --noc-odd     : NOC player preference (Default: "
+           "--noc-even)\n"
         << "  --fra                      : Solve using FRA algorithm\n"
-        << "  --scc                      : Compute Strongly Connected Components\n"
+        << "  --scc                      : Compute Strongly Connected "
+           "Components\n"
         << "  --sat-encoding <filename>  : Encode on DIMACS file\n"
         << "\n"
         << "Solvers:\n"
-        << "  --chuffed-bool             : Use Chuffed with BoolVars (Default)\n"
+        << "  --chuffed-bool             : Use Chuffed with BoolVars "
+           "(Default)\n"
         << "  --chuffed-int              : Use Chuffed with IntVars\n"
         << "  --gecode                   : Use Gecode solver (BoolVars)\n"
         << "  --cadical                  : Use Cadical solver\n"
         << "  --prop-eager               : Use the propagator Eager\n"
         << "  --prop-memo                : Use the propagator Memo\n"
         << "  --prop-checker             : Use the propagator Checker\n"
-        << "  --heuristic-reach          : Use Reachability heuristic (combined with Chuffed)\n"
+        << "  --heuristic-reach          : Use Reachability heuristic "
+           "(combined with Chuffed)\n"
         << "\n"
         << "Conditions:\n"
         << "  --reach <vertices>         : Reachability condition \n"
         << "  --safety <vertices>        : Safety condition \n"
         << "  --parity                   : Parity condition (default)\n"
         << "  --buchi <vertices>         : Buchi condition \n"
-        << "  --energy [thresh]          : Energy condition (default Threshold=0)\n"
-        << "  --mean-payoff [thresh]     : Mean-Payoff condition (default Threshold=0.0)\n"
+        << "  --energy [thresh]          : Energy condition (default "
+           "Threshold=0)\n"
+        << "  --mean-payoff [thresh]     : Mean-Payoff condition (default "
+           "Threshold=0.0)\n"
         << "\n"
         << "Output & Export:\n"
         << "  --print-time               : Print result + solving time\n"
@@ -216,274 +228,382 @@ bool parseMyOptions(int argc, char *argv[]) {
         << "  --version                  : Print NOCQ version\n"
         << "  --help                     : Print this information\n"
         << "";
-        exit(0);
+    exit(0);
+  };
+  //-------------------------------------------------------------------------
+  auto showVersion = [&]() {
+    std::cout << "Version " << NOCQ_VERSION.major << "." << NOCQ_VERSION.minor
+              << "." << NOCQ_VERSION.patch << "\n"
+              << "";
+  };
+  //-------------------------------------------------------------------------
+  if (argc == 1)
+    showHelp();
+  for (; i < argc; i++) {
+    if (strcmp(argv[i], "--jurd") == 0) {
+      validateArg("--jurd <levels>");
+      options.vals.push(parseInteger(argv[i], 2, 1000000));
+      validateArg("--jurd <blocks>");
+      options.vals.push(parseInteger(argv[i], 1, 1000000));
+      options.gameType = JURD;
+    } else if (strcmp(argv[i], "--rand") == 0) {
+      validateArg("--rand <vertices>");
+      options.vals.push(parseInteger(argv[i], 1, 10000000));
+      validateArg("--rand <priorities>");
+      options.vals.push(parseInteger(argv[i], 1, 10000000));
+      validateArg("--rand <min edges>");
+      options.vals.push(parseInteger(argv[i], 1, 199));
+      validateArg("--rand <max edges>");
+      options.vals.push(parseInteger(argv[i], 2, 300));
+      options.gameType = RAND;
+    } else if (strcmp(argv[i], "--mladder") == 0) {
+      validateArg("--mladder <blocks>");
+      options.vals.push(parseInteger(argv[i], 1, 1000000));
+      options.gameType = MLADDER;
+    } else if (strcmp(argv[i], "--sprand") == 0) {
+      validateArg("--sprand <vertices>");
+      options.vals.push(parseInteger(argv[i], 1, 10000000));
+      validateArg("--sprand <density>");
+      options.vals.push(parseInteger(argv[i], 1, 1000));
+      options.gameType = SPRAND;
+    } else if (strcmp(argv[i], "--sqnc") == 0) {
+      validateArg("--sqnc <size> <type>");
+      options.vals.push(parseInteger(argv[i], 1, 100000));
+      validateArg("--sqnc <type>");
+      options.vals.push(parseInteger(argv[i], 1, 5));
+      options.gameType = SQNC;
+    } else if (strcmp(argv[i], "--weights") == 0) {
+      validateArg("--weights <lower_bound upper_bound>");
+      options.lbound = parseInteger(argv[i], -1000000, 1000000);
+      validateArg("--weights <final_weight>");
+      options.ubound = parseInteger(argv[i], -1000000, 1000000);
+    } else if (strcmp(argv[i], "--dzn") == 0) {
+      options.gameType = DZN;
+      validateArg("--dzn <filename>");
+      options.gameFilename = argv[i];
+    } else if (strcmp(argv[i], "--gm") == 0) {
+      options.gameType = GM;
+      validateArg("--gm <filename>");
+      options.gameFilename = argv[i];
+    } else if (strcmp(argv[i], "--hoa") == 0) {
+      options.gameType = HOA;
+      validateArg("--hoa <filename>");
+      options.gameFilename = argv[i];
+    } else if (strcmp(argv[i], "--init") == 0) {
+      validateArg("--init <initial_vertex>");
 
-    };
-    //-------------------------------------------------------------------------
-    auto showVersion = [&]() {
-        std::cout << "Version "
-        << NOCQ_VERSION.major << "." 
-        << NOCQ_VERSION.minor << "." 
-        << NOCQ_VERSION.patch << "\n" 
-        << "";
-    };
-    //-------------------------------------------------------------------------
-    if (argc==1) showHelp();
-    for (; i<argc; i++) {
-        if (strcmp(argv[i],"--jurd")==0) {
-            validateArg("--jurd <levels>");
-            options.vals.push(parseInteger(argv[i], 2, 1000000));
-            validateArg("--jurd <blocks>");
-            options.vals.push(parseInteger(argv[i], 1, 1000000));
-            options.gameType = JURD;
+      options.init.clear();
+      std::string s = argv[i];
+      std::stringstream ss(s);
+      std::string item;
+      while (std::getline(ss, item, ',')) {
+        size_t init = item.find_first_not_of(" \t");
+        size_t end = item.find_last_not_of(" \t");
+        if (init == std::string::npos || end == std::string::npos) {
+          std::cerr << "ERROR: Invalid values for [--init]\n";
+          exit(1);
         }
-        else if (strcmp(argv[i],"--rand")==0) {
-            validateArg("--rand <vertices>");
-            options.vals.push(parseInteger(argv[i], 1, 10000000));
-            validateArg("--rand <priorities>");
-            options.vals.push(parseInteger(argv[i], 1, 10000000));
-            validateArg("--rand <min edges>");
-            options.vals.push(parseInteger(argv[i], 1, 199));
-            validateArg("--rand <max edges>");
-            options.vals.push(parseInteger(argv[i], 2, 300));
-            options.gameType = RAND;
+        std::string trimmed_item = item.substr(init, end - init + 1);
+        try {
+          size_t pos;
+          int32_t val = std::stoi(trimmed_item, &pos);
+          if (pos != trimmed_item.size() || val < 0) {
+            throw std::invalid_argument("invalid");
+          }
+          options.init.push(val);
+        } catch (...) {
+          std::cerr << "ERROR: Invalid number format [" << trimmed_item
+                    << "] in [--init]\n";
+          exit(1);
         }
-        else if (strcmp(argv[i],"--mladder")==0) {
-            validateArg("--mladder <blocks>");
-            options.vals.push(parseInteger(argv[i], 1, 1000000));
-            options.gameType = MLADDER;
-        }
-        else if (strcmp(argv[i],"--sprand")==0) {
-            validateArg("--sprand <vertices>");
-            options.vals.push(parseInteger(argv[i], 1, 10000000));
-            validateArg("--sprand <density>");
-            options.vals.push(parseInteger(argv[i], 1, 1000));
-            options.gameType = SPRAND;
-        }
-        else if (strcmp(argv[i],"--sqnc")==0) {
-            validateArg("--sqnc <size> <type>");
-            options.vals.push(parseInteger(argv[i], 1, 100000));
-            validateArg("--sqnc <type>");
-            options.vals.push(parseInteger(argv[i], 1, 5));
-            options.gameType = SQNC;
-        }
-        else if (strcmp(argv[i],"--weights")==0) {
-            validateArg("--weights <lower_bound upper_bound>");
-            options.lbound = parseInteger(argv[i], -1000000, 1000000);
-            validateArg("--weights <final_weight>");
-            options.ubound = parseInteger(argv[i], -1000000, 1000000);
-        }
-        else if (strcmp(argv[i],"--dzn")==0) {
-            options.gameType = DZN;
-            validateArg("--dzn <filename>");
-            options.gameFilename = argv[i];                
-        }
-        else if (strcmp(argv[i],"--gm")==0) {
-            options.gameType = GM;
-            validateArg("--gm <filename>");
-            options.gameFilename = argv[i];                
-        }        
-        else if (strcmp(argv[i],"--hoa")==0) {
-            options.gameType = HOA;
-            validateArg("--hoa <filename>");
-            options.gameFilename = argv[i];                
-        }        
-        else if (strcmp(argv[i],"--init")==0) {
-            validateArg("--init <initial_vertex>");
-
-            options.init.clear();
-            std::string s = argv[i];
-            std::stringstream ss(s);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                size_t init = item.find_first_not_of(" \t");
-                size_t end = item.find_last_not_of(" \t");
-                if (init == std::string::npos || end == std::string::npos) {
-                    std::cerr << "ERROR: Invalid values for [--init]\n";
-                    return false;
-                }
-                options.init.push(std::stoi(item));
-            }
-        }
-        else if (strcmp(argv[i],"--export-dzn")==0) {
-            validateArg("--export-dzn <filename>");
-            options.exportType = DZN;
-            options.exportFilename = argv[i];                
-        }
-        else if (strcmp(argv[i],"--export-gm")==0) {
-            validateArg("--export-gm <filename>");
-            options.exportType = GM;
-            options.exportFilename = argv[i];                
-        }
-        else if (strcmp(argv[i],"--export-gmw")==0) {
-            validateArg("--export-gmw <filename>");
-            options.exportType = GMW;
-            options.exportFilename = argv[i];                
-        }
-        else if (strcmp(argv[i],"--export-chpka")==0) {
-            validateArg("--export-chpka <filename>");
-            options.exportType = CHPKA;
-            options.exportFilename = argv[i];                
-        }
-        else if (strcmp(argv[i],"--sat-encoding")==0) {
-            validateArg("--sat-encoding <filename>");
-            options.method = "sat";
-            options.exportType = DIM;
-            options.exportFilename = argv[i];
-        }
-        else if (strcmp(argv[i],"--nsolutions")==0) {
-            validateArg("--nsolutions <number>");
-            so.nof_solutions = parseInteger(argv[i], 0, 10);
-        }
-        else if (strcmp(argv[i],"--energy")==0) {
-            i++; // Move to the next argument
-            if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
-                options.thresholdEnergy = 0;
-                i--;
-            } else {
-                options.thresholdEnergy = parseInteger(argv[i], LLONG_MIN, LLONG_MAX);
-            }
-            options.energyCond = true;
-        }
-        else if (strcmp(argv[i],"--mean-payoff")==0) {
-            i++; // Move to the next argument
-            if (i>=argc || (strlen(argv[i])>1 && strncmp(argv[i],"--",2) == 0)) {
-                options.thresholdMPG = 0.0;
-                i--;
-            } else {
-                options.thresholdMPG = parseDouble(argv[i], -1e15, 1e15);
-            }
-            options.meanpayoffCond = true;
-        }
-
-        else if (strcmp(argv[i],"--max")==0)
-                                { options.objective         = MAX; }
-        else if (strcmp(argv[i],"--min")==0)
-                                { options.objective         = MIN; }
-        else if (strcmp(argv[i],"--testing")==0)
-                                { options.method            = "testing"; }
-        else if (strcmp(argv[i],"--noc")==0)
-                                { options.method            = "noc-even"; }
-        else if (strcmp(argv[i],"--noc-even")==0)
-                                { options.method            = "noc-even"; }
-        else if (strcmp(argv[i],"--noc-odd")==0)
-                                { options.method            = "noc-odd"; }
-        else if (strcmp(argv[i],"--zra")==0)
-                                { options.method            = "zra"; }
-        else if (strcmp(argv[i],"--fra")==0)
-                                { options.method            = "fra"; }
-        else if (strcmp(argv[i],"--scc")==0)
-                                { options.method            = "scc"; }
-        else if (strcmp(argv[i],"--chuffed")==0)
-                                { options.solver            = "chuffed-bool"; }
-        else if (strcmp(argv[i],"--chuffed-bool")==0)
-                                { options.solver            = "chuffed-bool"; }
-        else if (strcmp(argv[i],"--chuffed-int")==0)
-                                { options.solver            = "chuffed-int"; }
-        else if (strcmp(argv[i],"--gecode")==0)
-                                { options.solver            = "gecode"; }
-        else if (strcmp(argv[i],"--cadical")==0)
-                                { options.solver            = "cadical"; }
-
-        else if (strcmp(argv[i],"--prop-eager")==0)
-                                { options.propEager         = true; }
-        else if (strcmp(argv[i],"--prop-memo")==0)
-                                {   options.propMemo        = true; 
-                                    options.propChecker     = true; }
-        else if (strcmp(argv[i],"--prop-checker")==0)
-                                { options.propChecker        = true; }
-        else if (strcmp(argv[i],"--heuristic-reach")==0)
-                                { options.heuristic         = "reach"; }
-
-        else if (strcmp(argv[i],"--print-only-times")==0)
-                                { options.printTime         = -2; }
-        else if (strcmp(argv[i],"--print-only-time")==0)
-                                { options.printTime         = -1; }
-        else if (strcmp(argv[i],"--print-time")==0)
-                                { options.printTime         = 1; }
-        else if (strcmp(argv[i],"--print-times")==0)
-                                { options.printTime         = 2; }
-        else if (strcmp(argv[i],"--print-only-totaltime")==0)
-                                {   options.printTime       = -1;
-                                    options.totalTime       = true; }
-        else if (strcmp(argv[i],"--print-game")==0)
-                                { options.printGame         = true; }
-        else if (strcmp(argv[i],"--print-solution")==0)
-                                { options.printSolution     = true; }
-        else if (strcmp(argv[i],"--print-statistics")==0)
-                                { options.printStatistics   = true; }
-        else if (strcmp(argv[i],"--verbose")==0)
-                                { options.printVerbose      = true; }
-        else if (strcmp(argv[i],"--flip")==0)
-                                { options.flip              = true;}
-        else if (strcmp(argv[i],"--parity")==0)
-                                { options.parityCond        = true; }
-        else if (strcmp(argv[i],"--reach")==0) {
-            validateArg("--reach <vertices>");
-            options.reachCond = true;
-
-            options.setReach.clear();
-            std::string s = argv[i];
-            std::stringstream ss(s);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                size_t init = item.find_first_not_of(" \t");
-                size_t end = item.find_last_not_of(" \t");
-                if (init == std::string::npos || end == std::string::npos) {
-                    std::cerr << "ERROR: Invalid values for [--reach]\n";
-                    return false;
-                }
-                options.setReach.push(std::stoi(item));
-            }
-        }
-        else if (strcmp(argv[i],"--safety")==0) {
-            validateArg("--safety <vertices>");
-            options.safetyCond = true;
-
-            options.setSafety.clear();
-            std::string s = argv[i];
-            std::stringstream ss(s);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                size_t init = item.find_first_not_of(" \t");
-                size_t end = item.find_last_not_of(" \t");
-                if (init == std::string::npos || end == std::string::npos) {
-                    std::cerr << "ERROR: Invalid values for [--safety]\n";
-                    return false;
-                }
-                options.setSafety.push(std::stoi(item));
-            }
-        }
-        else if (strcmp(argv[i],"--buchi")==0) {
-            validateArg("--buchi <vertices>");
-            options.buchiCond = true;
-
-            options.setBuchi.clear();
-            std::string s = argv[i];
-            std::stringstream ss(s);
-            std::string item;
-            while (std::getline(ss, item, ',')) {
-                size_t init = item.find_first_not_of(" \t");
-                size_t end = item.find_last_not_of(" \t");
-                if (init == std::string::npos || end == std::string::npos) {
-                    std::cerr << "ERROR: Invalid values for [--buchi]\n";
-                    return false;
-                }
-                options.setBuchi.push(std::stoi(item));
-            }
-        }
-        else if (strcmp(argv[i],"--help")==0) {
-            showHelp();
-        }
-        else if (strcmp(argv[i],"--version")==0||strcmp(argv[i],"--ver")==0) {
-            showVersion();
-        }
-        else {
-            std::cerr << "ERROR: Unknown option: " << argv[i] << std::endl;
-            exit(0);
-        }
+      }
+    } else if (strcmp(argv[i], "--export-dzn") == 0) {
+      validateArg("--export-dzn <filename>");
+      options.exportType = DZN;
+      options.exportFilename = argv[i];
+    } else if (strcmp(argv[i], "--export-gm") == 0) {
+      validateArg("--export-gm <filename>");
+      options.exportType = GM;
+      options.exportFilename = argv[i];
+    } else if (strcmp(argv[i], "--export-gmw") == 0) {
+      validateArg("--export-gmw <filename>");
+      options.exportType = GMW;
+      options.exportFilename = argv[i];
+    } else if (strcmp(argv[i], "--export-chpka") == 0) {
+      validateArg("--export-chpka <filename>");
+      options.exportType = CHPKA;
+      options.exportFilename = argv[i];
+    } else if (strcmp(argv[i], "--sat-encoding") == 0) {
+      validateArg("--sat-encoding <filename>");
+      options.method = "sat";
+      options.exportType = DIM;
+      options.exportFilename = argv[i];
+    } else if (strcmp(argv[i], "--nsolutions") == 0) {
+      validateArg("--nsolutions <number>");
+      so.nof_solutions = parseInteger(argv[i], 0, 10);
+    } else if (strcmp(argv[i], "--energy") == 0) {
+      i++; // Move to the next argument
+      if (i >= argc ||
+          (strlen(argv[i]) > 1 && strncmp(argv[i], "--", 2) == 0)) {
+        options.thresholdEnergy = 0;
+        i--;
+      } else {
+        options.thresholdEnergy = parseInteger(argv[i], LLONG_MIN, LLONG_MAX);
+      }
+      options.energyCond = true;
+    } else if (strcmp(argv[i], "--mean-payoff") == 0) {
+      i++; // Move to the next argument
+      if (i >= argc ||
+          (strlen(argv[i]) > 1 && strncmp(argv[i], "--", 2) == 0)) {
+        options.thresholdMPG = 0.0;
+        i--;
+      } else {
+        options.thresholdMPG = parseDouble(argv[i], -1e15, 1e15);
+      }
+      options.meanpayoffCond = true;
     }
-    return true;
+
+    else if (strcmp(argv[i], "--max") == 0) {
+      options.objective = MAX;
+    } else if (strcmp(argv[i], "--min") == 0) {
+      options.objective = MIN;
+    } else if (strcmp(argv[i], "--testing") == 0) {
+      options.method = "testing";
+    } else if (strcmp(argv[i], "--noc") == 0) {
+      options.method = "noc-even";
+    } else if (strcmp(argv[i], "--noc-even") == 0) {
+      options.method = "noc-even";
+    } else if (strcmp(argv[i], "--noc-odd") == 0) {
+      options.method = "noc-odd";
+    } else if (strcmp(argv[i], "--zra") == 0) {
+      options.method = "zra";
+    } else if (strcmp(argv[i], "--fra") == 0) {
+      options.method = "fra";
+    } else if (strcmp(argv[i], "--scc") == 0) {
+      options.method = "scc";
+    } else if (strcmp(argv[i], "--chuffed") == 0) {
+      options.solver = "chuffed-bool";
+    } else if (strcmp(argv[i], "--chuffed-bool") == 0) {
+      options.solver = "chuffed-bool";
+    } else if (strcmp(argv[i], "--chuffed-int") == 0) {
+      options.solver = "chuffed-int";
+    } else if (strcmp(argv[i], "--gecode") == 0) {
+      options.solver = "gecode";
+    } else if (strcmp(argv[i], "--cadical") == 0) {
+      options.solver = "cadical";
+    }
+
+    else if (strcmp(argv[i], "--prop-eager") == 0) {
+      options.propEager = true;
+    } else if (strcmp(argv[i], "--prop-memo") == 0) {
+      options.propMemo = true;
+      options.propChecker = true;
+    } else if (strcmp(argv[i], "--prop-checker") == 0) {
+      options.propChecker = true;
+    } else if (strcmp(argv[i], "--heuristic-reach") == 0) {
+      options.heuristic = "reach";
+    }
+
+    else if (strcmp(argv[i], "--print-only-times") == 0) {
+      options.printTime = -2;
+    } else if (strcmp(argv[i], "--print-only-time") == 0) {
+      options.printTime = -1;
+    } else if (strcmp(argv[i], "--print-time") == 0) {
+      options.printTime = 1;
+    } else if (strcmp(argv[i], "--print-times") == 0) {
+      options.printTime = 2;
+    } else if (strcmp(argv[i], "--print-only-totaltime") == 0) {
+      options.printTime = -1;
+      options.totalTime = true;
+    } else if (strcmp(argv[i], "--print-game") == 0) {
+      options.printGame = true;
+    } else if (strcmp(argv[i], "--print-solution") == 0) {
+      options.printSolution = true;
+    } else if (strcmp(argv[i], "--print-statistics") == 0) {
+      options.printStatistics = true;
+    } else if (strcmp(argv[i], "--verbose") == 0) {
+      options.printVerbose = true;
+    } else if (strcmp(argv[i], "--flip") == 0) {
+      options.flip = true;
+    } else if (strcmp(argv[i], "--parity") == 0) {
+      options.parityCond = true;
+    } else if (strcmp(argv[i], "--reach") == 0) {
+      validateArg("--reach <vertices_or_ranges>");
+      options.reachCond = true;
+
+      options.setReach.clear();
+      std::string s = argv[i];
+      std::stringstream ss(s);
+      std::string item;
+
+      while (std::getline(ss, item, ',')) {
+        // Trim leading/trailing whitespaces
+        size_t init = item.find_first_not_of(" \t");
+        size_t end = item.find_last_not_of(" \t");
+        if (init == std::string::npos || end == std::string::npos) {
+          std::cerr << "ERROR: Invalid values for [--reach]\n";
+          exit(1);
+        }
+
+        std::string trimmed_item = item.substr(init, end - init + 1);
+
+        // Check if the item is a range
+        size_t dash_pos = trimmed_item.find('-');
+        if (dash_pos != std::string::npos && dash_pos > 0) {
+          try {
+            std::string first_str = trimmed_item.substr(0, dash_pos);
+            std::string last_str = trimmed_item.substr(dash_pos + 1);
+            size_t pos1, pos2;
+            int32_t first = std::stoi(first_str, &pos1);
+            int32_t last = std::stoi(last_str, &pos2);
+            if (pos1 != first_str.size() || pos2 != last_str.size() ||
+                first < 0 || last < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setReach.push({first, last});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid range format [" << trimmed_item
+                      << "] in [--reach]\n";
+            exit(1);
+          }
+        } else {
+          // It is a single number
+          try {
+            size_t pos;
+            int32_t val = std::stoi(trimmed_item, &pos);
+            if (pos != trimmed_item.size() || val < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setReach.push({val, val});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid number format [" << trimmed_item
+                      << "] in [--reach]\n";
+            exit(1);
+          }
+        }
+      }
+    } else if (strcmp(argv[i], "--safety") == 0) {
+      validateArg("--safety <vertices_or_ranges>");
+      options.safetyCond = true;
+
+      options.setSafety.clear();
+      std::string s = argv[i];
+      std::stringstream ss(s);
+      std::string item;
+
+      while (std::getline(ss, item, ',')) {
+        // Trim leading/trailing whitespaces
+        size_t init = item.find_first_not_of(" \t");
+        size_t end = item.find_last_not_of(" \t");
+        if (init == std::string::npos || end == std::string::npos) {
+          std::cerr << "ERROR: Invalid values for [--safety]\n";
+          exit(1);
+        }
+
+        std::string trimmed_item = item.substr(init, end - init + 1);
+
+        // Check if the item is a range
+        size_t dash_pos = trimmed_item.find('-');
+        if (dash_pos != std::string::npos && dash_pos > 0) {
+          try {
+            std::string first_str = trimmed_item.substr(0, dash_pos);
+            std::string last_str = trimmed_item.substr(dash_pos + 1);
+            size_t pos1, pos2;
+            int32_t first = std::stoi(first_str, &pos1);
+            int32_t last = std::stoi(last_str, &pos2);
+            if (pos1 != first_str.size() || pos2 != last_str.size() ||
+                first < 0 || last < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setSafety.push({first, last});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid range format [" << trimmed_item
+                      << "] in [--safety]\n";
+            exit(1);
+          }
+        } else {
+          // It is a single number
+          try {
+            size_t pos;
+            int32_t val = std::stoi(trimmed_item, &pos);
+            if (pos != trimmed_item.size() || val < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setSafety.push({val, val});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid number format [" << trimmed_item
+                      << "] in [--safety]\n";
+            exit(1);
+          }
+        }
+      }
+    } else if (strcmp(argv[i], "--buchi") == 0) {
+      validateArg("--buchi <vertices_or_ranges>");
+      options.buchiCond = true;
+
+      options.setBuchi.clear();
+      std::string s = argv[i];
+      std::stringstream ss(s);
+      std::string item;
+
+      while (std::getline(ss, item, ',')) {
+        // Trim leading/trailing whitespaces
+        size_t init = item.find_first_not_of(" \t");
+        size_t end = item.find_last_not_of(" \t");
+        if (init == std::string::npos || end == std::string::npos) {
+          std::cerr << "ERROR: Invalid values for [--buchi]\n";
+          exit(1);
+        }
+
+        std::string trimmed_item = item.substr(init, end - init + 1);
+
+        // Check if the item is a range
+        size_t dash_pos = trimmed_item.find('-');
+        if (dash_pos != std::string::npos && dash_pos > 0) {
+          try {
+            std::string first_str = trimmed_item.substr(0, dash_pos);
+            std::string last_str = trimmed_item.substr(dash_pos + 1);
+            size_t pos1, pos2;
+            int32_t first = std::stoi(first_str, &pos1);
+            int32_t last = std::stoi(last_str, &pos2);
+            if (pos1 != first_str.size() || pos2 != last_str.size() ||
+                first < 0 || last < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setBuchi.push({first, last});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid range format [" << trimmed_item
+                      << "] in [--buchi]\n";
+            exit(1);
+          }
+        } else {
+          // It is a single number
+          try {
+            size_t pos;
+            int32_t val = std::stoi(trimmed_item, &pos);
+            if (pos != trimmed_item.size() || val < 0) {
+              throw std::invalid_argument("invalid");
+            }
+            options.setBuchi.push({val, val});
+          } catch (...) {
+            std::cerr << "ERROR: Invalid number format [" << trimmed_item
+                      << "] in [--buchi]\n";
+            exit(1);
+          }
+        }
+      }
+    } else if (strcmp(argv[i], "--help") == 0) {
+      showHelp();
+    } else if (strcmp(argv[i], "--version") == 0 ||
+               strcmp(argv[i], "--ver") == 0) {
+      showVersion();
+      exit(0);
+    } else {
+      std::cerr << "ERROR: Unknown option: " << argv[i] << std::endl;
+      exit(0);
+    }
+  }
+  return true;
 }
 
 //-----------------------------------------------------------------------------

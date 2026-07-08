@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <stdexcept>
 
 #ifdef WIN32
 #ifdef HAS_PROFILER
@@ -72,7 +73,7 @@ struct STATIC_ASSERTION_FAILURE<true> {
 	do {                                   \
 		printf("=====UNSATISFIABLE=====\n"); \
 		printf("%% Top level failure!\n");   \
-		exit(0);                             \
+		throw std::runtime_error("CHUFFED_TOP_LEVEL_FAILURE"); \
 	} while (0)
 
 //------

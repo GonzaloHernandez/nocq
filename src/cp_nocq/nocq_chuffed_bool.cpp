@@ -687,8 +687,8 @@ public:
         // Every infinite OPPONENT play must be avoided regarding codition.
 
         if (propEager) {
-            if (spWinConditions.size()>0) 
-                new NOCPropagator(g,V,E,playerSAT,spWinConditions);
+            // if (spWinConditions.size()>0) 
+            //     new NOCPropagator(g,V,E,playerSAT,spWinConditions);
             if (qlWinConditions.size()>0) 
                 new NOCPropagator(g,V,E,playerSAT,qlWinConditions);
             if (qtWinConditions.size()>0) 
@@ -717,56 +717,60 @@ public:
 
         //---------------------------------------------------------------------
 
-        // for (size_t i = 0; i < spWinConditions.size(); i++) {
-        //     WinningCondition* cond = spWinConditions[i];
+        for (size_t i = 0; i < spWinConditions.size(); i++) {
+            WinningCondition* cond = spWinConditions[i];
 
-        //     if (auto reach = dynamic_cast<ReachCondition*>(cond)) {
-        //         const vec<int32_t>& T = reach->getT();
-        //         if (playerSAT==EVEN) {
-        //             vec<Lit> clause;
-        //             for (size_t j=0; j<T.size(); j++) {
-        //                 int32_t v = T[j];
-        //                 clause.push( V[v].getLit(true) );
-        //             }
-        //             sat.addClause(clause);
-        //         } else {
-        //             for (size_t j=0; j<T.size(); j++) {
-        //                 int32_t v = T[j];
-        //                 vec<Lit> clause;
-        //                 clause.push( V[v].getLit(false) );
-        //                 sat.addClause(clause);
-        //             }    
-        //         }
-        //     }
-        //     else if (auto safety = dynamic_cast<SafetyCondition*>(cond)) {
-        //         const vec<int32_t>& U = safety->getU();
+            if (auto reach = dynamic_cast<ReachCondition*>(cond)) {
+                const vec<range>& T = reach->getT();
+                if (playerSAT==EVEN) {
+                    // vec<Lit> clause;
+                    // for (size_t j=0; j<T.size(); j++) {
+                    //     int32_t v = T[j];
+                    //     clause.push( V[v].getLit(true) );
+                    // }
+                    // sat.addClause(clause);
+                } else {
+                    for (size_t j=0; j<T.size(); j++) {
+                        for (size_t k=T[j].first; k<=T[j].last; k++) {
+                            int32_t v = k;
+                            vec<Lit> clause;
+                            clause.push( V[v].getLit(false) );
+                            sat.addClause(clause);
+                        }
+                    }
+                }
+            }
+            else if (auto safety = dynamic_cast<SafetyCondition*>(cond)) {
+                const vec<range>& U = safety->getU();
                 
-        //         vec<bool> in_U(g.nvertices, false);
-        //         for (size_t j = 0; j < U.size(); j++) {
-        //             in_U[U[j]] = true;
-        //         }
+                vec<bool> in_U(g.nvertices, false);
+                for (size_t j = 0; j < U.size(); j++) {
+                    for (size_t k=U[j].first; k<=U[j].last; k++) {
+                        in_U[k] = true;
+                    }
+                }
 
-        //         if (playerSAT == EVEN) {
-        //             for (int32_t v = 0; v < g.nvertices; v++) {
-        //                 if (!in_U[v]) {
-        //                     vec<Lit> clause;
-        //                     clause.push(V[v].getLit(false));
-        //                     sat.addClause(clause);
-        //                 }
-        //             }
-        //         } else {
-        //             vec<Lit> clause;
-        //             for (int32_t v = 0; v < g.nvertices; v++) {
-        //                 if (!in_U[v]) {
-        //                     clause.push(V[v].getLit(true));
-        //                 }
-        //             }
-        //             if (clause.size() > 0) {
-        //                 sat.addClause(clause);
-        //             }
-        //         }
-        //     }
-        // }
+                if (playerSAT == EVEN) {
+                    for (int32_t v = 0; v < g.nvertices; v++) {
+                        if (!in_U[v]) {
+                            vec<Lit> clause;
+                            clause.push(V[v].getLit(false));
+                            sat.addClause(clause);
+                        }
+                    }
+                } else {
+                    // vec<Lit> clause;
+                    // for (int32_t v = 0; v < g.nvertices; v++) {
+                    //     if (!in_U[v]) {
+                    //         clause.push(V[v].getLit(true));
+                    //     }
+                    // }
+                    // if (clause.size() > 0) {
+                    //     sat.addClause(clause);
+                    // }
+                }
+            }
+        }
 
         //---------------------------------------------------------------------
 

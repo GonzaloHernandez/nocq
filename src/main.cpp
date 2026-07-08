@@ -165,21 +165,28 @@ int main(int argc, char *argv[])
                                    options.method=="noc-even"?EVEN:ODD);
         if (options.printVerbose) std::cout << "+reachability {";
         for(size_t i=0; i<options.setReach.size(); i++) {
-            c->pushVertexInT(options.setReach[i]);
+            c->pushVertexInT(   options.setReach[i].first,
+                                options.setReach[i].last);
             if (options.printVerbose) 
-                std::cout << (i>0?",":"") << options.setReach[i];
+                std::cout   << (i>0?",":"") 
+                            << options.setReach[i].first << "-"
+                            << options.setReach[i].last;
         }
         if (options.printVerbose) std::cout << "}";
         spWinConditions.push(c);
     }
+
     if (options.safetyCond) {
         SafetyCondition* c = new SafetyCondition(*game,
                                    options.method=="noc-even"?EVEN:ODD);
         if (options.printVerbose) std::cout << "+safety {";
         for(size_t i=0; i<options.setSafety.size(); i++) {
-            c->pushVertexInU(options.setSafety[i]);
+            c->pushVertexInU(   options.setSafety[i].first,
+                                options.setSafety[i].last) ;
             if (options.printVerbose) 
-                std::cout << (i>0?",":"") << options.setSafety[i];
+                std::cout   << (i>0?",":"") 
+                            << options.setSafety[i].first << "-"
+                            << options.setSafety[i].last;
         }
         if (options.printVerbose) std::cout << "}";
         spWinConditions.push(c);
@@ -197,9 +204,12 @@ int main(int argc, char *argv[])
                                     options.method=="noc-even"?EVEN:ODD);
         if (options.printVerbose) std::cout << "+buchi {";
         for(size_t i=0; i<options.setBuchi.size(); i++) {
-            c->pushVertexInB(options.setBuchi[i]);
+            c->pushVertexInB(   options.setBuchi[i].first,
+                                options.setBuchi[i].last);
             if (options.printVerbose) 
-                std::cout << (i>0?",":"") << options.setBuchi[i];
+                std::cout   << (i>0?",":"") 
+                            << options.setBuchi[i].first << "-"
+                            << options.setBuchi[i].last;
         }
         if (options.printVerbose) std::cout << "}";
         qlWinConditions.push(c);
@@ -235,7 +245,8 @@ int main(int argc, char *argv[])
 
     else if(options.method.substr(0,3)=="noc"&&options.solver=="chuffed-bool"){
         startClock(); //.............................................
-        ChuffedBool::NOCModel* model = new ChuffedBool::NOCModel( *game, 
+        ChuffedBool::NOCModel* model = nullptr;
+        model = new ChuffedBool::NOCModel( *game, 
                             spWinConditions, qlWinConditions, qtWinConditions, 
                             (options.printSolution || options.printVerbose),
                             options.method=="noc-even"?EVEN:ODD,
@@ -243,7 +254,7 @@ int main(int argc, char *argv[])
                             options.propEager,
                             options.propMemo,
                             options.propChecker);
-
+                                
         so.print_sol = options.printSolution || options.printVerbose;
         double preptime = stopClock(); //............................
 
