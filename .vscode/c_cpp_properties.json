@@ -3,17 +3,24 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/src/**",
+                "${workspaceFolder}/thirdparty/chuffed",
+                "${workspaceFolder}/build/chuffed_build"
+            ],
+            "__also_includePath": [
                 "${env:HOME}/.local/include"
             ],
-            "defines": [
-                // "HAS_GECODE",
-                // "HAS_CADICAL"
+            "defines": [],
+            "__also_Defines": [
+                "HAS_GECODE",
+                "HAS_CADICAL"
             ],
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/usr/bin/g++",
+            "__also_compilerPath": "${env:CXX}",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "linux-clang-x64"
+            "intelliSenseMode": "linux-gcc-x64",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
         }
     ],
     "version": 4

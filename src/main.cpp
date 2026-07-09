@@ -13,17 +13,22 @@
  * This Source Code Form is subject to the terms of the Mozilla Public License,
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can get
  * one at https://mozilla.org/MPL/2.0/.
- * 
+ *
  *-----------------------------------------------------------------------------
  */
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <fstream>
+
+#include "cp_nocq/nocq_chuffed_bool.cpp"
+#include "cp_nocq/nocq_chuffed_int.cpp"
 #include "utils/dbg.h"
 #include "utils/fra.h"
 #include "utils/game.h"
+#include "utils/satencoder.h"
 #include "utils/tarjan.h"
 #include "utils/zielonka.h"
-#include "utils/satencoder.h"
-#include "cp_nocq/nocq_chuffed_bool.cpp"
-#include "cp_nocq/nocq_chuffed_int.cpp"
 
 #ifdef HAS_GECODE
 #include "cp_nocq/nocq_gecode.cpp"
@@ -44,8 +49,7 @@ constexpr Version NOCQ_VERSION{1, 1, 1};
 
 //=============================================================================
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
     launchdbg();
     so.nof_solutions = 1;
     parseMyOptions(argc, argv);
@@ -55,32 +59,26 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // Default options
 
-    if (options.method=="" && options.solver!="") {
-        options.method="noc-even";
+    if (options.method == "" && options.solver != "") {
+        options.method = "noc-even";
     }
-    if (options.method.substr(0,3)=="noc" && options.solver=="") {
-        options.solver="chuffed-bool";
+    if (options.method.substr(0, 3) == "noc" && options.solver == "") {
+        options.solver = "chuffed-bool";
     }
-    if (options.reachCond  || options.safetyCond ||
-        options.parityCond || options.buchiCond  ||
-        options.energyCond || options.meanpayoffCond) 
-    {
-        if (options.method=="") options.method = "noc-even";
-        if (options.solver=="") options.solver = "chuffed-bool";
+    if (options.reachCond || options.safetyCond || options.parityCond || options.buchiCond || options.energyCond ||
+        options.meanpayoffCond) {
+        if (options.method == "") options.method = "noc-even";
+        if (options.solver == "") options.solver = "chuffed-bool";
     }
-    if (!(  options.reachCond  || options.safetyCond ||
-            options.parityCond || options.buchiCond ||
-            options.energyCond || options.meanpayoffCond))
-    {
+    if (!(options.reachCond || options.safetyCond || options.parityCond || options.buchiCond || options.energyCond ||
+          options.meanpayoffCond)) {
         options.parityCond = true;
     }
     //-------------------------------------------------------------------------
 
     std::chrono::high_resolution_clock::time_point clockStorage;
 
-    auto startClock = [&]() {
-        clockStorage = std::chrono::high_resolution_clock::now();
-    };
+    auto startClock = [&]() { clockStorage = std::chrono::high_resolution_clock::now(); };
 
     auto stopClock = [&]() -> double {
         auto endTime = std::chrono::high_resolution_clock::now();
@@ -89,32 +87,31 @@ int main(int argc, char *argv[])
 
     //-------------------------------------------------------------------------
 
-    startClock(); //.............................................
+    startClock();  //.............................................
     switch (options.gameType) {
-        case DZN: case GM: case HOA:
+        case DZN:
+        case GM:
+        case HOA:
             try {
-                game = new Game(options.gameType, 
-                                options.gameFilename, 
-                                options.init[0],
-                                options.objective,
+                game = new Game(options.gameType, options.gameFilename, options.init[0], options.objective,
                                 options.lbound, options.ubound);
             } catch (const std::invalid_argument& e) {
-                std::cout   << "Error: Could not parse '" 
-                            << options.gameFilename << "'." << std::endl;
+                std::cout << "Error: Could not parse '" << options.gameFilename << "'." << std::endl;
                 exit(0);
             }
             break;
-        case JURD: case RAND: case MLADDER: case SPRAND: case SQNC:
-            game = new Game(options.gameType, 
-                            options.vals,
-                            options.init[0],
-                            options.objective,
-                            options.lbound, options.ubound);
+        case JURD:
+        case RAND:
+        case MLADDER:
+        case SPRAND:
+        case SQNC:
+            game = new Game(options.gameType, options.vals, options.init[0], options.objective, options.lbound,
+                            options.ubound);
             break;
         default:
             return 0;
     }
-    double launchinggame = stopClock(); //...........................
+    double launchinggame = stopClock();  //...........................
 
     if (options.printGame || options.printVerbose) {
         game->printGame();
@@ -122,21 +119,16 @@ int main(int argc, char *argv[])
     }
 
     if (options.printVerbose) {
-        std::cout   << "Method             : " << options.method << "\n";
-        std::cout   << "Algorithm          : " << options.solver << "\n";
-        std::cout   << "Objective          : " 
-                    << (options.objective?"Maximize":"Minimize") 
-                    << " reward\n";
-        std::cout   << "Propagators        : " 
-                    << (options.propEager?"+Eager ":"") 
-                    << (options.propMemo?"+Memo ":"") 
-                    << (options.propChecker?"+Checker ":"")
-                    << "\n";
+        std::cout << "Method             : " << options.method << "\n";
+        std::cout << "Algorithm          : " << options.solver << "\n";
+        std::cout << "Objective          : " << (options.objective ? "Maximize" : "Minimize") << " reward\n";
+        std::cout << "Propagators        : " << (options.propEager ? "+Eager " : "")
+                  << (options.propMemo ? "+Memo " : "") << (options.propChecker ? "+Checker " : "") << "\n";
     }
 
     if (options.printVerbose) {
         std::cout << "Initial vertex     : ";
-        for (size_t i=0; i<options.init.size(); i++) {
+        for (size_t i = 0; i < options.init.size(); i++) {
             std::cout << options.init[i] << " ";
         }
         std::cout << "\n";
@@ -144,10 +136,9 @@ int main(int argc, char *argv[])
 
     if (options.flip) game->flipGame();
 
-    if ((options.printTime>1 || options.printVerbose)) {
+    if ((options.printTime > 1 || options.printVerbose)) {
         std::cout << "Game creation time : " << launchinggame << std::endl;
-    }
-    else if (options.printTime<-1) {
+    } else if (options.printTime < -1) {
         std::cout << launchinggame << " " << std::flush;
     }
 
@@ -161,75 +152,58 @@ int main(int argc, char *argv[])
 
     vec<WinningCondition*> spWinConditions;
     if (options.reachCond) {
-        ReachCondition* c = new ReachCondition(*game,
-                                   options.method=="noc-even"?EVEN:ODD);
+        ReachCondition* c = new ReachCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         if (options.printVerbose) std::cout << "+reachability {";
-        for(size_t i=0; i<options.setReach.size(); i++) {
-            c->pushVertexInT(   options.setReach[i].first,
-                                options.setReach[i].last);
-            if (options.printVerbose) 
-                std::cout   << (i>0?",":"") 
-                            << options.setReach[i].first << "-"
-                            << options.setReach[i].last;
+        for (size_t i = 0; i < options.setReach.size(); i++) {
+            c->pushVertexInT(options.setReach[i].first, options.setReach[i].last);
+            if (options.printVerbose)
+                std::cout << (i > 0 ? "," : "") << options.setReach[i].first << "-" << options.setReach[i].last;
         }
         if (options.printVerbose) std::cout << "}";
         spWinConditions.push(c);
     }
 
     if (options.safetyCond) {
-        SafetyCondition* c = new SafetyCondition(*game,
-                                   options.method=="noc-even"?EVEN:ODD);
+        SafetyCondition* c = new SafetyCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         if (options.printVerbose) std::cout << "+safety {";
-        for(size_t i=0; i<options.setSafety.size(); i++) {
-            c->pushVertexInU(   options.setSafety[i].first,
-                                options.setSafety[i].last) ;
-            if (options.printVerbose) 
-                std::cout   << (i>0?",":"") 
-                            << options.setSafety[i].first << "-"
-                            << options.setSafety[i].last;
+        for (size_t i = 0; i < options.setSafety.size(); i++) {
+            c->pushVertexInU(options.setSafety[i].first, options.setSafety[i].last);
+            if (options.printVerbose)
+                std::cout << (i > 0 ? "," : "") << options.setSafety[i].first << "-" << options.setSafety[i].last;
         }
-        if (options.printVerbose) std::cout << "}";
+        if (options.printVerbose) std::cout << "} ";
         spWinConditions.push(c);
     }
 
     vec<WinningCondition*> qlWinConditions;
     if (options.parityCond) {
-        ParityCondition* c = new ParityCondition(*game,
-                                   options.method=="noc-even"?EVEN:ODD);
+        ParityCondition* c = new ParityCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         if (options.printVerbose) std::cout << "+parity ";
         qlWinConditions.push(c);
     }
     if (options.buchiCond) {
-        BuchiCondition* c = new BuchiCondition(*game,
-                                    options.method=="noc-even"?EVEN:ODD);
+        BuchiCondition* c = new BuchiCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         if (options.printVerbose) std::cout << "+buchi {";
-        for(size_t i=0; i<options.setBuchi.size(); i++) {
-            c->pushVertexInB(   options.setBuchi[i].first,
-                                options.setBuchi[i].last);
-            if (options.printVerbose) 
-                std::cout   << (i>0?",":"") 
-                            << options.setBuchi[i].first << "-"
-                            << options.setBuchi[i].last;
+        for (size_t i = 0; i < options.setBuchi.size(); i++) {
+            c->pushVertexInB(options.setBuchi[i].first, options.setBuchi[i].last);
+            if (options.printVerbose)
+                std::cout << (i > 0 ? "," : "") << options.setBuchi[i].first << "-" << options.setBuchi[i].last;
         }
-        if (options.printVerbose) std::cout << "}";
+        if (options.printVerbose) std::cout << "} ";
         qlWinConditions.push(c);
     }
 
     vec<WinningCondition*> qtWinConditions;
     if (options.energyCond) {
-        EnergyCondition* c = new EnergyCondition(*game,
-                                    options.method=="noc-even"?EVEN:ODD);
+        EnergyCondition* c = new EnergyCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         c->setThreshold(options.thresholdEnergy);
-        if (options.printVerbose) 
-            std::cout << "+energy (" << options.thresholdEnergy << ") ";
+        if (options.printVerbose) std::cout << "+energy (" << options.thresholdEnergy << ") ";
         qtWinConditions.push(c);
     }
     if (options.meanpayoffCond) {
-        MeanPayoffCondition* c = new MeanPayoffCondition(*game,
-                                    options.method=="noc-even"?EVEN:ODD);
+        MeanPayoffCondition* c = new MeanPayoffCondition(*game, options.method == "noc-even" ? EVEN : ODD);
         c->setThreshold(options.thresholdMPG);
-        if (options.printVerbose) 
-            std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
+        if (options.printVerbose) std::cout << "+mean-payoff (" << options.thresholdMPG << ") ";
         qtWinConditions.push(c);
     }
     if (options.printVerbose) std::cout << "\n";
@@ -237,76 +211,114 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // For testing purposes
 
-    if (options.method=="testing") {
+    if (options.method == "testing") {
     }
 
     //-------------------------------------------------------------------------
     // NOC-Chuffed-Bool
 
-    else if(options.method.substr(0,3)=="noc"&&options.solver=="chuffed-bool"){
-        startClock(); //.............................................
+    else if (options.method.substr(0, 3) == "noc" && options.solver == "chuffed-bool") {
+        startClock();  //.............................................
         ChuffedBool::NOCModel* model = nullptr;
-        model = new ChuffedBool::NOCModel( *game, 
-                            spWinConditions, qlWinConditions, qtWinConditions, 
-                            (options.printSolution || options.printVerbose),
-                            options.method=="noc-even"?EVEN:ODD,
-                            options.heuristic=="reach",
-                            options.propEager,
-                            options.propMemo,
-                            options.propChecker);
-                                
-        so.print_sol = options.printSolution || options.printVerbose;
-        double preptime = stopClock(); //............................
+        bool top_level_fail = false;
+        std::string top_level_fail_msg = "";
 
-        if (options.printTime>1 || options.printVerbose) {
-            std::cout << "Init time          : " << preptime << std::endl;
+        int old_stdout = dup(1);
+        int temp_fd = open("temp_stdout.log", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (temp_fd != -1) {
+            dup2(temp_fd, 1);
+            close(temp_fd);
         }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+
+        try {
+            model = new ChuffedBool::NOCModel(*game, spWinConditions, qlWinConditions, qtWinConditions,
+                                              (options.printSolution || options.printVerbose),
+                                              options.method == "noc-even" ? EVEN : ODD, options.heuristic == "reach",
+                                              options.propEager, options.propMemo, options.propChecker);
+        } catch (const std::runtime_error& e) {
+            if (std::string(e.what()) == "CHUFFED_TOP_LEVEL_FAILURE") {
+                top_level_fail = true;
+            } else {
+                if (old_stdout != -1) {
+                    fflush(stdout);
+                    dup2(old_stdout, 1);
+                    close(old_stdout);
+                }
+                unlink("temp_stdout.log");
+                throw;
+            }
+        }
+        if (old_stdout != -1) {
+            fflush(stdout);
+            dup2(old_stdout, 1);
+            close(old_stdout);
+        }
+
+        std::ifstream temp_file("temp_stdout.log");
+        if (temp_file.is_open()) {
+            std::stringstream buffer;
+            buffer << temp_file.rdbuf();
+            top_level_fail_msg = buffer.str();
+            temp_file.close();
+        }
+        unlink("temp_stdout.log");
+
+        so.print_sol = options.printSolution || options.printVerbose;
+        double preptime = stopClock();  //............................
+
+        if (options.printTime > 1 || options.printVerbose) {
+            std::cout << "Init time          : " << preptime << std::endl;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
         std::streambuf* old_buf = std::cout.rdbuf();
         std::stringstream ss;
         std::cout.rdbuf(ss.rdbuf());
 
-        startClock(); //.............................................
-        engine.solve(model);
-        double totaltime = stopClock(); //...........................
+        startClock();  //.............................................
+        if (!top_level_fail && model != nullptr) {
+            engine.solve(model);
+        }
+        double totaltime = stopClock();  //...........................
 
         std::cout.rdbuf(old_buf);
 
         std::string answer = "";
-        if ((options.method == "noc-even" && engine.solutions) ||
-            (options.method != "noc-even" && !engine.solutions) ) {
+        if ((options.method == "noc-even" && !top_level_fail && engine.solutions) ||
+            (options.method != "noc-even" && (!engine.solutions || top_level_fail))) {
             answer = "EVEN";
         } else {
             answer = "ODD";
         }
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             // std::cout << "Mem used           : " << memUsed() << std::endl;
-        }
-        else if (options.printTime<0) {
+        } else if (options.printTime < 0) {
             if (options.totalTime)
-                std::cout   << preptime+totaltime << " " << std::flush;
+                std::cout << preptime + totaltime << " " << std::flush;
             else
-                std::cout   << totaltime << " " << std::flush;
+                std::cout << totaltime << " " << std::flush;
         }
-        
+
         if (options.printTime == 1) {
-            std::cout   << totaltime << " " << std::flush;
+            std::cout << totaltime << " " << std::flush;
         } else if (options.printTime == 2 || options.printVerbose) {
             std::cout << "Result             : ";
         }
 
-        if (options.printTime>=0 || options.printVerbose) {
-            std::cout   << answer;
+        if (options.printTime >= 0 || options.printVerbose) {
+            std::cout << answer;
         }
 
         if (options.printSolution || options.printVerbose) {
             std::cout << "\n----------\n";
-            std::cout << "\n" << ss.str();
+            if (top_level_fail) {
+                std::cout << "\n" << top_level_fail_msg;
+            } else {
+                std::cout << "\n" << ss.str();
+            }
         }
 
         std::cout << std::endl;
@@ -314,65 +326,60 @@ int main(int argc, char *argv[])
         if (options.printStatistics || options.printVerbose) {
             engine.printStats();
         }
-        
+
         delete model;
     }
 
     //-------------------------------------------------------------------------
     // NOC-Chuffed-Int
 
-    else if (options.method.substr(0,3)=="noc"&&options.solver=="chuffed-int"){
-        startClock(); //.............................................
-        ChuffedInt::NOCModel* model = new ChuffedInt::NOCModel(
-                            *game, qlWinConditions,
-                            (options.printSolution || options.printVerbose),
-                            options.method=="noc-even"?EVEN:ODD,
-                            options.heuristic=="reach");
+    else if (options.method.substr(0, 3) == "noc" && options.solver == "chuffed-int") {
+        startClock();  //.............................................
+        ChuffedInt::NOCModel* model =
+            new ChuffedInt::NOCModel(*game, qlWinConditions, (options.printSolution || options.printVerbose),
+                                     options.method == "noc-even" ? EVEN : ODD, options.heuristic == "reach");
 
         so.print_sol = options.printSolution || options.printVerbose;
-        double preptime = stopClock(); //............................
+        double preptime = stopClock();  //............................
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
         std::streambuf* old_buf = std::cout.rdbuf();
         std::stringstream ss;
         std::cout.rdbuf(ss.rdbuf());
 
-        startClock(); //.............................................
+        startClock();  //.............................................
         engine.solve(model);
-        double totaltime = stopClock(); //...........................
+        double totaltime = stopClock();  //...........................
 
         std::cout.rdbuf(old_buf);
 
         std::string answer = "";
-        if ((options.method == "noc-even" && engine.solutions) ||
-            (options.method != "noc-even" && !engine.solutions) ) {
+        if ((options.method == "noc-even" && engine.solutions) || (options.method != "noc-even" && !engine.solutions)) {
             answer = "EVEN";
         } else {
             answer = "ODD";
         }
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             // std::cout << "Mem used           : " << memUsed() << std::endl;
+        } else if (options.printTime < 0) {
+            std::cout << totaltime << " " << std::flush;
         }
-        else if (options.printTime<0) {
-            std::cout   << totaltime << " " << std::flush;
-        }
-        
+
         if (options.printTime == 1) {
-            std::cout   << totaltime << " " << std::flush;
+            std::cout << totaltime << " " << std::flush;
         } else if (options.printTime == 2 || options.printVerbose) {
             std::cout << "Result             : ";
         }
 
-        if (options.printTime>=0 || options.printVerbose) {
-            std::cout   << answer;
+        if (options.printTime >= 0 || options.printVerbose) {
+            std::cout << answer;
         }
 
         if (options.printSolution || options.printVerbose) {
@@ -385,65 +392,64 @@ int main(int argc, char *argv[])
         if (options.printStatistics || options.printVerbose) {
             engine.printStats();
         }
-        
+
         delete model;
     }
-    
+
     //-------------------------------------------------------------------------
     // NOC-Gecode
 
-    else if (options.method.substr(0,3)=="noc"&&options.solver=="gecode") {
+    else if (options.method.substr(0, 3) == "noc" && options.solver == "gecode") {
+#ifdef HAS_GECODE
+        startClock();  //.............................................
+        Gecode::NocModel* model =
+            new Gecode::NocModel(*game, qlWinConditions, options.method == "noc-even" ? EVEN : ODD);
 
-    #ifdef HAS_GECODE
-        startClock(); //.............................................
-        Gecode::NocModel* model = new Gecode::NocModel(
-                            *game, qlWinConditions,
-                            options.method=="noc-even"?EVEN:ODD);
+        double preptime = stopClock();  //............................
 
-        double preptime = stopClock(); //............................
-
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
-        startClock(); //.............................................
+        startClock();  //.............................................
         Gecode::DFS<Gecode::NocModel> dfs(model);
         delete model;
         Gecode::NocModel* solution = dfs.next();
-        double totaltime = stopClock(); //...........................
+        double totaltime = stopClock();  //...........................
 
         std::string answer = "";
-        if ((options.method == "noc-even" && solution) ||
-            (options.method != "noc-even" && !solution) ) {
+        if ((options.method == "noc-even" && solution) || (options.method != "noc-even" && !solution)) {
             answer = "EVEN";
         } else {
             answer = "ODD";
         }
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             // std::cout << "Mem used           : " << "???" << std::endl;
-        } if (options.printTime<0) {
-            std::cout   << totaltime << " " << std::flush;
+        }
+        if (options.printTime < 0) {
+            std::cout << totaltime << " " << std::flush;
         }
 
         if (options.printTime == 1) {
-            std::cout   << totaltime << " " << std::flush;
+            std::cout << totaltime << " " << std::flush;
         } else if (options.printTime == 2 || options.printVerbose) {
             std::cout << "Result             : ";
         }
 
-        if (options.printTime>=0 || options.printVerbose) {
-            std::cout   << answer;
+        if (options.printTime >= 0 || options.printVerbose) {
+            std::cout << answer;
         }
 
         if (options.printSolution || options.printVerbose) {
             std::cout << "\n----------\n";
-            if (solution) solution->print();
-            else std::cout << "UNSATISFIABLE" << std::endl;
+            if (solution)
+                solution->print();
+            else
+                std::cout << "UNSATISFIABLE" << std::endl;
         }
 
         std::cout << std::endl;
@@ -451,71 +457,69 @@ int main(int argc, char *argv[])
         if (options.printStatistics || options.printVerbose) {
             std::cout << "Statistics";
         }
-        
+
         if (solution) delete solution;
 
-    #else
-        std::cout << "Error: Gecode support is disabled. " 
+#else
+        std::cout << "Error: Gecode support is disabled. "
                   << "Please rebuild NOCQ using -DENABLE_GECODE=ON\n";
-                  
 
-    #endif //HAS_GECODE
+#endif  // HAS_GECODE
 
     }
 
     //-------------------------------------------------------------------------
     // NOC-CaDiCaL
 
-    else if (options.method.substr(0,3)=="noc"&&options.solver=="cadical") {
+    else if (options.method.substr(0, 3) == "noc" && options.solver == "cadical") {
+#ifdef HAS_CADICAL
+        startClock();  //.............................................
+        CaDiCaL::NOCModel* model =
+            new CaDiCaL::NOCModel(*game, winConditions, options.method == "noc-even" ? EVEN : ODD);
 
-    #ifdef HAS_CADICAL
-        startClock(); //.............................................
-        CaDiCaL::NOCModel* model = new CaDiCaL::NOCModel(
-                            *game, winConditions,
-                            options.method=="noc-even"?EVEN:ODD);
+        double preptime = stopClock();  //............................
 
-        double preptime = stopClock(); //............................
-
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
-        startClock(); //.............................................
+        startClock();  //.............................................
         bool solution = model->solve();
-        double totaltime = stopClock(); //...........................
+        double totaltime = stopClock();  //...........................
 
         std::string answer = "";
-        if ((options.method == "noc-even" && solution) ||
-            (options.method != "noc-even" && !solution) ) {
+        if ((options.method == "noc-even" && solution) || (options.method != "noc-even" && !solution)) {
             answer = "EVEN";
         } else {
             answer = "ODD";
         }
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
             // std::cout << "Mem used           : " << "???" << std::endl;
-        } if (options.printTime<0) {
-            std::cout   << totaltime << " " << std::flush;
+        }
+        if (options.printTime < 0) {
+            std::cout << totaltime << " " << std::flush;
         }
 
         if (options.printTime == 1) {
-            std::cout   << totaltime << " " << std::flush;
+            std::cout << totaltime << " " << std::flush;
         } else if (options.printTime == 2 || options.printVerbose) {
             std::cout << "Result             : ";
         }
 
-        if (options.printTime>=0 || options.printVerbose) {
-            std::cout   << answer;
+        if (options.printTime >= 0 || options.printVerbose) {
+            std::cout << answer;
         }
 
         if (options.printSolution || options.printVerbose) {
             std::cout << "\n----------\n";
-            if (solution) model->print();
-            else std::cout << "UNSATISFIABLE" << std::endl;
+            if (solution)
+                model->print();
+            else
+                std::cout << "UNSATISFIABLE" << std::endl;
         }
 
         std::cout << std::endl;
@@ -524,12 +528,11 @@ int main(int argc, char *argv[])
             model->statistics();
         }
 
-    #else
-        std::cout << "Error: CaDiCaL support is disabled. " 
+#else
+        std::cout << "Error: CaDiCaL support is disabled. "
                   << "Please rebuild NOCQ using -DENABLE_CADICAL=ON\n";
-                  
 
-    #endif //HAS_CADICAL
+#endif  // HAS_CADICAL
 
     }
 
@@ -539,38 +542,36 @@ int main(int argc, char *argv[])
     else if (options.method == "sat") {
         SATEncoder encoder(*game);
 
-        startClock(); //.............................................
+        startClock();  //.............................................
         auto cnf = encoder.getCNF();
-        double encodetime = stopClock(); //..........................
+        double encodetime = stopClock();  //..........................
 
-        startClock(); //.............................................
-        encoder.dimacs(cnf,options.exportFilename);
-        double dimacstime = stopClock(); //..........................
+        startClock();  //.............................................
+        encoder.dimacs(cnf, options.exportFilename);
+        double dimacstime = stopClock();  //..........................
 
         std::string answer = "DONE";
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Encoding time      : " << encodetime << std::endl;
-        }
-        else if (options.printTime<0) {
-            std::cout   << encodetime << " " << std::flush;
+        } else if (options.printTime < 0) {
+            std::cout << encodetime << " " << std::flush;
         }
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Saving DIMACS time : " << dimacstime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << dimacstime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << dimacstime << " " << std::flush;
         }
 
         if (options.printTime == 1) {
-            std::cout   << encodetime << " " << std::flush;
+            std::cout << encodetime << " " << std::flush;
         } else if (options.printTime == 2 || options.printVerbose) {
             std::cout << "Result             : ";
         }
 
-        if (options.printTime>=0 || options.printVerbose) {
-            std::cout   << answer;
+        if (options.printTime >= 0 || options.printVerbose) {
+            std::cout << answer;
         }
 
         std::cout << std::endl;
@@ -579,109 +580,103 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // ZRA
 
-    else if (options.method=="zra") {
-
-        startClock(); //.............................................
+    else if (options.method == "zra") {
+        startClock();  //.............................................
         Zielonka zlk(*game);
-        double preptime = stopClock(); //............................
+        double preptime = stopClock();  //............................
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
-        startClock(); //.............................................
+        startClock();  //.............................................
         auto win = zlk.solve();
-        double totaltime = stopClock(); //...........................
+        double totaltime = stopClock();  //...........................
 
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Solving time       : " << totaltime << std::endl;
-        }
-        else if (options.printTime<0) {
-            std::cout   << totaltime << " " << std::flush;
+        } else if (options.printTime < 0) {
+            std::cout << totaltime << " " << std::flush;
         }
 
         if (options.printTime == 1) {
-            std::cout   << totaltime << " " << std::flush;
+            std::cout << totaltime << " " << std::flush;
         }
 
-        for (size_t i=0; i<options.init.size(); i++) {
+        for (size_t i = 0; i < options.init.size(); i++) {
             int32_t v0 = options.init[i];
             auto it = std::find(win[0].begin(), win[0].end(), v0);
 
-            if (options.printTime>=0 || options.printVerbose)
-                std::cout 
-                    // << v0 << ": " 
-                    << (it != win[0].end()?"EVEN ":"ODD ");
-            
-            std::cout << std::endl;        
+            if (options.printTime >= 0 || options.printVerbose)
+                std::cout
+                    // << v0 << ": "
+                    << (it != win[0].end() ? "EVEN " : "ODD ");
+
+            std::cout << std::endl;
         }
 
         if (options.printSolution || options.printVerbose) {
             std::cout << "EVEN {";
             for (int i = 0; i < win[0].size(); i++) {
                 std::cout << win[0][i];
-                if (i<win[0].size()-1) std::cout << ",";
+                if (i < win[0].size() - 1) std::cout << ",";
             }
             std::cout << "}\nODD  {";
             for (int i = 0; i < win[1].size(); i++) {
                 std::cout << win[1][i];
-                if (i<win[1].size()-1) std::cout << ",";
+                if (i < win[1].size() - 1) std::cout << ",";
             }
-            std::cout << "}" <<std::endl;
+            std::cout << "}" << std::endl;
         }
-
 
     }
 
     //-------------------------------------------------------------------------
     // FRA
 
-    else if (options.method=="fra") {
+    else if (options.method == "fra") {
         if (options.printSolution || options.printVerbose) {
             options.init.growTo(game->nvertices);
-            for (int32_t v=0; v<game->nvertices; v++) options.init[v]=v;
+            for (int32_t v = 0; v < game->nvertices; v++) options.init[v] = v;
         }
 
         double preptime = 0;
-        if (options.printTime>1 || options.printVerbose) {
+        if (options.printTime > 1 || options.printVerbose) {
             std::cout << "Init time          : " << preptime << std::endl;
-        }
-        else if (options.printTime<-1) {
-            std::cout   << preptime << " " << std::flush;
+        } else if (options.printTime < -1) {
+            std::cout << preptime << " " << std::flush;
         }
 
-        for (size_t i=0; i<options.init.size(); i++) {
+        for (size_t i = 0; i < options.init.size(); i++) {
             int32_t v = options.init[i];
 
-            startClock(); //.............................................
+            startClock();  //.............................................
             auto play = getPlay(*game, v, true);
-            double totaltime = stopClock(); //...........................
+            double totaltime = stopClock();  //...........................
 
             std::string answer;
-            if (play==EVEN) {
+            if (play == EVEN) {
                 answer = "EVEN";
             } else {
                 answer = "ODD";
             }
 
-            if (options.printTime>1 || options.printVerbose) {
+            if (options.printTime > 1 || options.printVerbose) {
                 std::cout << "Solving time       : " << totaltime << std::endl;
-            }
-            else if (options.printTime<0) {
-                std::cout   << totaltime << " " << std::flush;
+            } else if (options.printTime < 0) {
+                std::cout << totaltime << " " << std::flush;
             }
 
             if (options.printTime == 1) {
-                std::cout   << totaltime << " " << std::flush;
+                std::cout << totaltime << " " << std::flush;
             } else if (options.printTime == 2 || options.printVerbose) {
                 std::cout << "Result             : ";
             }
 
-            if (options.printTime>=0 || options.printVerbose) {
-                std::cout   << answer;
+            if (options.printTime >= 0 || options.printVerbose) {
+                std::cout << answer;
             }
 
             std::cout << std::endl;
@@ -691,17 +686,17 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // SCC
 
-    else if (options.method=="scc") { 
+    else if (options.method == "scc") {
         GameView view(*game);
         TarjanSCC tscc(*game, view);
-        
-        vec<vec<int32_t>*> sccs; // Adjusted to int32_t
+
+        vec<vec<int32_t>*> sccs;  // Adjusted to int32_t
         tscc.solve(sccs);
-        
+
         int counter = 0;
         for (unsigned int i = 0; i < sccs.size(); i++) {
-            vec<int32_t>& scc = *(sccs[i]); // Adjusted to int32_t
-            
+            vec<int32_t>& scc = *(sccs[i]);  // Adjusted to int32_t
+
             std::cout << "{";
             for (unsigned int j = 0; j < scc.size(); j++) {
                 std::cout << scc[j];

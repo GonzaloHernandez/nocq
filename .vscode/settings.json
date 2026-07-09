@@ -103,6 +103,28 @@
     "cmake.configureArgs": [
         "-DUSE_SYSTEM_CHUFFED=ON",
         "-DENABLE_GECODE=ON",
-        "-DENABLE_CADICAL=OFF",
-    ]
+        "-DENABLE_CADICAL=OFF"
+    ],
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "C_Cpp.formatting": "Disabled",
+    "[cpp]": {
+        "editor.formatOnSave": false
+    },
+    "[c]": {
+        "editor.formatOnSave": false
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.venv": true,
+        "**/build/CMakeFiles": true,
+        "**/build/chuffed_project-prefix": true
+    },
+    "C_Cpp.files.exclude": {
+        "**/.git": true,
+        "**/.venv": true,
+        "**/build/CMakeFiles": true,
+        "**/build/chuffed_project-prefix": true
+    }
 }

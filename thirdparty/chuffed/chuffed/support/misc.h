@@ -69,10 +69,17 @@ struct STATIC_ASSERTION_FAILURE<true> {
 	typedef static_assert_test<sizeof(STATIC_ASSERTION_FAILURE<(bool)(expr)>)> BOOST_JOIN( \
 			boost_static_assert_typedef_, __LINE__)
 
-#define TL_FAIL()                        \
-	do {                                   \
-		printf("=====UNSATISFIABLE=====\n"); \
-		printf("%% Top level failure!\n");   \
+// #define TL_FAIL()                                          \
+// 	do {                                                     \
+// 		printf("=====UNSATISFIABLE=====\n");                   \
+// 		printf("%% Top level failure!\n");                     \
+// 		exit(0);                                           \
+// 	} while (0)
+
+#define TL_FAIL()                                          \
+	do {                                                     \
+		printf("=====UNSATISFIABLE=====\n");                   \
+		printf("%% Top level failure!\n");                     \
 		throw std::runtime_error("CHUFFED_TOP_LEVEL_FAILURE"); \
 	} while (0)
 

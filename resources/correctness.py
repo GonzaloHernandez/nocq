@@ -40,7 +40,7 @@ def test_instance():
             NOCQ,
             "--gm", "rand.gm",
             "--init", str(init),
-            "--parity","--buchi","3,4"
+            "--parity","--safety","3,4",
             "--prop-eager"
         ])
         total_normal_time += t_normal
@@ -49,7 +49,7 @@ def test_instance():
             NOCQ,
             "--gm", "rand.gm",
             "--init", str(init),
-            "--parity","--buchi","3,4"
+            "--parity","--safety","3,4",
             "--prop-memo"
         ])
         total_checker_time += t_checker
