@@ -290,8 +290,7 @@ void parseDZN(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
     }
 
     if (g.weights.size()==0) {
-        std::random_device rd;
-        std::mt19937 rand(rd());
+        std::mt19937 rand(42);
         std::uniform_int_distribution<> rndWeight(lbound, ubound);
         for (size_t i=0; i< g.nedges; i++) {
             if (lbound == ubound) {
@@ -314,8 +313,7 @@ void parseGM(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
     vec<vec<int64_t>>     tweights;
     int32_t counter = 0;
 
-    std::random_device rd;
-    std::mt19937 rand(rd());
+    std::mt19937 rand(42);
     std::uniform_int_distribution<> rndWeight(lbound, ubound);
 
     while (getline(file, line)) {
@@ -407,8 +405,7 @@ void parseHOA(Game& g, std::ifstream& file, int64_t lbound, int64_t ubound) {
     int32_t max_controllable_ap = -1;
     vec<bool> is_controllable;
 
-    std::random_device rd;
-    std::mt19937 rand(rd());
+    std::mt19937 rand(42);
     std::uniform_int_distribution<> rndWeight(lbound, ubound);
 
     while (getline(file, line)) {

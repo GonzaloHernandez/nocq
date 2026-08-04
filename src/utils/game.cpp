@@ -143,8 +143,7 @@ Game::Game( game_type       type,
         nvertices   = ((blocks*3)+1)*(levels-1) + ((blocks*2)+1);
         nedges      = (blocks*6)*(levels-1) + (blocks*4) + (blocks*2*(levels-1));
 
-        std::random_device rd;
-        std::mt19937 g(rd());
+        std::mt19937 g(42);
         std::uniform_int_distribution<> rndWeight(lbound,ubound);
         int32_t es = 0;
         int32_t os = 0;
@@ -218,8 +217,7 @@ Game::Game( game_type       type,
         nvertices   = vals[0];
         nedges      = 0;
     
-        std::random_device rd;
-        std::mt19937 g(rd());
+        std::mt19937 g(42);
     
         owners.growTo(nvertices/2,0);
         owners.growTo(nvertices,1);
@@ -264,8 +262,7 @@ Game::Game( game_type       type,
         nvertices   = bl*3+1;
         nedges      = bl*4+1;
 
-        std::random_device rd;
-        std::mt19937 g(rd());
+        std::mt19937 g(42);
         owners.growTo(nvertices/2,0);
         owners.growTo(nvertices,1);
         std::uniform_int_distribution<> rndPositons(0, nvertices-1);
@@ -336,8 +333,7 @@ Game::Game( game_type       type,
         int32_t density = vals[1];
         nedges          = vals[0]*density;
     
-        std::random_device rd;
-        std::mt19937 g(rd());
+        std::mt19937 g(42);
     
         owners.growTo(nvertices/2,0);
         owners.growTo(nvertices,1);
@@ -407,8 +403,7 @@ Game::Game( game_type       type,
         int32_t type    = vals[1];
         nedges          = nvertices*2;  // temporary
     
-        std::random_device rd;
-        std::mt19937 g(rd());
+        std::mt19937 g(42);
     
         owners.growTo(nvertices/2,0);
         owners.growTo(nvertices,1);
