@@ -122,7 +122,7 @@ public:
                                                 : g.weights[e];
                     pathE.push(e);
                     pathW.push(acum);
-                    int status = filter(pathV, pathE, pathW,  w, v, i, 
+                    int status = filter(pathV, pathE, pathW, w, v, i, 
                                         V[w]->isFixed());
                     pathW.pop();
                     pathE.pop();
@@ -194,9 +194,11 @@ public:
     //-------------------------------------------------------------------------
     
     bool finished() override {
-        for (size_t i=0; i<V.size(); i++) {
-            if (g.owners[i] == playerSAT && !V[i]->isFixed()) {
-                return false;
+        for (size_t i = 0; i < V.size(); i++) {
+            if (g.owners[i] == playerSAT) {
+                if (!V[i]->isFixed() && V[i]->getMin() >= 0) {
+                    return false;
+                }
             }
         }
         return true;

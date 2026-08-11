@@ -102,13 +102,13 @@
     },
     "cmake.configureArgs": [
         "-DUSE_SYSTEM_CHUFFED=ON",
-        "-DENABLE_GECODE=ON",
+        "-DENABLE_GECODE=OFF",
         "-DENABLE_CADICAL=OFF"
     ],
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,
-    "C_Cpp.formatting": "Disabled",
+    "C_Cpp.formatting": "disabled",
     "[cpp]": {
         "editor.formatOnSave": false
     },

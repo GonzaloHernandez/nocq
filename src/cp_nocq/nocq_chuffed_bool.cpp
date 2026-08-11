@@ -26,7 +26,7 @@
 #endif
 
 #ifndef TARJAN_H
-#include "utils/tarjan.h"
+#include "../utils/tarjan.h"
 #endif
 
 namespace ChuffedBool {
@@ -503,11 +503,15 @@ public:
     //-------------------------------------------------------------------------
     
     bool finished() override {
-        for (size_t i=0; i<V.size(); i++) {
-            if (!V[i].isFixed()) return false;
-        }
-        for (size_t i=0; i<E.size(); i++) {
-            if (!E[i].isFixed()) return false;
+        for (size_t v = 0; v < V.size(); v++) {
+            if (g.owners[v] == playerSAT && V[v].isFixed() && V[v].isTrue()) {
+                for (size_t j = 0; j < g.outs[v].size(); j++) {
+                    int32_t e = g.outs[v][j];
+                    if (!E[e].isFixed()) {
+                        return false;
+                    }
+                }
+            }
         }
         return true;
     }
@@ -522,7 +526,7 @@ public:
 
     DecInfo* branch() override {
         for (size_t v=0; v<V.size(); v++) {
-            if (g.owners[v]==playerSAT && V[v].isFixed()) {
+            if (g.owners[v]==playerSAT && V[v].isFixed() && V[v].isTrue()) {
                 for (size_t j=0; j<g.outs[v].size(); j++) {
                     int32_t e = g.outs[v][j];
                     if (!E[e].isFixed()) {
